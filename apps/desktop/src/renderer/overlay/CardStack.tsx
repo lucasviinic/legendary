@@ -5,9 +5,9 @@ import { CompactCard, FullCard, type CardActions } from './WordCardView';
 
 /**
  * Opacidade de cada posição, do card em destaque ao resumo mais antigo. Os três primeiros valores
- * são do frame 1a, que desenha 3 cards. Os dois últimos continuam a mesma descida.
+ * são do frame 1a, que desenha 3 cards. Os outros descem devagar para o texto continuar legível.
  */
-const OPACITY_BY_RANK = [1, 0.78, 0.48, 0.38, 0.3];
+const OPACITY_BY_RANK = [1, 0.78, 0.48, 0.43, 0.39, 0.34, 0.3];
 const LOWEST_OPACITY = 0.3;
 
 export interface CardStackProps extends CardActions {

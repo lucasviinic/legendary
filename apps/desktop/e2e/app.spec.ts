@@ -312,3 +312,36 @@ test('the cards can be dragged anywhere on the screen, and the position is remem
     .toBe(geometry.screenWidth - 20);
   await expect.poll(placements).toEqual([]);
 });
+
+test('the cards per minute control reaches 6, in the four steps of the mockup', async () => {
+  const menu = await windowOf('menu');
+  await invoke(menu, 'window:open', { window: 'settings' });
+  const isSettings = (window: Page) => window.url().includes('mode=settings');
+  await expect.poll(() => app.windows().some(isSettings)).toBe(true);
+  const settings = app.windows().find(isSettings)!;
+
+  const saved = async () =>
+    ((await invoke(menu, 'settings:get')) as { settings: { cardsPerMinute: number } }).settings
+      .cardsPerMinute;
+  const expectRate = async (rate: number) => {
+    await expect(settings.getByText(`até ${rate}`, { exact: true })).toBeVisible();
+    await expect.poll(saved).toBe(rate);
+  };
+
+  await settings.getByLabel('Cards por minuto').focus();
+  await settings.keyboard.press('Home');
+  await expectRate(1);
+  await settings.keyboard.press('ArrowRight');
+  await expectRate(2);
+  await settings.keyboard.press('ArrowRight');
+  await expectRate(4);
+  await settings.keyboard.press('ArrowRight');
+  await expectRate(6);
+  await settings.keyboard.press('ArrowRight');
+  await expectRate(6);
+
+  // Quem salvou 3 antes desta mudança continua com 3, e o controle aparece no passo seguinte.
+  await invoke(menu, 'settings:set', { cardsPerMinute: 3 });
+  await expect(settings.getByText('até 3', { exact: true })).toBeVisible();
+  await expect(settings.getByLabel('Cards por minuto')).toHaveValue('2');
+});

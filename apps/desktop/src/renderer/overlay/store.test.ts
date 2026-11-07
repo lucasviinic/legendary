@@ -37,9 +37,9 @@ beforeEach(() => {
 afterEach(() => vi.useRealTimers());
 
 describe('overlay cards', () => {
-  it('keeps the current card and up to four summaries, newest first', () => {
-    ['a', 'b', 'c', 'd', 'e', 'f'].forEach((lemma) => state().addCard(card(lemma)));
-    expect(lemmas()).toEqual(['f', 'e', 'd', 'c', 'b']);
+  it('keeps the current card and up to six summaries, newest first', () => {
+    ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'].forEach((lemma) => state().addCard(card(lemma)));
+    expect(lemmas()).toEqual(['h', 'g', 'f', 'e', 'd', 'c', 'b']);
   });
 
   it('gives the focus to the newest card only', () => {
@@ -49,28 +49,28 @@ describe('overlay cards', () => {
     expect(isFocused('a')).toBe(false);
   });
 
-  it('shrinks the card after 13 seconds instead of removing it', () => {
+  it('shrinks the card after 10 seconds instead of removing it', () => {
     state().addCard(card('a'));
-    after(12 * SECOND);
+    after(9 * SECOND);
     expect(isFocused('a')).toBe(true);
     after(1 * SECOND);
     expect(isFocused('a')).toBe(false);
     expect(lemmas()).toEqual(['a']);
   });
 
-  it('starts the 13 seconds again when the explanation arrives', () => {
+  it('starts the 10 seconds again when the explanation arrives', () => {
     state().addCard(card('a', { translation: null, explanation: null }));
-    after(10 * SECOND);
+    after(8 * SECOND);
     state().updateCard(card('a', { explanation: null }));
-    after(10 * SECOND);
+    after(2 * SECOND);
     expect(isFocused('a')).toBe(false);
 
     state().addCard(card('b', { translation: null, explanation: null }));
-    after(10 * SECOND);
+    after(8 * SECOND);
     state().updateCard(card('b'));
-    after(10 * SECOND);
+    after(9 * SECOND);
     expect(isFocused('b')).toBe(true);
-    after(3 * SECOND);
+    after(1 * SECOND);
     expect(isFocused('b')).toBe(false);
   });
 

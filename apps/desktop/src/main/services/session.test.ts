@@ -215,6 +215,18 @@ describe('cards', () => {
     expect(h.events.cards).toHaveLength(1);
   });
 
+  it('shows a new card every 10 seconds at the fastest setting', () => {
+    h.settings.update({ cardsPerMinute: 6 });
+    h.session.handleCaption(caption('I reckon he is wary.'));
+    expect(h.events.cards).toHaveLength(1);
+    h.clock.now += 9_999;
+    h.session.tick();
+    expect(h.events.cards).toHaveLength(1);
+    h.clock.now += 1;
+    h.session.tick();
+    expect(h.events.cards).toHaveLength(2);
+  });
+
   it('spaces cards evenly inside the minute', () => {
     h.settings.update({ cardsPerMinute: 2 });
     h.session.handleCaption(caption('I reckon he is wary.'));

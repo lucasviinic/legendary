@@ -60,7 +60,9 @@ precisa ser conferida contra ele. As telas são componentes sem acesso ao IPC, e
 - **Resposta da IA:** a tradução vem em streaming, para aparecer antes da explicação, e o raciocínio
   dos modelos fica desligado nessa etapa. No Claude, a tradução usa o Haiku 5.5 e o quiz, o Opus 5.5.
 - **Tempo dos cards:** a especificação previa de 10 a 15 segundos e o mockup desenha 3 cards. O card
-  fica 13 segundos em destaque, encolhe e continua como resumo por até 3 minutos, com até 4 resumos.
+  fica 10 segundos em destaque, encolhe e continua como resumo por até 3 minutos, com até 6 resumos.
+- **Cards por minuto:** a especificação ia de 1 a 4. O controle mantém as 4 posições do frame 1e, com
+  os valores 1, 2, 4 e 6. O último dá um card a cada 10 segundos.
 - **Posição dos cards:** além dos 4 cantos, a pilha pode ser arrastada para qualquer ponto da tela, e
   cada monitor guarda a própria posição. Para isso a janela do overlay cobre a tela inteira, inclusive
   a faixa da barra de menus. Escolher um canto nas Configurações apaga as posições arrastadas.

@@ -47,7 +47,7 @@ export type SessionStatus = z.infer<typeof SessionStatusSchema>;
 export const SettingsSchema = z.object({
   provider: ProviderSchema,
   level: LevelSchema,
-  cardsPerMinute: z.number().int().min(1).max(4),
+  cardsPerMinute: z.number().int().min(1).max(6),
   corner: CornerSchema,
   /** Posição arrastada em cada monitor, pelo nome dele. Sem ela, vale o canto escolhido. */
   cardPlacements: z.record(z.string(), CardPlacementSchema),

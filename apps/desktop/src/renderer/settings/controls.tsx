@@ -101,8 +101,9 @@ export function KeyField({
   );
 }
 
-const SLIDER_MIN = 1;
-const SLIDER_MAX = 4;
+/** O frame 1e desenha 4 posições, com "até 2" em 33%. O último passo dá um card a cada 10 s. */
+const SLIDER_STEPS = [1, 2, 4, 6];
+const LAST_POSITION = SLIDER_STEPS.length - 1;
 
 /** Controle deslizante do frame 1e, sobre um input nativo para manter o teclado funcionando. */
 export function CardsSlider({
@@ -112,7 +113,9 @@ export function CardsSlider({
   value: number;
   onChange?: (value: number) => void;
 }) {
-  const percent = `${Math.round(((value - SLIDER_MIN) / (SLIDER_MAX - SLIDER_MIN)) * 100)}%`;
+  // Um valor salvo fora dos passos, como 3, aparece no passo seguinte até ser alterado.
+  const position = SLIDER_STEPS.findIndex((step) => step >= value);
+  const percent = `${Math.round((position / LAST_POSITION) * 100)}%`;
   return (
     <div className="flex items-center gap-3">
       <div className="relative h-1 w-[200px] rounded-sm bg-white/15">
@@ -127,11 +130,12 @@ export function CardsSlider({
         <input
           type="range"
           aria-label="Cards por minuto"
-          min={SLIDER_MIN}
-          max={SLIDER_MAX}
+          aria-valuetext={`até ${value}`}
+          min={0}
+          max={LAST_POSITION}
           step={1}
-          value={value}
-          onChange={(event) => onChange?.(Number(event.target.value))}
+          value={position}
+          onChange={(event) => onChange?.(SLIDER_STEPS[Number(event.target.value)]!)}
           className="absolute -inset-x-2 -top-2 m-0 box-border h-5 w-[216px] opacity-0"
         />
       </div>

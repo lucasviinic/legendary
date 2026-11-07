@@ -1,10 +1,10 @@
 import type { CardPlacement, OverlayLayout, SessionStatus, WordCard } from '@legendary/contracts';
 import { create } from 'zustand';
 
-/** O card atual e até 4 resumos abaixo dele. */
-const MAX_CARDS = 5;
+/** O card atual e até 6 resumos abaixo dele. */
+const MAX_CARDS = 7;
 /** Depois desse tempo em destaque, o card encolhe e vira resumo. */
-const FOCUS_MS = 13_000;
+const FOCUS_MS = 10_000;
 /** Sem cards novos para empurrar os resumos, eles saem de cena sozinhos. */
 const CARD_LIFETIME_MS = 3 * 60_000;
 

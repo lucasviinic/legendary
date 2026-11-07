@@ -120,7 +120,8 @@ describe('Settings', () => {
   });
 
   it('limits cards per minute to the slider range', () => {
-    expect(() => SettingsSchema.parse({ ...defaultSettings, cardsPerMinute: 9 })).toThrow();
+    expect(SettingsSchema.parse({ ...defaultSettings, cardsPerMinute: 6 }).cardsPerMinute).toBe(6);
+    expect(() => SettingsSchema.parse({ ...defaultSettings, cardsPerMinute: 7 })).toThrow();
   });
 });
 
