@@ -1,0 +1,76 @@
+@import 'tailwindcss';
+
+/* Tokens do mockup: Legendary Mockups.dc.html, frames 1a a 1j. */
+@theme {
+  --color-accent: #7fdbca;
+  --color-surface: #1e1e21;
+  --color-ink: #1a1a1c;
+  --color-rec: #ff453a;
+  --color-warn: #ffb340;
+  --color-ok: #32d74b;
+  --color-bad: #ff6961;
+  --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif;
+  --font-mono: ui-monospace, Menlo, monospace;
+  --animate-rec-pulse: rec-pulse 1.8s ease-in-out infinite;
+
+  @keyframes rec-pulse {
+    0%,
+    100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 0.45;
+      transform: scale(0.8);
+    }
+  }
+}
+
+@layer base {
+  /* As medidas do mockup contam com o box model padrão, então ele volta a valer aqui. */
+  *,
+  ::before,
+  ::after {
+    box-sizing: content-box;
+  }
+  html {
+    line-height: normal;
+    -webkit-font-smoothing: antialiased;
+  }
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+  body {
+    font-family: var(--font-sans);
+    color: #fff;
+    cursor: default;
+    user-select: none;
+    overflow: hidden;
+  }
+  button {
+    cursor: inherit;
+  }
+  input {
+    user-select: text;
+  }
+}
+
+@layer components {
+  /* O único lugar que define o vidro: para trocar por blur nativo, é aqui que se mexe. */
+  .glass {
+    background: var(--glass-bg, rgba(28, 28, 32, 0.66));
+    backdrop-filter: blur(28px) saturate(170%);
+    border: 1px solid rgba(255, 255, 255, 0.13);
+  }
+  .drag {
+    -webkit-app-region: drag;
+  }
+  .traffic-lights {
+    visibility: hidden;
+  }
+  [data-preview] .traffic-lights {
+    visibility: visible;
+  }
+}
