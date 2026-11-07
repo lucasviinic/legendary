@@ -6,6 +6,7 @@ import {
   expect,
   test,
   type ElectronApplication,
+  type Locator,
   type Page,
 } from '@playwright/test';
 import { WebSocket } from 'ws';
@@ -36,6 +37,19 @@ const invoke = (page: Page, channel: string, payload?: unknown) =>
     channel,
     payload,
   ] as const);
+
+/** Onde o elemento está depois de parar: duas leituras no mesmo quadro sempre dariam iguais. */
+async function settledBox(locator: Locator) {
+  const boxes: { x: number; y: number; width: number; height: number }[] = [];
+  await expect
+    .poll(async () => {
+      boxes.push((await locator.boundingBox())!);
+      const [previous, current] = boxes.slice(-2);
+      return previous?.y === current?.y && previous?.height === current?.height;
+    })
+    .toBe(true);
+  return boxes.at(-1)!;
+}
 
 async function connectExtension(token: string) {
   socket = new WebSocket(`ws://127.0.0.1:${WS_PORT}/?token=${token}`);
@@ -193,7 +207,8 @@ test('captions become cards, and the session ends in a quiz and in the history',
     }
     await expect(next).toBeVisible();
     await next.click();
-    await quiz.waitForTimeout(100);
+    // Enquanto a tela não avança, a resposta anterior ainda vale e a tecla seria ignorada.
+    await expect(next).toBeHidden();
   }
   await expect(quiz.getByRole('button', { name: 'Fechar' })).toBeVisible();
 
@@ -281,9 +296,10 @@ test('the cards can be dragged anywhere on the screen, and the position is remem
   await expect(card).toContainText('Explicação curta', { timeout: 2_000 });
   const save = card.getByRole('button', { name: 'Salvar' });
   await save.hover();
-  await overlay.waitForTimeout(300);
+  await expect(card.getByText('Outro exemplo')).toBeVisible();
+  // O botão desce enquanto o card abre, e medir antes faria o clique cair fora dele.
+  const saveBox = await settledBox(save);
   const before = await box();
-  const saveBox = (await save.boundingBox())!;
   await overlay.mouse.move(saveBox.x + 5, saveBox.y + 5);
   await overlay.mouse.down();
   await overlay.mouse.move(saveBox.x + 60, saveBox.y + 60, { steps: 3 });
