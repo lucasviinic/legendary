@@ -56,7 +56,7 @@ typecheck: ## Checagem de tipos
 test: ## Testes de unidade e integração
 	$(PNPM) -r test
 
-test-e2e: build-app ## Testes ponta a ponta com Playwright
+test-e2e: build ## Testes ponta a ponta com Playwright
 	$(PNPM) --filter desktop test:e2e
 
 test-visual: ## Compara as telas com os frames do mockup em design/reference
