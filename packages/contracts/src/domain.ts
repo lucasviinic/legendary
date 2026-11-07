@@ -47,11 +47,15 @@ export type SessionStatus = z.infer<typeof SessionStatusSchema>;
 export const SettingsSchema = z.object({
   provider: ProviderSchema,
   level: LevelSchema,
-  cardsPerMinute: z.number().int().min(1).max(6),
+  cardsPerMinute: z.number().int().min(1).max(10),
+  /** Quantos cards ficam resumidos abaixo do atual. */
+  maxSummaries: z.number().int().min(1).max(10),
   corner: CornerSchema,
   /** Posição arrastada em cada monitor, pelo nome dele. Sem ela, vale o canto escolhido. */
   cardPlacements: z.record(z.string(), CardPlacementSchema),
   highlightSubtitles: z.boolean(),
+  /** Volta o vídeo ao buscar uma palavra, para a pessoa ouvir de novo. */
+  rewindOnSearch: z.boolean(),
   origin: CaptureOriginSchema,
   wsPort: z.number().int().min(1024).max(65535),
   onboarded: z.boolean(),
@@ -62,9 +66,11 @@ export const defaultSettings: Settings = {
   provider: 'gemini',
   level: 'B2',
   cardsPerMinute: 2,
+  maxSummaries: 6,
   corner: 'tr',
   cardPlacements: {},
   highlightSubtitles: true,
+  rewindOnSearch: false,
   origin: 'browser',
   wsPort: DEFAULT_WS_PORT,
   onboarded: false,
@@ -94,11 +100,12 @@ export const SettingsViewSchema = z.object({
 });
 export type SettingsView = z.infer<typeof SettingsViewSchema>;
 
-/** O que o overlay precisa saber sobre a tela em que está. */
+/** O que o overlay precisa saber para arrumar a pilha na tela em que está. */
 export const OverlayLayoutSchema = z.object({
   placement: CardPlacementSchema,
   /** Altura da faixa da barra de menus, que a janela do overlay também cobre. */
   safeTop: z.number().nonnegative(),
+  maxSummaries: SettingsSchema.shape.maxSummaries,
 });
 export type OverlayLayout = z.infer<typeof OverlayLayoutSchema>;
 

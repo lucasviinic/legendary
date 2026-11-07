@@ -215,11 +215,11 @@ describe('cards', () => {
     expect(h.events.cards).toHaveLength(1);
   });
 
-  it('shows a new card every 10 seconds at the fastest setting', () => {
-    h.settings.update({ cardsPerMinute: 6 });
+  it('shows a new card every 6 seconds at the fastest setting', () => {
+    h.settings.update({ cardsPerMinute: 10 });
     h.session.handleCaption(caption('I reckon he is wary.'));
     expect(h.events.cards).toHaveLength(1);
-    h.clock.now += 9_999;
+    h.clock.now += 5_999;
     h.session.tick();
     expect(h.events.cards).toHaveLength(1);
     h.clock.now += 1;
@@ -259,6 +259,138 @@ describe('cards', () => {
       pos: 'phrasal verb',
       surface: 'headed out',
     });
+  });
+});
+
+describe('searching a word', () => {
+  beforeEach(() => h.session.start('browser'));
+
+  const lastLemma = () => h.events.cards.at(-1)?.lemma;
+
+  it('shows the card right away, even out of the per minute limit', () => {
+    h.settings.update({ cardsPerMinute: 1 });
+    h.session.handleCaption(caption('I reckon so.'));
+    expect(h.session.search('knack')).toBe(true);
+    expect(h.events.cards.at(-1)).toMatchObject({ lemma: 'knack', translation: null, count: 1 });
+    expect(h.session.status().newWords).toBe(2);
+  });
+
+  it('asks the AI for the translation at once', async () => {
+    h.session.search('knack');
+    await settle();
+    expect(h.events.updates.at(-1)).toMatchObject({
+      lemma: 'knack',
+      translation: 'tradução de knack',
+    });
+  });
+
+  it('uses the cached translation without calling the AI', async () => {
+    h.session.search('knack');
+    await settle();
+    await h.session.stop();
+    h.session.start('browser');
+    h.session.search('knack');
+    await settle();
+    expect(h.provider?.enrichWords).toHaveBeenCalledTimes(1);
+    expect(h.events.cards.at(-1)).toMatchObject({ translation: 'tradução de knack' });
+  });
+
+  it('accepts a word the captions would filter out as too common', () => {
+    h.session.handleCaption(caption('The house is here.'));
+    expect(h.events.cards).toEqual([]);
+    h.session.search('house');
+    expect(h.events.cards[0]).toMatchObject({ lemma: 'house', sentence: 'The house is here.' });
+  });
+
+  it('accepts a word marked as known, and keeps it known', () => {
+    h.vocabulary.markKnown('reckon');
+    h.session.search('reckon');
+    expect(lastLemma()).toBe('reckon');
+    expect(h.repos.known.all().has('reckon')).toBe(true);
+  });
+
+  it('underlines the word in the caption where it appeared', () => {
+    h.session.handleCaption(caption('The house is here.'));
+    h.session.search('houses');
+    expect(h.events.cards[0]).toMatchObject({ surface: 'house', sentence: 'The house is here.' });
+  });
+
+  it('shows the example from the AI when no caption has the word', async () => {
+    h.session.search('knack');
+    expect(h.events.cards[0]?.sentence).toBe('');
+    await settle();
+    expect(h.events.updates.at(-1)).toMatchObject({
+      sentence: 'Example of knack.',
+      extraExample: null,
+    });
+  });
+
+  it('brings back a word already on the stack instead of counting it twice', () => {
+    h.session.handleCaption(caption('I reckon so.'));
+    h.clock.now += 15_000;
+    h.session.handleCaption(caption('She is wary.'));
+    h.session.search('reckon');
+    expect(lastLemma()).toBe('reckon');
+    expect(h.events.cards).toHaveLength(3);
+    expect(h.session.status().newWords).toBe(2);
+
+    h.vocabulary.markCurrentKnown();
+    expect(h.events.removed).toEqual(['reckon']);
+  });
+
+  it('shows at once a word that was waiting its turn, and only once', () => {
+    h.session.handleCaption(caption('I reckon he is wary.'));
+    expect(lastLemma()).toBe('wary');
+    h.session.search('reckon');
+    expect(lastLemma()).toBe('reckon');
+    h.clock.now += 60_000;
+    h.session.tick();
+    expect(h.events.cards).toHaveLength(2);
+  });
+
+  it('makes the next card wait the usual interval', () => {
+    h.settings.update({ cardsPerMinute: 2 });
+    h.clock.now += 60_000;
+    h.session.search('knack');
+    h.session.handleCaption(caption('I reckon so.'));
+    expect(h.events.cards).toHaveLength(1);
+    h.clock.now += 30_000;
+    h.session.tick();
+    expect(lastLemma()).toBe('reckon');
+  });
+
+  it('works while paused, but not without a session', async () => {
+    h.session.togglePause();
+    expect(h.session.search('knack')).toBe(true);
+    await h.session.stop();
+    expect(h.session.search('hunch')).toBe(false);
+    expect(lastLemma()).toBe('knack');
+  });
+
+  it('refuses a text without letters', () => {
+    expect(h.session.search('123')).toBe(false);
+    expect(h.events.cards).toEqual([]);
+  });
+
+  it('enters the session and uses the example from the AI as the context of the quiz', async () => {
+    h.session.handleCaption(caption('I reckon so.'));
+    h.session.search('knack');
+    await settle();
+    const id = h.repos.sessions.list()[0]!.id;
+    const sense = h.repos.senses.findByLemmaPos('knack', 'noun')!;
+    expect(h.repos.sessionWords.forSense(id, sense.id)).toMatchObject({
+      contextSentence: 'Example of knack.',
+    });
+  });
+
+  it('keeps a word searched before the first caption, which is what creates the session', async () => {
+    h.session.search('knack');
+    await settle();
+    expect(h.repos.sessions.list()).toEqual([]);
+    h.session.handleCaption(caption('Hello there.'));
+    const id = h.repos.sessions.list()[0]!.id;
+    const sense = h.repos.senses.findByLemmaPos('knack', 'noun')!;
+    expect(h.repos.sessionWords.forSense(id, sense.id)).toBeDefined();
   });
 });
 

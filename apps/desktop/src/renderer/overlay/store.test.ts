@@ -42,6 +42,19 @@ describe('overlay cards', () => {
     expect(lemmas()).toEqual(['h', 'g', 'f', 'e', 'd', 'c', 'b']);
   });
 
+  it('keeps as many summaries as the settings allow', () => {
+    state().setLayout({ ...state(), maxSummaries: 10 });
+    'abcdefghijklmn'.split('').forEach((lemma) => state().addCard(card(lemma)));
+    expect(lemmas()).toHaveLength(11);
+    expect(lemmas()[0]).toBe('n');
+  });
+
+  it('drops the oldest summaries right away when the limit goes down', () => {
+    'abcd'.split('').forEach((lemma) => state().addCard(card(lemma)));
+    state().setLayout({ ...state(), maxSummaries: 1 });
+    expect(lemmas()).toEqual(['d', 'c']);
+  });
+
   it('gives the focus to the newest card only', () => {
     state().addCard(card('a'));
     state().addCard(card('b'));

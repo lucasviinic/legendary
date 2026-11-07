@@ -120,8 +120,20 @@ describe('Settings', () => {
   });
 
   it('limits cards per minute to the slider range', () => {
-    expect(SettingsSchema.parse({ ...defaultSettings, cardsPerMinute: 6 }).cardsPerMinute).toBe(6);
-    expect(() => SettingsSchema.parse({ ...defaultSettings, cardsPerMinute: 7 })).toThrow();
+    expect(SettingsSchema.parse({ ...defaultSettings, cardsPerMinute: 10 }).cardsPerMinute).toBe(
+      10,
+    );
+    expect(() => SettingsSchema.parse({ ...defaultSettings, cardsPerMinute: 11 })).toThrow();
+  });
+
+  it('keeps six summaries and leaves the video alone by default', () => {
+    expect(defaultSettings).toMatchObject({ maxSummaries: 6, rewindOnSearch: false });
+  });
+
+  it('limits the summaries to the slider range', () => {
+    expect(SettingsSchema.parse({ ...defaultSettings, maxSummaries: 10 }).maxSummaries).toBe(10);
+    expect(() => SettingsSchema.parse({ ...defaultSettings, maxSummaries: 11 })).toThrow();
+    expect(() => SettingsSchema.parse({ ...defaultSettings, maxSummaries: 0 })).toThrow();
   });
 });
 
@@ -152,6 +164,13 @@ describe('IPC channels', () => {
       lemma: 'reckon',
     });
     expect(() => invokeChannels['vocab:save'].request.parse({ lemma: 1 })).toThrow();
+  });
+
+  it('refuses an empty search or one longer than an expression', () => {
+    const { request } = invokeChannels['search:submit'];
+    expect(request.parse({ query: 'reckon' })).toEqual({ query: 'reckon' });
+    expect(() => request.parse({ query: '' })).toThrow();
+    expect(() => request.parse({ query: 'x'.repeat(61) })).toThrow();
   });
 
   it('accepts a missing payload on channels without one', () => {

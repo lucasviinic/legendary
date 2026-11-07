@@ -101,41 +101,80 @@ export function KeyField({
   );
 }
 
-/** O frame 1e desenha 4 posições, com "até 2" em 33%. O último passo dá um card a cada 10 s. */
-const SLIDER_STEPS = [1, 2, 4, 6];
-const LAST_POSITION = SLIDER_STEPS.length - 1;
+export interface SliderStop {
+  value: number;
+  /** Posição na faixa, em porcentagem. */
+  at: number;
+}
+
+/** O frame 1e desenha "até 2" em 33%. Os outros passos dividem o resto da faixa, até um card a cada 6 s. */
+export const CARD_STOPS: SliderStop[] = [
+  { value: 1, at: 0 },
+  { value: 2, at: 33 },
+  { value: 4, at: 50 },
+  { value: 6, at: 67 },
+  { value: 8, at: 83 },
+  { value: 10, at: 100 },
+];
+
+export const SUMMARY_STOPS: SliderStop[] = Array.from({ length: 10 }, (_, index) => ({
+  value: index + 1,
+  at: Math.round((index / 9) * 100),
+}));
+
+const ARROW_STEP: Record<string, number> = {
+  ArrowRight: 1,
+  ArrowUp: 1,
+  ArrowLeft: -1,
+  ArrowDown: -1,
+};
 
 /** Controle deslizante do frame 1e, sobre um input nativo para manter o teclado funcionando. */
-export function CardsSlider({
+export function StepSlider({
+  label,
+  stops,
   value,
   onChange,
 }: {
+  label: string;
+  stops: SliderStop[];
   value: number;
   onChange?: (value: number) => void;
 }) {
   // Um valor salvo fora dos passos, como 3, aparece no passo seguinte até ser alterado.
-  const position = SLIDER_STEPS.findIndex((step) => step >= value);
-  const percent = `${Math.round((position / LAST_POSITION) * 100)}%`;
+  const index = stops.findIndex((stop) => stop.value >= value);
+  const { at } = stops[index]!;
+  const nearest = (position: number) =>
+    stops.reduce((best, stop) =>
+      Math.abs(stop.at - position) < Math.abs(best.at - position) ? stop : best,
+    );
   return (
     <div className="flex items-center gap-3">
       <div className="relative h-1 w-[200px] rounded-sm bg-white/15">
         <div
           className="absolute inset-y-0 left-0 rounded-sm bg-white/75"
-          style={{ width: percent }}
+          style={{ width: `${at}%` }}
         />
         <div
           className="absolute top-1/2 -mt-2 -ml-2 size-4 rounded-full bg-white shadow-[0_1px_4px_rgba(0,0,0,0.4)]"
-          style={{ left: percent }}
+          style={{ left: `${at}%` }}
         />
         <input
           type="range"
-          aria-label="Cards por minuto"
+          aria-label={label}
           aria-valuetext={`até ${value}`}
           min={0}
-          max={LAST_POSITION}
-          step={1}
-          value={position}
-          onChange={(event) => onChange?.(SLIDER_STEPS[Number(event.target.value)]!)}
+          max={100}
+          value={at}
+          onChange={(event) => onChange?.(nearest(Number(event.target.value)).value)}
+          onKeyDown={(event) => {
+            // A seta nativa anda 1% e o controle voltaria para o mesmo passo.
+            const step = ARROW_STEP[event.key];
+            if (!step) return;
+            event.preventDefault();
+            const next = stops[index + step];
+            if (next) onChange?.(next.value);
+          }}
           className="absolute -inset-x-2 -top-2 m-0 box-border h-5 w-[216px] opacity-0"
         />
       </div>

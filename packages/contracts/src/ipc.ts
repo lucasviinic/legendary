@@ -38,6 +38,9 @@ export const invokeChannels = {
   'overlay:get-layout': { request: None, response: OverlayLayoutSchema },
   'overlay:set-placement': { request: CardPlacementSchema, response: None },
 
+  'search:submit': { request: z.object({ query: z.string().min(1).max(60) }), response: None },
+  'search:hide': { request: None, response: None },
+
   'quiz:summary': {
     request: z.object({ sessionId: z.number().int() }),
     response: QuizSummarySchema,

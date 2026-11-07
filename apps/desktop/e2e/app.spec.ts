@@ -17,6 +17,7 @@ let app: ElectronApplication;
 let userData: string;
 let socket: WebSocket | null = null;
 const highlights: unknown[] = [];
+const rewinds: unknown[] = [];
 
 /** As janelas ficam em memória mesmo escondidas: procura pela página de cada uma. */
 async function windowOf(page: string): Promise<Page> {
@@ -45,6 +46,7 @@ async function connectExtension(token: string) {
   socket.on('message', (data) => {
     const message = JSON.parse(String(data)) as { type: string };
     if (message.type === 'highlight') highlights.push(message);
+    if (message.type === 'rewind') rewinds.push(message);
   });
 }
 
@@ -313,7 +315,7 @@ test('the cards can be dragged anywhere on the screen, and the position is remem
   await expect.poll(placements).toEqual([]);
 });
 
-test('the cards per minute control reaches 6, in the four steps of the mockup', async () => {
+test('the settings control the pace of the cards and how many summaries stay', async () => {
   const menu = await windowOf('menu');
   await invoke(menu, 'window:open', { window: 'settings' });
   const isSettings = (window: Page) => window.url().includes('mode=settings');
@@ -321,27 +323,177 @@ test('the cards per minute control reaches 6, in the four steps of the mockup', 
   const settings = app.windows().find(isSettings)!;
 
   const saved = async () =>
-    ((await invoke(menu, 'settings:get')) as { settings: { cardsPerMinute: number } }).settings
-      .cardsPerMinute;
-  const expectRate = async (rate: number) => {
-    await expect(settings.getByText(`até ${rate}`, { exact: true })).toBeVisible();
-    await expect.poll(saved).toBe(rate);
-  };
+    (
+      (await invoke(menu, 'settings:get')) as {
+        settings: { cardsPerMinute: number; maxSummaries: number };
+      }
+    ).settings;
 
-  await settings.getByLabel('Cards por minuto').focus();
+  const rate = settings.getByLabel('Cards por minuto');
+  const expectRate = async (value: number, position: string) => {
+    await expect(rate).toHaveAttribute('aria-valuetext', `até ${value}`);
+    await expect(rate).toHaveValue(position);
+    await expect.poll(async () => (await saved()).cardsPerMinute).toBe(value);
+  };
+  await rate.focus();
   await settings.keyboard.press('Home');
-  await expectRate(1);
+  await expectRate(1, '0');
+  // O frame 1e desenha "até 2" em 33%, e essa posição não pode mudar.
   await settings.keyboard.press('ArrowRight');
-  await expectRate(2);
-  await settings.keyboard.press('ArrowRight');
-  await expectRate(4);
-  await settings.keyboard.press('ArrowRight');
-  await expectRate(6);
-  await settings.keyboard.press('ArrowRight');
-  await expectRate(6);
+  await expectRate(2, '33');
+  for (const [value, position] of [
+    [4, '50'],
+    [6, '67'],
+    [8, '83'],
+    [10, '100'],
+    [10, '100'],
+  ] as const) {
+    await settings.keyboard.press('ArrowRight');
+    await expectRate(value, position);
+  }
+  await settings.keyboard.press('ArrowLeft');
+  await expectRate(8, '83');
 
   // Quem salvou 3 antes desta mudança continua com 3, e o controle aparece no passo seguinte.
   await invoke(menu, 'settings:set', { cardsPerMinute: 3 });
   await expect(settings.getByText('até 3', { exact: true })).toBeVisible();
-  await expect(settings.getByLabel('Cards por minuto')).toHaveValue('2');
+  await expect(rate).toHaveValue('50');
+
+  const summaries = settings.getByLabel('Resumos na tela');
+  const expectSummaries = async (value: number) => {
+    await expect(summaries).toHaveAttribute('aria-valuetext', `até ${value}`);
+    await expect.poll(async () => (await saved()).maxSummaries).toBe(value);
+  };
+  await expectSummaries(6);
+  await summaries.focus();
+  await settings.keyboard.press('End');
+  await expectSummaries(10);
+  await settings.keyboard.press('ArrowLeft');
+  await expectSummaries(9);
+  await settings.keyboard.press('Home');
+  await expectSummaries(1);
+  await invoke(menu, 'settings:set', { maxSummaries: 6 });
+
+  // Voltar o vídeo começa desligado e liga pelas Configurações.
+  const rewind = settings.getByRole('switch', { name: 'Voltar o vídeo ao buscar' });
+  await expect(rewind).toHaveAttribute('aria-checked', 'false');
+  await rewind.click();
+  await expect(rewind).toHaveAttribute('aria-checked', 'true');
+  await rewind.click();
+  await expect(rewind).toHaveAttribute('aria-checked', 'false');
+});
+
+test('a word typed in the search bar becomes a card, and can rewind the video', async () => {
+  const menu = await windowOf('menu');
+  const overlay = await windowOf('overlay');
+  const search = await windowOf('search');
+  const field = search.getByLabel('Buscar palavra');
+
+  if (!socket) {
+    const view = (await invoke(menu, 'settings:get')) as { pairing: { token: string } };
+    await connectExtension(view.pairing.token);
+  }
+  const searchState = () =>
+    app.evaluate(({ BrowserWindow, screen }) => {
+      const window = BrowserWindow.getAllWindows().find((item) =>
+        item.webContents.getURL().includes('/search/'),
+      )!;
+      return {
+        visible: window.isVisible(),
+        focused: window.isFocused(),
+        bounds: window.getBounds(),
+        display: screen.getPrimaryDisplay().bounds,
+      };
+    });
+  const searchVisible = async () => (await searchState()).visible;
+  const toggleSearch = () =>
+    app.evaluate(({ app: electronApp }) => electronApp.emit('legendary:toggle-search' as never));
+
+  expect(
+    await app.evaluate(({ globalShortcut }) =>
+      globalShortcut.isRegistered('CommandOrControl+Shift+B'),
+    ),
+  ).toBe(true);
+
+  // Sem sessão não há onde mostrar o card, então a barra não abre.
+  await invoke(menu, 'session:stop');
+  await toggleSearch();
+  expect(await searchVisible()).toBe(false);
+
+  await invoke(menu, 'session:start', { source: 'browser' });
+  await invoke(menu, 'settings:set', { cardsPerMinute: 1, rewindOnSearch: false });
+  sendCaption('She is wary of him.');
+  const wary = overlay.getByTestId('card-wary');
+  await expect(wary).toBeVisible();
+
+  // A barra abre centralizada, em foco e acima do overlay, e a palavra entra sem esperar a vez.
+  await toggleSearch();
+  await expect.poll(searchVisible).toBe(true);
+  const opened = await searchState();
+  expect(opened.focused).toBe(true);
+  expect(opened.bounds.x + opened.bounds.width / 2).toBeCloseTo(opened.display.width / 2, 0);
+  await expect(field).toBeFocused();
+
+  await field.fill('knack');
+  await field.press('Enter');
+  await expect.poll(searchVisible).toBe(false);
+  const knack = overlay.getByTestId('card-knack');
+  await expect(knack).toContainText('tradução de knack', { timeout: 2_000 });
+  await expect(knack).toContainText('Explicação curta de knack', { timeout: 2_000 });
+  await expect(wary).not.toContainText('Explicação curta');
+  await overlay.waitForTimeout(100);
+  expect(rewinds).toEqual([]);
+
+  // Esc fecha sem criar card, e o campo volta vazio.
+  await toggleSearch();
+  await expect.poll(searchVisible).toBe(true);
+  await expect(field).toHaveValue('');
+  await field.fill('hunch');
+  await field.press('Escape');
+  await expect.poll(searchVisible).toBe(false);
+  await expect(overlay.getByTestId('card-hunch')).toHaveCount(0);
+
+  // Enter com o campo vazio só fecha. O atalho também fecha a barra aberta.
+  await toggleSearch();
+  await expect.poll(searchVisible).toBe(true);
+  await expect(field).toHaveValue('');
+  await field.press('Enter');
+  await expect.poll(searchVisible).toBe(false);
+  await toggleSearch();
+  await expect.poll(searchVisible).toBe(true);
+  await toggleSearch();
+  await expect.poll(searchVisible).toBe(false);
+
+  // Com a opção ligada, a palavra volta o vídeo. Um texto sem palavra não.
+  await invoke(menu, 'settings:set', { rewindOnSearch: true });
+  await invoke(menu, 'search:submit', { query: '123' });
+  await overlay.waitForTimeout(100);
+  expect(rewinds).toEqual([]);
+  await invoke(menu, 'search:submit', { query: 'hunch' });
+  await expect.poll(() => rewinds).toEqual([{ type: 'rewind', seconds: 10 }]);
+
+  // O card fica visível mesmo com o overlay escondido pelo atalho.
+  await invoke(menu, 'overlay:toggle');
+  await invoke(menu, 'search:submit', { query: 'grumpy' });
+  await expect(overlay.getByTestId('card-grumpy')).toBeVisible();
+  expect(
+    await app.evaluate(({ BrowserWindow }) =>
+      BrowserWindow.getAllWindows()
+        .find((window) => window.webContents.getURL().includes('/overlay/'))!
+        .isVisible(),
+    ),
+  ).toBe(true);
+
+  // Baixar o limite tira os resumos mais antigos na hora.
+  const cards = overlay.locator('[data-testid^="card-"]:not([data-testid="card-stack"])');
+  await expect(cards).toHaveCount(4);
+  await invoke(menu, 'settings:set', { maxSummaries: 1 });
+  await expect(cards).toHaveCount(2);
+  await invoke(menu, 'settings:set', { maxSummaries: 6, rewindOnSearch: false });
+
+  // Encerrar a sessão fecha a barra.
+  await toggleSearch();
+  await expect.poll(searchVisible).toBe(true);
+  await invoke(menu, 'session:stop');
+  await expect.poll(searchVisible).toBe(false);
 });

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   createPipeline,
+  createWordLookup,
   detectPhrases,
   estimateCefr,
   filterTokens,
@@ -239,5 +240,80 @@ describe('createPipeline', () => {
 
   it('skips known words', () => {
     expect(run('I reckon so.', ['reckon'])).toEqual([]);
+  });
+});
+
+describe('createWordLookup', () => {
+  const lookup = createWordLookup(lexicon);
+  const find = (query: string, sentences: string[] = [], counts: [string, number][] = []) =>
+    lookup(query, { sentences, sessionCounts: new Map(counts) });
+
+  it('accepts a common word, which the filter of the captions would drop', () => {
+    expect(find('house')).toMatchObject({
+      lemma: 'house',
+      pos: 'noun',
+      surface: 'house',
+      sentence: '',
+      count: 1,
+    });
+  });
+
+  it('reduces an inflected word to its lemma', () => {
+    expect(find('reckoned')).toMatchObject({ lemma: 'reckon', pos: 'verb', surface: 'reckoned' });
+  });
+
+  it('recognizes an expression from the list', () => {
+    expect(find('head out')).toMatchObject({ lemma: 'head out', pos: 'phrasal verb' });
+  });
+
+  it('keeps an expression outside the list as typed, in lowercase', () => {
+    expect(find('  Out of the Blue ')).toMatchObject({
+      lemma: 'out of the blue',
+      pos: 'expression',
+      surface: 'Out of the Blue',
+    });
+  });
+
+  it('takes the form and the sentence from the latest caption with the word', () => {
+    expect(find('reckon', ['I reckon so.', 'We reckoned wrong.', 'Hello there.'])).toMatchObject({
+      surface: 'reckoned',
+      sentence: 'We reckoned wrong.',
+    });
+  });
+
+  it('prefers the part of speech used in the caption over the guess for the word alone', () => {
+    expect(find('stumble')?.pos).toBe('noun');
+    expect(find('stumble', ['They stumble and fall.'])?.pos).toBe('verb');
+  });
+
+  it('finds an expression outside the list inside a caption', () => {
+    expect(find('out of the blue', ['It came Out of the blue today.'])).toMatchObject({
+      surface: 'Out of the blue',
+      sentence: 'It came Out of the blue today.',
+    });
+  });
+
+  it('cleans the caption like the rest of the pipeline', () => {
+    expect(find('reckon', ['JOHN: I reckon so.'])?.sentence).toBe('I reckon so.');
+  });
+
+  it('does not take a word for a piece of a longer one', () => {
+    expect(find('dark', ['Lost in the darkness.'])?.sentence).toBe('');
+  });
+
+  it('keeps the count of the session', () => {
+    expect(find('reckon', [], [['reckon|verb', 3]])?.count).toBe(3);
+  });
+
+  it('labels any part of speech in a readable way', () => {
+    expect(find('despite')?.pos).toBe('prep');
+  });
+
+  it('estimates the level from the frequency list', () => {
+    expect(find('wary')?.estimatedCefr).toBe('C1');
+  });
+
+  it.each(['', '   ', '123', '?!'])('refuses a text without letters: %j', (query) => {
+    expect(find(query)).toBeNull();
   });
 });

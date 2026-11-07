@@ -7,7 +7,7 @@ import type {
   Settings,
 } from '@legendary/contracts';
 import type { Lexicon } from '@legendary/core/pipeline';
-import { createPipeline } from '@legendary/core/pipeline';
+import { createPipeline, createWordLookup } from '@legendary/core/pipeline';
 import type { LLMProvider } from '../ai/types';
 import { openDatabase } from '../db/client';
 import { createRepositories } from '../db/repositories';
@@ -90,6 +90,7 @@ export function createHarness(
   const vocabulary = new VocabularyService({
     repos,
     pipeline: createPipeline(lexicon),
+    lookup: createWordLookup(lexicon),
     settings,
     getProvider: () => provider,
     now,

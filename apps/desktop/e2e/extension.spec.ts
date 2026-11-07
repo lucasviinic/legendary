@@ -14,10 +14,12 @@ import {
 const WS_PORT = 47697;
 const EXTENSION = resolve(import.meta.dirname, '../../extension/.output/chrome-mv3');
 const FIXTURE = resolve(import.meta.dirname, '../../extension/tests/fixtures/netflix.html');
+const YOUTUBE_FIXTURE = resolve(import.meta.dirname, '../../extension/tests/fixtures/youtube.html');
 const HIGHLIGHT = '[data-legendary-highlight]';
 
 let app: ElectronApplication;
 let browser: BrowserContext;
+let netflix: Page;
 const folders: string[] = [];
 
 const tempDir = () => {
@@ -98,6 +100,7 @@ test('a caption on the page reaches the app and comes back underlined', async ()
 
   // Uma página no endereço da Netflix, com a estrutura esperada, recebe o content script real.
   const page = await browser.newPage();
+  netflix = page;
   await page.route('https://www.netflix.com/**', (route) =>
     route.fulfill({
       contentType: 'text/html',
@@ -121,4 +124,62 @@ test('a caption on the page reaches the app and comes back underlined', async ()
   await expect(page.locator('.player-timedtext')).toHaveText(
     'I reckon we should head out before it gets dark.',
   );
+});
+
+test('searching with the option on rewinds the video in the tab of the captions', async () => {
+  const menu = await windowOf('menu');
+  await invoke(menu, 'settings:set', { rewindOnSearch: true });
+
+  // Na Netflix, pela API do player, sem tocar no elemento de vídeo.
+  await netflix.evaluate(() => {
+    const seeks: number[] = [];
+    Object.assign(window, {
+      seeks,
+      netflix: {
+        appContext: {
+          state: {
+            playerApp: {
+              getAPI: () => ({
+                videoPlayer: {
+                  getAllPlayerSessionIds: () => ['watch-1'],
+                  getVideoPlayerBySessionId: () => ({
+                    getCurrentTime: () => 100_000,
+                    seek: (milliseconds: number) => seeks.push(milliseconds),
+                  }),
+                },
+              }),
+            },
+          },
+        },
+      },
+    });
+  });
+  await invoke(menu, 'search:submit', { query: 'knack' });
+  await expect
+    .poll(() => netflix.evaluate(() => (window as never as { seeks: number[] }).seeks))
+    .toEqual([90_000]);
+
+  // No YouTube, direto no vídeo. A aba certa é a que mandou a última legenda.
+  const youtube = await browser.newPage();
+  await youtube.route('https://www.youtube.com/**', (route) =>
+    route.fulfill({
+      contentType: 'text/html',
+      body: `<!doctype html><html><head><title>YouTube</title></head><body><video></video>${readFileSync(YOUTUBE_FIXTURE, 'utf8')}</body></html>`,
+    }),
+  );
+  await youtube.goto('https://www.youtube.com/watch?v=1');
+  await youtube.evaluate(() => {
+    document.querySelector('video')!.currentTime = 100;
+    document.querySelector('.ytp-caption-segment')!.textContent = 'She is wary of him.';
+  });
+  const overlay = await windowOf('overlay');
+  await expect(overlay.getByTestId('status-bar')).toContainText('YouTube', { timeout: 15_000 });
+
+  await invoke(menu, 'search:submit', { query: 'hunch' });
+  await expect
+    .poll(() => youtube.evaluate(() => document.querySelector('video')!.currentTime))
+    .toBe(90);
+  expect(await netflix.evaluate(() => (window as never as { seeks: number[] }).seeks)).toEqual([
+    90_000,
+  ]);
 });

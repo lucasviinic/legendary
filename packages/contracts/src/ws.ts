@@ -17,6 +17,7 @@ export const ServerMessageSchema = z.discriminatedUnion('type', [
     text: z.string(),
     surfaces: z.array(z.string()),
   }),
+  z.object({ type: z.literal('rewind'), seconds: z.number().positive() }),
   z.object({ type: z.literal('pong') }),
 ]);
 export type ServerMessage = z.infer<typeof ServerMessageSchema>;

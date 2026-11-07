@@ -41,16 +41,18 @@ const latest = () => FakeSocket.instances.at(-1)!;
 
 function setup(config: { token: string; port: number } | null = { token: 'tok', port: 47615 }) {
   const onHighlight = vi.fn();
+  const onRewind = vi.fn();
   const onStatus = vi.fn();
   const saveOutbox = vi.fn();
   const connection = new AppConnection({
     createSocket: (url) => new FakeSocket(url),
     onHighlight,
+    onRewind,
     onStatus,
     saveOutbox,
   });
   connection.configure(config);
-  return { connection, onHighlight, onStatus, saveOutbox };
+  return { connection, onHighlight, onRewind, onStatus, saveOutbox };
 }
 
 beforeEach(() => {
@@ -166,6 +168,14 @@ describe('AppConnection', () => {
       text: 'I reckon',
       surfaces: ['reckon'],
     });
+  });
+
+  it('delivers rewind requests from the app', () => {
+    const { onRewind, onHighlight } = setup();
+    latest().open();
+    latest().onmessage?.({ data: JSON.stringify({ type: 'rewind', seconds: 10 }) });
+    expect(onRewind).toHaveBeenCalledWith({ type: 'rewind', seconds: 10 });
+    expect(onHighlight).not.toHaveBeenCalled();
   });
 
   it('ignores an invalid message from the socket', () => {

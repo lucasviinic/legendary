@@ -23,10 +23,12 @@ export interface ConnectionConfig {
 }
 
 export type HighlightMessage = Extract<ServerMessage, { type: 'highlight' }>;
+export type RewindMessage = Extract<ServerMessage, { type: 'rewind' }>;
 
 export interface AppConnectionOptions {
   createSocket: (url: string) => SocketLike;
   onHighlight: (message: HighlightMessage) => void;
+  onRewind: (message: RewindMessage) => void;
   onStatus: (connected: boolean) => void;
   saveOutbox: (outbox: CaptionEvent[]) => void;
 }
@@ -115,8 +117,9 @@ export class AppConnection {
       return;
     }
     const message = ServerMessageSchema.safeParse(json);
-    if (message.success && message.data.type === 'highlight')
-      this.options.onHighlight(message.data);
+    if (!message.success) return;
+    if (message.data.type === 'highlight') this.options.onHighlight(message.data);
+    if (message.data.type === 'rewind') this.options.onRewind(message.data);
   }
 
   private scheduleRetry() {

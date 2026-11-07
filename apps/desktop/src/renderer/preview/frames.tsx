@@ -99,9 +99,11 @@ const settingsView: View = {
     provider: 'claude',
     level: 'B2',
     cardsPerMinute: 2,
+    maxSummaries: 6,
     corner: 'tr',
     cardPlacements: {},
     highlightSubtitles: true,
+    rewindOnSearch: false,
     origin: 'browser',
     wsPort: 47615,
     onboarded: true,
@@ -438,7 +440,7 @@ export const FRAMES: Record<string, () => ReactNode> = {
   ),
   '1e': () => (
     <WindowFrame width={560}>
-      <SettingsView view={settingsView} showPairing={false} />
+      <SettingsView view={settingsView} mockupOnly />
     </WindowFrame>
   ),
   '1f': () => (

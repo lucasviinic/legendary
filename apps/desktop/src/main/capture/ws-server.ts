@@ -76,6 +76,10 @@ export class ExtensionSource extends EventEmitter implements CaptionSource {
     this.broadcast({ type: 'highlight', text, surfaces });
   }
 
+  sendRewind(seconds: number): void {
+    this.broadcast({ type: 'rewind', seconds });
+  }
+
   private handleMessage(socket: WebSocket, raw: string) {
     let json: unknown;
     try {

@@ -1,7 +1,15 @@
 import type { Corner, Level, Provider, Settings, SettingsView as View } from '@legendary/contracts';
 import { useState } from 'react';
 import { TrafficLights } from '../shared/TrafficLights';
-import { CardsSlider, KeyField, Row, Segmented, Toggle } from './controls';
+import {
+  CARD_STOPS,
+  KeyField,
+  Row,
+  Segmented,
+  StepSlider,
+  SUMMARY_STOPS,
+  Toggle,
+} from './controls';
 
 export const PROVIDERS = [
   { value: 'gemini', label: 'Gemini' },
@@ -114,13 +122,14 @@ export function PairingRow({ view }: { view: View }) {
 
 export interface SettingsViewProps {
   view: View;
-  showPairing?: boolean;
+  /** Só as linhas que o frame 1e desenha, para a comparação com o mockup. */
+  mockupOnly?: boolean;
   onChange?: (patch: Partial<Settings>) => void;
   onSaveKey?: (provider: Provider, key: string) => void;
 }
 
 /** Janela de configurações: frame 1e. */
-export function SettingsView({ view, showPairing = true, onChange, onSaveKey }: SettingsViewProps) {
+export function SettingsView({ view, mockupOnly = false, onChange, onSaveKey }: SettingsViewProps) {
   const { settings } = view;
   return (
     <div className="bg-surface text-[13px] text-white">
@@ -155,11 +164,23 @@ export function SettingsView({ view, showPairing = true, onChange, onSaveKey }: 
           </div>
         </Row>
         <Row label="Cards por minuto">
-          <CardsSlider
+          <StepSlider
+            label="Cards por minuto"
+            stops={CARD_STOPS}
             value={settings.cardsPerMinute}
             onChange={(cardsPerMinute) => onChange?.({ cardsPerMinute })}
           />
         </Row>
+        {!mockupOnly && (
+          <Row label="Resumos na tela">
+            <StepSlider
+              label="Resumos na tela"
+              stops={SUMMARY_STOPS}
+              value={settings.maxSummaries}
+              onChange={(maxSummaries) => onChange?.({ maxSummaries })}
+            />
+          </Row>
+        )}
         <Row label="Posição dos cards" top>
           <div className="flex items-center gap-3.5">
             <CornerPicker value={settings.corner} onChange={(corner) => onChange?.({ corner })} />
@@ -178,7 +199,21 @@ export function SettingsView({ view, showPairing = true, onChange, onSaveKey }: 
             </span>
           </div>
         </Row>
-        {showPairing && <PairingRow view={view} />}
+        {!mockupOnly && (
+          <Row label="Ao buscar (⌘⇧B)">
+            <div className="flex items-center gap-2.5">
+              <Toggle
+                on={settings.rewindOnSearch}
+                label="Voltar o vídeo ao buscar"
+                onChange={(rewindOnSearch) => onChange?.({ rewindOnSearch })}
+              />
+              <span className="text-[12px] text-white/55">
+                Volta o vídeo 10 s para você ouvir a palavra de novo
+              </span>
+            </div>
+          </Row>
+        )}
+        {!mockupOnly && <PairingRow view={view} />}
       </div>
     </div>
   );

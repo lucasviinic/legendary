@@ -89,6 +89,14 @@ export class SessionService {
     this.publish();
   }
 
+  /** Devolve falso quando não há sessão ou o texto não tem palavra, e nesse caso nada mudou. */
+  search(query: string): boolean {
+    if (this.state === 'idle') return false;
+    const found = this.deps.vocabulary.search(query);
+    this.publish();
+    return found;
+  }
+
   /** Encerra a sessão e devolve o id dela, ou nulo quando não há palavras para o quiz. */
   async stop(): Promise<number | null> {
     if (this.state === 'idle') return null;

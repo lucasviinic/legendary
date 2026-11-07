@@ -110,6 +110,16 @@ describe('ExtensionSource', () => {
     });
   });
 
+  it('asks connected extensions to rewind the video', async () => {
+    const socket = connect(TOKEN);
+    await opened(socket);
+    const reply = new Promise<string>((resolve) =>
+      socket.once('message', (data) => resolve(String(data))),
+    );
+    source.sendRewind(10);
+    expect(JSON.parse(await reply)).toEqual({ type: 'rewind', seconds: 10 });
+  });
+
   it('reports whether an extension is connected', async () => {
     expect(source.connected).toBe(false);
     const socket = connect(TOKEN);

@@ -54,6 +54,11 @@ describe('overlayLayout', () => {
     expect(overlayLayout(settings(), macbook).safeTop).toBe(33);
   });
 
+  it('tells the overlay how many summaries to keep', () => {
+    expect(overlayLayout(settings(), hdmi).maxSummaries).toBe(6);
+    expect(overlayLayout(settings({ maxSummaries: 10 }), hdmi).maxSummaries).toBe(10);
+  });
+
   it('uses the position dragged on this monitor', () => {
     const placed = { corner: 'tr' as const, x: 20, y: 12 };
     const withPlacement = settings({ cardPlacements: { [displayKey(hdmi)]: placed } });

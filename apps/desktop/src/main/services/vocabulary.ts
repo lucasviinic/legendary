@@ -1,6 +1,6 @@
 import type { EnrichRequestWord, EnrichedWord, WordCard } from '@legendary/contracts';
 import { wordKey, type WordCandidate } from '@legendary/core/pipeline';
-import type { createPipeline } from '@legendary/core/pipeline';
+import type { createPipeline, createWordLookup } from '@legendary/core/pipeline';
 import { EnrichQueue } from '../ai/queue';
 import type { LLMProvider } from '../ai/types';
 import type { Repositories } from '../db/repositories';
@@ -12,6 +12,8 @@ const WAITING_TTL_MS = 30_000;
 const MINUTE_MS = 60_000;
 /** Quantas das palavras que esperam a vez já têm a tradução adiantada. */
 const AHEAD_WORDS = 3;
+/** Onde procurar a frase de uma palavra buscada: um pouco mais de um minuto de diálogo. */
+const RECENT_CAPTIONS = 30;
 
 interface Entry extends WordCandidate {
   senseId: number | null;
@@ -26,6 +28,19 @@ interface Entry extends WordCandidate {
   askedAhead: boolean;
   saved: boolean;
 }
+
+const newEntry = (candidate: WordCandidate, now: number): Entry => ({
+  ...candidate,
+  senseId: null,
+  sense: null,
+  earlyTranslation: null,
+  firstSeenAt: now,
+  firstSentence: candidate.sentence,
+  queuedAt: now,
+  shownAt: null,
+  askedAhead: false,
+  saved: false,
+});
 
 const toRequest = ({ lemma, pos, surface, sentence }: Entry): EnrichRequestWord => ({
   lemma,
@@ -44,6 +59,7 @@ export interface VocabularyEmitter {
 export interface VocabularyDeps {
   repos: Repositories;
   pipeline: ReturnType<typeof createPipeline>;
+  lookup: ReturnType<typeof createWordLookup>;
   settings: SettingsService;
   getProvider: () => LLMProvider | null;
   now: () => number;
@@ -57,6 +73,7 @@ export class VocabularyService {
   private entries = new Map<string, Entry>();
   private counts = new Map<string, number>();
   private known = new Set<string>();
+  private recentCaptions: string[] = [];
   private lastCardAt = -Infinity;
   private shownOrder: string[] = [];
   private failing = false;
@@ -94,6 +111,7 @@ export class VocabularyService {
     this.entries = new Map();
     this.counts = new Map();
     this.known = this.deps.repos.known.all();
+    this.recentCaptions = [];
     this.lastCardAt = -Infinity;
     this.shownOrder = [];
     this.failing = false;
@@ -112,7 +130,8 @@ export class VocabularyService {
   }
 
   handleCaption(sessionId: number, text: string): void {
-    this.sessionId = sessionId;
+    this.enterSession(sessionId);
+    this.recentCaptions = [...this.recentCaptions, text].slice(-RECENT_CAPTIONS);
     const { level } = this.deps.settings.get();
     const now = this.deps.now();
     const candidates = this.deps.pipeline(text, {
@@ -132,18 +151,7 @@ export class VocabularyService {
       } else if (entry) {
         Object.assign(entry, candidate, { queuedAt: now });
       } else {
-        this.entries.set(key, {
-          ...candidate,
-          senseId: null,
-          sense: null,
-          earlyTranslation: null,
-          firstSeenAt: now,
-          firstSentence: candidate.sentence,
-          queuedAt: now,
-          shownAt: null,
-          askedAhead: false,
-          saved: false,
-        });
+        this.entries.set(key, newEntry(candidate, now));
       }
     }
     this.drain(now, text);
@@ -151,6 +159,32 @@ export class VocabularyService {
 
   tick(): void {
     this.drain(this.deps.now(), null);
+  }
+
+  /** Mostra na hora o card de uma palavra digitada. Devolve falso se o texto não tiver palavra. */
+  search(query: string): boolean {
+    const candidate = this.deps.lookup(query, {
+      sentences: this.recentCaptions,
+      sessionCounts: this.counts,
+    });
+    if (!candidate) return false;
+
+    const now = this.deps.now();
+    // A classe da palavra digitada é um palpite, então a mesma palavra é reconhecida só pelo lema.
+    const existing = [...this.entries.values()].find((item) => item.lemma === candidate.lemma);
+    const entry = existing ?? newEntry(candidate, now);
+    const key = wordKey(entry.lemma, entry.pos);
+    this.entries.set(key, entry);
+    this.counts.set(key, entry.count);
+
+    if (entry.shownAt == null) {
+      this.show(entry, now);
+    } else {
+      this.lastCardAt = now;
+      this.shownOrder = [...this.shownOrder.filter((item) => item !== key), key];
+      this.deps.emit.card(this.toCard(entry));
+    }
+    return true;
   }
 
   markKnown(lemma: string): void {
@@ -182,6 +216,13 @@ export class VocabularyService {
         : this.deps.repos.saved.toggle(entry.senseId, this.deps.now());
     this.deps.emit.cardUpdate(this.toCard(entry));
     return entry.saved;
+  }
+
+  /** A sessão só existe depois da primeira legenda, e uma palavra pode ter sido buscada antes. */
+  private enterSession(sessionId: number) {
+    const first = this.sessionId === null;
+    this.sessionId = sessionId;
+    if (first) this.entries.forEach((entry) => this.persistCount(entry));
   }
 
   /** `captionText` é a legenda que acabou de chegar, ou nulo quando quem chama é o relógio. */
@@ -244,7 +285,7 @@ export class VocabularyService {
       sessionId: this.sessionId,
       senseId: entry.senseId,
       count: entry.count,
-      contextSentence: entry.firstSentence,
+      contextSentence: entry.firstSentence || (entry.sense?.exampleEn ?? ''),
       firstSeenAt: entry.firstSeenAt,
     });
   }
@@ -291,8 +332,9 @@ export class VocabularyService {
       cefr: (sense?.cefr as WordCard['cefr']) ?? entry.estimatedCefr,
       translation: sense?.translation ?? entry.earlyTranslation,
       explanation: sense?.explanation ?? null,
-      sentence: entry.sentence,
-      extraExample: sense?.exampleEn ?? null,
+      // Uma palavra buscada pode não ter aparecido em nenhuma legenda: a frase vem da IA.
+      sentence: entry.sentence || (sense?.exampleEn ?? ''),
+      extraExample: entry.sentence ? (sense?.exampleEn ?? null) : null,
       count: entry.count,
       saved: entry.saved,
     };

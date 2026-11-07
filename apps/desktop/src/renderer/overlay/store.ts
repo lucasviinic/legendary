@@ -1,8 +1,12 @@
-import type { CardPlacement, OverlayLayout, SessionStatus, WordCard } from '@legendary/contracts';
+import {
+  defaultSettings,
+  type CardPlacement,
+  type OverlayLayout,
+  type SessionStatus,
+  type WordCard,
+} from '@legendary/contracts';
 import { create } from 'zustand';
 
-/** O card atual e até 6 resumos abaixo dele. */
-const MAX_CARDS = 7;
 /** Depois desse tempo em destaque, o card encolhe e vira resumo. */
 const FOCUS_MS = 10_000;
 /** Sem cards novos para empurrar os resumos, eles saem de cena sozinhos. */
@@ -30,6 +34,7 @@ interface OverlayState {
   items: Item[];
   placement: CardPlacement;
   safeTop: number;
+  maxSummaries: number;
   hovered: string | null;
   setStatus(status: SessionStatus): void;
   setLayout(layout: OverlayLayout): void;
@@ -46,10 +51,17 @@ export const useOverlay = create<OverlayState>((set) => ({
   items: [],
   placement: { corner: 'tr', x: 20, y: 20 },
   safeTop: 0,
+  maxSummaries: defaultSettings.maxSummaries,
   hovered: null,
   setStatus: (status) =>
     set(status.state === 'idle' ? { status, items: [], hovered: null } : { status }),
-  setLayout: ({ placement, safeTop }) => set({ placement, safeTop }),
+  setLayout: ({ placement, safeTop, maxSummaries }) =>
+    set((state) => ({
+      placement,
+      safeTop,
+      maxSummaries,
+      items: state.items.slice(0, maxSummaries + 1),
+    })),
   setPlacement: (placement) => set({ placement }),
   setHovered: (hovered) => set({ hovered }),
   addCard: (card) =>
@@ -61,7 +73,7 @@ export const useOverlay = create<OverlayState>((set) => ({
           ...state.items
             .filter((item) => item.card.lemma !== card.lemma)
             .map((item) => ({ ...item, focused: false })),
-        ].slice(0, MAX_CARDS),
+        ].slice(0, state.maxSummaries + 1),
       };
     }),
   updateCard: (card) =>

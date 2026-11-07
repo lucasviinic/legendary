@@ -1,14 +1,16 @@
-import { DEFAULT_WS_PORT, type CaptionEvent } from '@legendary/contracts';
+import { DEFAULT_WS_PORT, type CaptionEvent, type Source } from '@legendary/contracts';
 import { browser } from 'wxt/browser';
 import { defineBackground } from 'wxt/utils/define-background';
 import { AppConnection, type SocketLike } from '../lib/connection';
 import type { RuntimeMessage, StatusReply, TabMessage } from '../lib/messages';
+import { rewindPlayer } from '../lib/rewind';
 
 const WAKE_ALARM = 'legendary-wake';
 
 export default defineBackground(() => {
-  /** A aba que mandou a última legenda é a que recebe o destaque. */
+  /** A aba que mandou a última legenda é a que recebe o destaque e volta o vídeo. */
   let captionTab: number | undefined;
+  let captionSource: Source = 'netflix';
 
   const connection = new AppConnection({
     createSocket: (url) => new WebSocket(url) as unknown as SocketLike,
@@ -18,6 +20,17 @@ export default defineBackground(() => {
       if (captionTab !== undefined) {
         browser.tabs.sendMessage(captionTab, message).catch(() => undefined);
       }
+    },
+    onRewind: ({ seconds }) => {
+      if (captionTab === undefined) return;
+      browser.scripting
+        .executeScript({
+          target: { tabId: captionTab },
+          world: 'MAIN',
+          func: rewindPlayer,
+          args: [captionSource, seconds],
+        })
+        .catch(() => undefined);
     },
   });
 
@@ -43,6 +56,7 @@ export default defineBackground(() => {
     const message = raw as RuntimeMessage;
     if (message.type === 'caption') {
       captionTab = sender.tab?.id;
+      captionSource = message.caption.source;
       connection.sendCaption(message.caption);
       return undefined;
     }

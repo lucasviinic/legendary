@@ -1,7 +1,7 @@
 import { join } from 'node:path';
 import { BrowserWindow, type WebPreferences } from 'electron';
 
-export type RendererPage = 'overlay' | 'quiz' | 'history' | 'settings' | 'menu';
+export type RendererPage = 'overlay' | 'quiz' | 'history' | 'settings' | 'menu' | 'search';
 
 /** Toda janela usa estas opções: o renderer não tem acesso a Node nem ao main, só ao preload. */
 export const secureWebPreferences: WebPreferences = {

@@ -4,7 +4,7 @@ import react from '@vitejs/plugin-react';
 import { defineConfig } from 'electron-vite';
 import type { Plugin } from 'vite';
 
-const PAGES = ['overlay', 'quiz', 'history', 'settings', 'menu'];
+const PAGES = ['overlay', 'quiz', 'history', 'settings', 'menu', 'search'];
 
 /** CSP restrita em produção. Em dev, o Vite precisa de script inline e de WebSocket para o reload. */
 function contentSecurityPolicy(): Plugin {

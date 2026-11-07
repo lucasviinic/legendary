@@ -2,7 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { join } from 'node:path';
 import { app, BrowserWindow, nativeTheme } from 'electron';
 import type { CaptionEvent, Provider, SettingsView } from '@legendary/contracts';
-import { createPipeline } from '@legendary/core/pipeline';
+import { createPipeline, createWordLookup } from '@legendary/core/pipeline';
 import { fakeProvider } from './ai/fake-provider';
 import { createProvider } from './ai/provider-factory';
 import type { LLMProvider } from './ai/types';
@@ -26,9 +26,11 @@ import { MenuWindow } from './windows/menu';
 import { OverlayWindow } from './windows/overlay';
 import { displayKey, overlayLayout } from './windows/overlay-layout';
 import { openQuizWindow } from './windows/quiz';
+import { SearchWindow } from './windows/search';
 import { openSettingsWindow } from './windows/settings';
 
 const STATUS_TICK_MS = 1_000;
+const REWIND_SECONDS = 10;
 /** Só os testes ponta a ponta usam isto, e nunca no app empacotado. */
 const isE2E = !app.isPackaged && process.env.LEGENDARY_E2E === '1';
 
@@ -87,9 +89,11 @@ async function bootstrap() {
   }
 
   const now = () => Date.now();
+  const lexicon = loadLexicon(resourcesDir());
   const vocabulary = new VocabularyService({
     repos,
-    pipeline: createPipeline(loadLexicon(resourcesDir())),
+    pipeline: createPipeline(lexicon),
+    lookup: createWordLookup(lexicon),
     settings,
     getProvider,
     now,
@@ -103,6 +107,7 @@ async function bootstrap() {
 
   const overlay = new OverlayWindow();
   const menu = new MenuWindow();
+  const searchBar = new SearchWindow();
 
   let tray: AppTray | null = null;
   const session = new SessionService({
@@ -113,6 +118,7 @@ async function bootstrap() {
       broadcast('session:status', status);
       overlay.setSessionActive(status.state !== 'idle');
       tray?.setActive(status.state !== 'idle');
+      if (status.state === 'idle') searchBar.hide();
     },
   });
   const quiz = new QuizService({ repos, getProvider, now, shuffle });
@@ -151,6 +157,20 @@ async function bootstrap() {
     else session.togglePause();
   };
 
+  const toggleOverlay = () => {
+    overlay.toggle();
+    broadcast('overlay:visibility', { visible: !overlay.hiddenByUser });
+  };
+  const toggleSearch = () => {
+    if (session.status().state !== 'idle') searchBar.toggle(overlay.display);
+  };
+  const searchWord = (query: string) => {
+    searchBar.hide();
+    if (!session.search(query)) return;
+    if (overlay.hiddenByUser) toggleOverlay();
+    if (settings.get().rewindOnSearch) source.sendRewind(REWIND_SECONDS);
+  };
+
   registerHandlers({
     'session:start': ({ source: origin }) => session.start(origin),
     'session:stop': () => stopSession(),
@@ -159,13 +179,12 @@ async function bootstrap() {
     'vocab:mark-known': ({ lemma }) => vocabulary.markKnown(lemma),
     'vocab:save': ({ lemma }) => ({ saved: vocabulary.toggleSaved(lemma) }),
     'overlay:set-interactive': ({ interactive }) => overlay.setInteractive(interactive),
-    'overlay:toggle': () => {
-      overlay.toggle();
-      broadcast('overlay:visibility', { visible: !overlay.hiddenByUser });
-    },
+    'overlay:toggle': toggleOverlay,
     'overlay:get-layout': () => currentLayout(),
     'overlay:set-placement': (placement) =>
       settings.placeCards(displayKey(overlay.display), placement),
+    'search:submit': ({ query }) => searchWord(query),
+    'search:hide': () => searchBar.hide(),
     'quiz:summary': ({ sessionId }) => quiz.summary(sessionId),
     'quiz:get': ({ sessionId, senseIds }) => quiz.create(sessionId, senseIds),
     'quiz:review-mistakes': ({ quizId }) => quiz.reviewMistakes(quizId),
@@ -205,14 +224,15 @@ async function bootstrap() {
     toggleSession,
     stopSession: () => void stopSession(),
     markCurrentKnown: () => vocabulary.markCurrentKnown(),
-    toggleOverlay: () => {
-      overlay.toggle();
-      broadcast('overlay:visibility', { visible: !overlay.hiddenByUser });
-    },
+    toggleOverlay,
+    toggleSearch,
   });
+  // Um teste não consegue apertar um atalho global do sistema.
+  if (isE2E) app.on('legendary:toggle-search' as never, toggleSearch);
 
   overlay.create(publishLayout);
   menu.create();
+  searchBar.create();
   tray = new AppTray(join(resourcesDir(), 'icons'), (bounds) => menu.toggle(bounds));
 
   const ticker = setInterval(() => session.tick(), STATUS_TICK_MS);
