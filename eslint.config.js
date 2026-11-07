@@ -37,6 +37,7 @@ export default tseslint.config(
       'import/no-restricted-paths': [
         'error',
         {
+          basePath: import.meta.dirname,
           zones: [
             {
               target: './packages',
