@@ -315,6 +315,15 @@ describe('searching a word', () => {
     expect(h.events.cards[0]).toMatchObject({ surface: 'house', sentence: 'The house is here.' });
   });
 
+  it('sends the word and the caption where it appeared to the AI', async () => {
+    h.session.handleCaption(caption('The house is here.'));
+    h.session.search('houses');
+    await settle();
+    expect(vi.mocked(h.provider!.enrichWords).mock.calls.at(-1)?.[0]).toEqual([
+      { lemma: 'house', pos: 'noun', surface: 'house', sentence: 'The house is here.' },
+    ]);
+  });
+
   it('shows the example from the AI when no caption has the word', async () => {
     h.session.search('knack');
     expect(h.events.cards[0]?.sentence).toBe('');

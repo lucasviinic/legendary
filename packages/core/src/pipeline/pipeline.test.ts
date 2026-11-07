@@ -286,6 +286,29 @@ describe('createWordLookup', () => {
     expect(find('stumble', ['They stumble and fall.'])?.pos).toBe('verb');
   });
 
+  it('finds the caption by the typed form when the sentence gives it another lemma', () => {
+    // Sozinha, "leaves" parece o verbo "leave". Na frase, é o plural de "leaf".
+    expect(find('leaves')).toMatchObject({ lemma: 'leave', pos: 'verb', sentence: '' });
+    expect(find('leaves', ['The leaves fell down.'])).toMatchObject({
+      lemma: 'leaf',
+      pos: 'noun',
+      surface: 'leaves',
+      sentence: 'The leaves fell down.',
+    });
+  });
+
+  it('reduces an expression outside the list to its lemmas', () => {
+    expect(find('took off')).toMatchObject({ lemma: 'take off', surface: 'took off' });
+  });
+
+  it('finds an expression outside the list in another form', () => {
+    expect(find('take off', ['He took off his coat.'])).toMatchObject({
+      lemma: 'take off',
+      surface: 'took off',
+      sentence: 'He took off his coat.',
+    });
+  });
+
   it('finds an expression outside the list inside a caption', () => {
     expect(find('out of the blue', ['It came Out of the blue today.'])).toMatchObject({
       surface: 'Out of the blue',

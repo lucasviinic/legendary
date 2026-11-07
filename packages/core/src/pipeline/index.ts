@@ -96,9 +96,22 @@ export interface LookupContext {
   sessionCounts: ReadonlyMap<string, number>;
 }
 
+/** A mesma palavra pode ter outro lema na frase: sozinha, "leaves" parece o verbo "leave". */
+const sameWord = (token: Token, typed: Token) =>
+  token.lemma === typed.lemma || token.surface.toLowerCase() === typed.surface.toLowerCase();
+
+/** Onde as palavras digitadas aparecem em sequência na frase. */
+function findWords(tokens: readonly Token[], words: readonly Token[]): Token[] | undefined {
+  for (let start = 0; start + words.length <= tokens.length; start++) {
+    const found = tokens.slice(start, start + words.length);
+    if (found.every((token, index) => sameWord(token, words[index]!))) return found;
+  }
+  return undefined;
+}
+
 /**
  * Monta o candidato de uma palavra digitada. Ela não passa pelos filtros, porque a pessoa pediu.
- * Se uma legenda recente tiver a palavra, vale a forma e a classe usadas nela. A classe da palavra
+ * Se uma legenda recente tiver a palavra, vale o lema, a forma e a classe usados nela. A palavra
  * sozinha é só um palpite.
  */
 export function createWordLookup(lexicon: Lexicon) {
@@ -109,21 +122,27 @@ export function createWordLookup(lexicon: Lexicon) {
     const typed = normalize(query);
     if (!/\p{L}/u.test(typed)) return null;
 
-    const tokens = read(typed);
-    const expression = tokens.length > 1;
-    const lower = typed.toLowerCase();
+    const words = read(typed);
+    if (words.length === 0) return null;
+    const expression = words.length > 1;
     const wanted: Token = expression
-      ? { surface: typed, lemma: lower, pos: 'PHRASE', kind: 'expression' }
-      : tokens[0]!;
+      ? {
+          surface: typed,
+          lemma: words.map((word) => word.lemma).join(' '),
+          pos: 'PHRASE',
+          kind: 'expression',
+        }
+      : words[0]!;
 
     let token = wanted;
     let sentence = '';
     for (const raw of [...context.sentences].reverse()) {
       const text = normalize(raw);
-      const match = read(text).find((item) => item.lemma === wanted.lemma);
-      const at = expression ? text.toLowerCase().indexOf(lower) : -1;
-      if (match || at >= 0) {
-        token = match ?? { ...wanted, surface: text.slice(at, at + lower.length) };
+      const found = findWords(read(text), words);
+      if (found) {
+        token = expression
+          ? { ...wanted, surface: found.map((item) => item.surface).join(' ') }
+          : found[0]!;
         sentence = text;
         break;
       }

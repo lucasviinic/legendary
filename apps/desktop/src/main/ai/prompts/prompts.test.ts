@@ -17,6 +17,14 @@ describe('prompts', () => {
     ).toMatchSnapshot();
   });
 
+  it('gives the AI the word as it appeared and the sentence', () => {
+    const { prompt } = buildEnrichPrompt([
+      { lemma: 'leaf', pos: 'noun', surface: 'leaves', sentence: 'The leaves fell down.' },
+    ]);
+    expect(prompt).toContain('"surface": "leaves"');
+    expect(prompt).toContain('"sentence": "The leaves fell down."');
+  });
+
   it('quiz prompt', () => {
     expect(
       buildQuizPrompt([
