@@ -11,7 +11,7 @@ const ENRICH_TIMEOUT_MS = 60_000;
 const QUIZ_TIMEOUT_MS = 120_000;
 const MAX_OUTPUT_TOKENS = 16_000;
 
-/** Cada provedor com o modelo padrão. Só o Claude recebe opções próprias, para responder rápido. */
+/** Cada provedor com o modelo padrão. */
 function createModel(provider: Provider, apiKey: string): LanguageModel {
   switch (provider) {
     case 'gemini':
@@ -24,7 +24,10 @@ function createModel(provider: Provider, apiKey: string): LanguageModel {
 }
 
 const providerOptions = (provider: Provider) =>
-  provider === 'claude' ? { anthropic: { effort: 'low' as const } } : undefined;
+  // No Claude: esforço baixo para responder rápido, e outro modelo assume se o pedido for recusado.
+  provider === 'claude'
+    ? { anthropic: { effort: 'low' as const, fallbacks: 'default' as const } }
+    : undefined;
 
 export function createProvider(provider: Provider, apiKey: string): LLMProvider {
   const model = createModel(provider, apiKey);
