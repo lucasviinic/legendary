@@ -1,4 +1,4 @@
-import type { Corner, SessionStatus, WordCard } from '@legendary/contracts';
+import type { CardPlacement, OverlayLayout, SessionStatus, WordCard } from '@legendary/contracts';
 import { create } from 'zustand';
 
 /** O card atual e até 4 resumos abaixo dele. */
@@ -28,10 +28,12 @@ interface Item {
 interface OverlayState {
   status: SessionStatus;
   items: Item[];
-  corner: Corner;
+  placement: CardPlacement;
+  safeTop: number;
   hovered: string | null;
   setStatus(status: SessionStatus): void;
-  setCorner(corner: Corner): void;
+  setLayout(layout: OverlayLayout): void;
+  setPlacement(placement: CardPlacement): void;
   setHovered(lemma: string | null): void;
   addCard(card: WordCard): void;
   updateCard(card: WordCard): void;
@@ -42,11 +44,13 @@ interface OverlayState {
 export const useOverlay = create<OverlayState>((set) => ({
   status: idleStatus,
   items: [],
-  corner: 'tr',
+  placement: { corner: 'tr', x: 20, y: 20 },
+  safeTop: 0,
   hovered: null,
   setStatus: (status) =>
     set(status.state === 'idle' ? { status, items: [], hovered: null } : { status }),
-  setCorner: (corner) => set({ corner }),
+  setLayout: ({ placement, safeTop }) => set({ placement, safeTop }),
+  setPlacement: (placement) => set({ placement }),
   setHovered: (hovered) => set({ hovered }),
   addCard: (card) =>
     set((state) => {

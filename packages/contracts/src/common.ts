@@ -18,3 +18,11 @@ export type Cefr = z.infer<typeof CefrSchema>;
 
 export const CornerSchema = z.enum(['tl', 'tr', 'bl', 'br']);
 export type Corner = z.infer<typeof CornerSchema>;
+
+/** Onde a pilha de cards fica: o canto e a distância, em pixels, das bordas desse canto. */
+export const CardPlacementSchema = z.object({
+  corner: CornerSchema,
+  x: z.number().int().nonnegative(),
+  y: z.number().int().nonnegative(),
+});
+export type CardPlacement = z.infer<typeof CardPlacementSchema>;

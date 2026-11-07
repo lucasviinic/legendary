@@ -5,6 +5,7 @@ import {
   defaultSettings,
   type ApiKeyInfo,
   type ApiKeyStatus,
+  type CardPlacement,
   type Provider,
   type Settings,
 } from '@legendary/contracts';
@@ -37,8 +38,23 @@ export class SettingsService {
     return SettingsSchema.parse({ ...defaultSettings, ...(stored as object | undefined) });
   }
 
+  /** Escolher um canto, mesmo o atual, apaga as posições arrastadas e volta ao padrão. */
   update(patch: Partial<Settings>): void {
-    this.deps.repo.set(SETTINGS_KEY, SettingsSchema.parse({ ...this.get(), ...patch }));
+    this.save({ ...this.get(), ...patch, ...(patch.corner ? { cardPlacements: {} } : {}) });
+  }
+
+  /** Guarda a posição arrastada neste monitor. As dos outros monitores continuam valendo. */
+  placeCards(displayKey: string, placement: CardPlacement): void {
+    const current = this.get();
+    this.save({
+      ...current,
+      corner: placement.corner,
+      cardPlacements: { ...current.cardPlacements, [displayKey]: placement },
+    });
+  }
+
+  private save(settings: Settings) {
+    this.deps.repo.set(SETTINGS_KEY, SettingsSchema.parse(settings));
     this.notify();
   }
 

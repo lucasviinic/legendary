@@ -24,6 +24,7 @@ import { VocabularyService } from './services/vocabulary';
 import { openHistoryWindow } from './windows/history';
 import { MenuWindow } from './windows/menu';
 import { OverlayWindow } from './windows/overlay';
+import { displayKey, overlayLayout } from './windows/overlay-layout';
 import { openQuizWindow } from './windows/quiz';
 import { openSettingsWindow } from './windows/settings';
 
@@ -123,7 +124,10 @@ async function bootstrap() {
     pairing: { token: settings.pairingToken(), port: source.port, connected: source.connected },
   });
   const publishSettings = () => broadcast('settings:changed', settingsView());
+  const currentLayout = () => overlayLayout(settings.get(), overlay.display);
+  const publishLayout = () => broadcast('overlay:layout', currentLayout());
   settings.onChange(publishSettings);
+  settings.onChange(publishLayout);
   source.on('connection-change', publishSettings);
   source.on('caption', (caption: CaptionEvent) => session.handleCaption(caption));
 
@@ -159,6 +163,9 @@ async function bootstrap() {
       overlay.toggle();
       broadcast('overlay:visibility', { visible: !overlay.hiddenByUser });
     },
+    'overlay:get-layout': () => currentLayout(),
+    'overlay:set-placement': (placement) =>
+      settings.placeCards(displayKey(overlay.display), placement),
     'quiz:summary': ({ sessionId }) => quiz.summary(sessionId),
     'quiz:get': ({ sessionId, senseIds }) => quiz.create(sessionId, senseIds),
     'quiz:review-mistakes': ({ quizId }) => quiz.reviewMistakes(quizId),
@@ -204,7 +211,7 @@ async function bootstrap() {
     },
   });
 
-  overlay.create();
+  overlay.create(publishLayout);
   menu.create();
   tray = new AppTray(join(resourcesDir(), 'icons'), (bounds) => menu.toggle(bounds));
 

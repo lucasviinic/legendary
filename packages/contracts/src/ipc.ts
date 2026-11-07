@@ -1,9 +1,10 @@
 import { z } from 'zod';
-import { CaptureOriginSchema, ProviderSchema } from './common';
+import { CardPlacementSchema, CaptureOriginSchema, ProviderSchema } from './common';
 import {
   HistoryListSchema,
   HistoryWordsRequestSchema,
   HistoryWordsSchema,
+  OverlayLayoutSchema,
   QuizAnswerResultSchema,
   QuizResultSchema,
   QuizSummarySchema,
@@ -34,6 +35,8 @@ export const invokeChannels = {
 
   'overlay:set-interactive': { request: z.object({ interactive: z.boolean() }), response: None },
   'overlay:toggle': { request: None, response: None },
+  'overlay:get-layout': { request: None, response: OverlayLayoutSchema },
+  'overlay:set-placement': { request: CardPlacementSchema, response: None },
 
   'quiz:summary': {
     request: z.object({ sessionId: z.number().int() }),
@@ -81,6 +84,7 @@ export const eventChannels = {
   'vocab:card-update': WordCardSchema,
   'vocab:card-remove': z.object({ lemma: z.string() }),
   'overlay:visibility': z.object({ visible: z.boolean() }),
+  'overlay:layout': OverlayLayoutSchema,
   'settings:changed': SettingsViewSchema,
 } as const;
 

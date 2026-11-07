@@ -1,5 +1,6 @@
-import type { Corner, WordCard } from '@legendary/contracts';
+import type { CardPlacement, WordCard } from '@legendary/contracts';
 import { AnimatePresence, motion } from 'motion/react';
+import { useStackDrag } from './useStackDrag';
 import { CompactCard, FullCard, type CardActions } from './WordCardView';
 
 /**
@@ -9,35 +10,43 @@ import { CompactCard, FullCard, type CardActions } from './WordCardView';
 const OPACITY_BY_RANK = [1, 0.78, 0.48, 0.38, 0.3];
 const LOWEST_OPACITY = 0.3;
 
-const CORNER_CLASS: Record<Corner, string> = {
-  tr: 'top-5 right-5',
-  tl: 'top-5 left-5',
-  br: 'right-5 bottom-5 flex-col-reverse',
-  bl: 'bottom-5 left-5 flex-col-reverse',
-};
-
 export interface CardStackProps extends CardActions {
   cards: WordCard[];
-  corner: Corner;
+  placement: CardPlacement;
   /** Se o card mais novo ainda está em destaque. Depois de um tempo ele também vira resumo. */
   focused: boolean;
   hovered: string | null;
   onHover?: (lemma: string | null) => void;
+  /** Sem esta função, a pilha não pode ser arrastada. */
+  onPlace?: (placement: CardPlacement) => void;
+  onDragging?: (dragging: boolean) => void;
 }
 
 /** Pilha com o card mais novo em destaque e os anteriores resumidos abaixo dele. */
 export function CardStack({
   cards,
-  corner,
+  placement,
   focused,
   hovered,
   onHover,
   onKnown,
   onSave,
+  onPlace,
+  onDragging,
 }: CardStackProps) {
-  const fromRight = corner[1] === 'r';
+  const drag = useStackDrag({ placement, onPlace, onDragging });
+  const fromRight = placement.corner[1] === 'r';
+  const fromBottom = placement.corner[0] === 'b';
   return (
-    <div className={`absolute flex w-[300px] flex-col gap-2 text-white ${CORNER_CLASS[corner]}`}>
+    <div
+      {...drag}
+      data-testid="card-stack"
+      className={`absolute flex w-[300px] gap-2 text-white ${fromBottom ? 'flex-col-reverse' : 'flex-col'} ${onPlace ? 'cursor-grab active:cursor-grabbing [&_button]:cursor-default' : ''}`}
+      style={{
+        [fromBottom ? 'bottom' : 'top']: placement.y,
+        [fromRight ? 'right' : 'left']: placement.x,
+      }}
+    >
       <AnimatePresence initial={false} mode="popLayout">
         {cards.map((card, position) => {
           const isHovered = hovered === card.lemma;

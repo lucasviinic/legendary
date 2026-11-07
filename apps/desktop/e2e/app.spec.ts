@@ -208,3 +208,107 @@ test('captions become cards, and the session ends in a quiz and in the history',
   // A barra some quando a sessão acaba.
   await expect(overlay.getByTestId('status-bar')).toHaveCount(0);
 });
+
+test('the cards can be dragged anywhere on the screen, and the position is remembered', async () => {
+  const menu = await windowOf('menu');
+  const overlay = await windowOf('overlay');
+
+  if (!socket) {
+    const view = (await invoke(menu, 'settings:get')) as { pairing: { token: string } };
+    await connectExtension(view.pairing.token);
+  }
+  await invoke(menu, 'session:start', { source: 'browser' });
+  sendCaption('He was a grumpy old man.');
+  const stack = overlay.getByTestId('card-stack');
+  const card = overlay.getByTestId('card-grumpy');
+  await expect(card).toBeVisible();
+
+  const box = async () => (await stack.boundingBox())!;
+  const dragBy = async (x: number, y: number) => {
+    const from = await box();
+    await overlay.mouse.move(from.x + 30, from.y + 12);
+    await overlay.mouse.down();
+    await overlay.mouse.move(from.x + 30 + x, from.y + 12 + y, { steps: 6 });
+    await overlay.mouse.up();
+  };
+  const placements = async () =>
+    Object.values(
+      ((await invoke(menu, 'settings:get')) as { settings: { cardPlacements: object } }).settings
+        .cardPlacements,
+    );
+
+  // A janela cobre a tela inteira, mas a posição padrão continua abaixo da barra de menus.
+  const geometry = await app.evaluate(({ BrowserWindow, screen }) => {
+    const display = screen.getPrimaryDisplay();
+    const overlayWindow = BrowserWindow.getAllWindows().find((window) =>
+      window.webContents.getURL().includes('/overlay/'),
+    )!;
+    return {
+      bounds: display.bounds,
+      window: overlayWindow.getBounds(),
+      safeTop: display.workArea.y - display.bounds.y,
+      screenWidth: display.bounds.width,
+    };
+  });
+  expect(geometry.window).toEqual(geometry.bounds);
+  const start = await box();
+  expect(start.y).toBe(geometry.safeTop + 20);
+  expect(start.x + start.width).toBe(geometry.screenWidth - 20);
+  const bar = (await overlay.getByTestId('status-bar').boundingBox())!;
+  expect(bar.y).toBe(geometry.safeTop + 18);
+
+  // Ao soltar, a pilha fica onde estava: não volta nem voa até a posição nova.
+  // A medida é do card, porque é ele que a animação move, não a pilha em volta. Antes, espera o
+  // card terminar de entrar, porque ele chega deslizando.
+  await expect.poll(async () => (await card.boundingBox())!.x).toBe(start.x);
+  await dragBy(-300, 40);
+  for (let sample = 0; sample < 6; sample++) {
+    const dropped = (await card.boundingBox())!;
+    expect(dropped.x).toBeCloseTo(start.x - 300, 0);
+    expect(dropped.y).toBeCloseTo(start.y + 40, 0);
+    await overlay.waitForTimeout(40);
+  }
+  await expect.poll(placements).toEqual([{ corner: 'tr', x: 320, y: geometry.safeTop + 60 }]);
+
+  // Chega até o topo da tela, acima da faixa da barra de menus, e não sai dela.
+  await dragBy(0, -2_000);
+  expect((await box()).y).toBe(0);
+  await expect.poll(placements).toEqual([{ corner: 'tr', x: 320, y: 0 }]);
+
+  // Um botão continua sendo botão. O card expande com o mouse em cima, como no frame 1c.
+  await expect(card).toContainText('Explicação curta', { timeout: 2_000 });
+  const save = card.getByRole('button', { name: 'Salvar' });
+  await save.hover();
+  await overlay.waitForTimeout(300);
+  const before = await box();
+  const saveBox = (await save.boundingBox())!;
+  await overlay.mouse.move(saveBox.x + 5, saveBox.y + 5);
+  await overlay.mouse.down();
+  await overlay.mouse.move(saveBox.x + 60, saveBox.y + 60, { steps: 3 });
+  await overlay.mouse.up();
+  expect(await box()).toMatchObject({ x: before.x, y: before.y });
+
+  // Um clique sem movimento não muda nada.
+  const clickFrom = await box();
+  await overlay.mouse.click(clickFrom.x + 30, clickFrom.y + 12);
+  expect(await box()).toMatchObject({ x: clickFrom.x, y: clickFrom.y });
+  await expect.poll(placements).toEqual([{ corner: 'tr', x: 320, y: 0 }]);
+
+  // Na metade de baixo a pilha se prende ao canto de baixo e cresce para cima.
+  const screenHeight = await overlay.evaluate(() => window.innerHeight);
+  await dragBy(-600, screenHeight - 400);
+  await expect.poll(async () => ((await placements())[0] as { corner: string }).corner).toBe('bl');
+  const settings = (await invoke(menu, 'settings:get')) as { settings: { corner: string } };
+  expect(settings.settings.corner).toBe('bl');
+
+  // Escolher um canto nas Configurações volta para a posição padrão.
+  await invoke(menu, 'settings:set', { corner: 'tr' });
+  await expect.poll(async () => (await box()).y).toBe(geometry.safeTop + 20);
+  await expect
+    .poll(async () => {
+      const { x, width } = await box();
+      return x + width;
+    })
+    .toBe(geometry.screenWidth - 20);
+  await expect.poll(placements).toEqual([]);
+});

@@ -1,9 +1,13 @@
-import { BrowserWindow, screen } from 'electron';
+import { BrowserWindow, screen, type Display } from 'electron';
 import { loadPage, secureWebPreferences } from './common';
 
 /**
  * Janela transparente sobre o vídeo. A especificação previa `vibrancy: 'hud'`, mas vibrancy vale
  * para a janela inteira e embaçaria o vídeo todo, então o vidro é feito só com CSS nos cards.
+ *
+ * Ela cobre a tela inteira para os cards poderem ser arrastados até a borda de cima, que em tela
+ * cheia é onde o vídeo começa. Sem `enableLargerThanScreen`, o macOS empurra a janela para baixo
+ * da barra de menus.
  */
 export class OverlayWindow {
   private window: BrowserWindow | null = null;
@@ -14,9 +18,14 @@ export class OverlayWindow {
     return this.window;
   }
 
-  create(): void {
+  get display(): Display {
+    return screen.getPrimaryDisplay();
+  }
+
+  create(onDisplayChange: () => void): void {
     const window = new BrowserWindow({
-      ...screen.getPrimaryDisplay().workArea,
+      ...this.display.bounds,
+      enableLargerThanScreen: true,
       show: false,
       transparent: true,
       frame: false,
@@ -45,9 +54,13 @@ export class OverlayWindow {
     loadPage(window, 'overlay');
     this.window = window;
 
-    screen.on('display-metrics-changed', () => {
-      this.window?.setBounds(screen.getPrimaryDisplay().workArea);
-    });
+    const followDisplay = () => {
+      this.window?.setBounds(this.display.bounds);
+      onDisplayChange();
+    };
+    screen.on('display-metrics-changed', followDisplay);
+    screen.on('display-added', followDisplay);
+    screen.on('display-removed', followDisplay);
   }
 
   setInteractive(interactive: boolean): void {

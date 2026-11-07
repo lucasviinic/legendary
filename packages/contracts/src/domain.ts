@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { QuestionTypeSchema } from './ai';
 import {
+  CardPlacementSchema,
   CaptureOriginSchema,
   CefrSchema,
   CornerSchema,
@@ -48,6 +49,8 @@ export const SettingsSchema = z.object({
   level: LevelSchema,
   cardsPerMinute: z.number().int().min(1).max(4),
   corner: CornerSchema,
+  /** Posição arrastada em cada monitor, pelo nome dele. Sem ela, vale o canto escolhido. */
+  cardPlacements: z.record(z.string(), CardPlacementSchema),
   highlightSubtitles: z.boolean(),
   origin: CaptureOriginSchema,
   wsPort: z.number().int().min(1024).max(65535),
@@ -60,6 +63,7 @@ export const defaultSettings: Settings = {
   level: 'B2',
   cardsPerMinute: 2,
   corner: 'tr',
+  cardPlacements: {},
   highlightSubtitles: true,
   origin: 'browser',
   wsPort: DEFAULT_WS_PORT,
@@ -89,6 +93,14 @@ export const SettingsViewSchema = z.object({
   pairing: PairingSchema,
 });
 export type SettingsView = z.infer<typeof SettingsViewSchema>;
+
+/** O que o overlay precisa saber sobre a tela em que está. */
+export const OverlayLayoutSchema = z.object({
+  placement: CardPlacementSchema,
+  /** Altura da faixa da barra de menus, que a janela do overlay também cobre. */
+  safeTop: z.number().nonnegative(),
+});
+export type OverlayLayout = z.infer<typeof OverlayLayoutSchema>;
 
 export const QuizSummaryWordSchema = z.object({
   senseId: z.number().int(),

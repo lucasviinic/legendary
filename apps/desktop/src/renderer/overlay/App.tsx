@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import type { CardPlacement } from '@legendary/contracts';
 import { api } from '../shared/api';
 import { CardStack } from './CardStack';
 import { StatusBar } from './StatusBar';
@@ -7,25 +8,28 @@ import { useOverlay } from './store';
 const EXPIRE_CHECK_MS = 500;
 const BAR_IDLE_AFTER_MS = 4_000;
 const NEAR_TOP_PX = 80;
+/** Distância da barra de status até a borda da área livre (frame 1a). */
+const BAR_MARGIN = 18;
 
 /** Barra e cards sobre o vídeo. Os cliques atravessam a janela, exceto sobre estes elementos. */
 export function App() {
-  const { status, items, corner, hovered, setHovered } = useOverlay();
+  const { status, items, placement, safeTop, hovered, setHovered } = useOverlay();
   const [barAwake, setBarAwake] = useState(true);
   const idleTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const dragging = useRef(false);
 
   useEffect(() => {
     const state = useOverlay.getState();
     const legendary = api();
     void legendary.invoke('session:get-status').then(state.setStatus);
-    void legendary.invoke('settings:get').then((view) => state.setCorner(view.settings.corner));
+    void legendary.invoke('overlay:get-layout').then(state.setLayout);
 
     const unsubscribe = [
       legendary.on('session:status', state.setStatus),
       legendary.on('vocab:card', state.addCard),
       legendary.on('vocab:card-update', state.updateCard),
       legendary.on('vocab:card-remove', ({ lemma }) => state.removeCard(lemma)),
-      legendary.on('settings:changed', (view) => state.setCorner(view.settings.corner)),
+      legendary.on('overlay:layout', state.setLayout),
     ];
     const expiry = setInterval(() => useOverlay.getState().expireCards(), EXPIRE_CHECK_MS);
     return () => {
@@ -43,7 +47,9 @@ export function App() {
       idleTimer.current = setTimeout(() => setBarAwake(false), BAR_IDLE_AFTER_MS);
     };
     const onMove = (event: MouseEvent) => {
-      if (event.clientY < NEAR_TOP_PX) wake();
+      if (event.clientY < useOverlay.getState().safeTop + NEAR_TOP_PX) wake();
+      // O mouse pode sair da pilha na borda da tela, mas o botão solto tem que chegar até aqui.
+      if (dragging.current) return;
       const over = document.elementFromPoint(event.clientX, event.clientY);
       const next = over?.closest('[data-interactive]') != null;
       if (next !== interactive) {
@@ -64,13 +70,19 @@ export function App() {
   // Pausa e avisos ficam sempre legíveis: só a barra ativa, sem novidade, some sozinha.
   const canFade = status.state === 'active' && status.notice === null;
 
+  // A posição muda aqui na hora, para a pilha não voltar ao lugar antigo enquanto o main responde.
+  const place = (next: CardPlacement) => {
+    useOverlay.getState().setPlacement(next);
+    void api().invoke('overlay:set-placement', next);
+  };
+
   return (
     <div className="relative h-full w-full overflow-hidden">
       <div
         data-interactive
         data-testid="status-bar"
-        className="absolute top-[18px] left-1/2 -translate-x-1/2 transition-opacity duration-300"
-        style={{ opacity: canFade && !barAwake ? 0.22 : 1 }}
+        className="absolute left-1/2 -translate-x-1/2 transition-opacity duration-300"
+        style={{ top: safeTop + BAR_MARGIN, opacity: canFade && !barAwake ? 0.22 : 1 }}
       >
         <StatusBar
           status={status}
@@ -80,10 +92,14 @@ export function App() {
       </div>
       <CardStack
         cards={items.map((item) => item.card)}
-        corner={corner}
+        placement={placement}
         focused={items[0]?.focused ?? false}
         hovered={hovered}
         onHover={setHovered}
+        onPlace={place}
+        onDragging={(value) => {
+          dragging.current = value;
+        }}
         onKnown={(lemma) => void api().invoke('vocab:mark-known', { lemma })}
         onSave={(lemma) => void api().invoke('vocab:save', { lemma })}
       />

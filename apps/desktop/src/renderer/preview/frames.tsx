@@ -1,4 +1,5 @@
 import type {
+  CardPlacement,
   HistoryList,
   HistoryWord,
   QuizQuestionView,
@@ -91,12 +92,15 @@ const getBy: WordCard = {
   explanation: null,
 };
 
+const TOP_RIGHT: CardPlacement = { corner: 'tr', x: 20, y: 20 };
+
 const settingsView: View = {
   settings: {
     provider: 'claude',
     level: 'B2',
     cardsPerMinute: 2,
     corner: 'tr',
+    cardPlacements: {},
     highlightSubtitles: true,
     origin: 'browser',
     wsPort: 47615,
@@ -333,7 +337,7 @@ export const FRAMES: Record<string, () => ReactNode> = {
           compact('stumble upon', 'dar de cara com'),
           compact('grumpy', 'mal-humorado'),
         ]}
-        corner="tr"
+        placement={TOP_RIGHT}
         focused
         hovered={null}
       />
@@ -351,7 +355,7 @@ export const FRAMES: Record<string, () => ReactNode> = {
       </BarAt>
       <CardStack
         cards={[headOut, compact('reckon', 'achar, supor')]}
-        corner="tr"
+        placement={TOP_RIGHT}
         focused
         hovered={null}
       />
