@@ -107,14 +107,15 @@ export interface SliderStop {
   at: number;
 }
 
-/** O frame 1e desenha "até 2" em 33%. Os outros passos dividem o resto da faixa, até um card a cada 6 s. */
+/** O frame 1e desenha "até 2" em 33%. Os outros passos dividem o resto da faixa, até um card a cada 4 s. */
 export const CARD_STOPS: SliderStop[] = [
   { value: 1, at: 0 },
   { value: 2, at: 33 },
-  { value: 4, at: 50 },
-  { value: 6, at: 67 },
-  { value: 8, at: 83 },
-  { value: 10, at: 100 },
+  { value: 4, at: 46 },
+  { value: 6, at: 60 },
+  { value: 8, at: 73 },
+  { value: 10, at: 87 },
+  { value: 15, at: 100 },
 ];
 
 const evenStops = (values: number[]): SliderStop[] =>
@@ -123,8 +124,8 @@ const evenStops = (values: number[]): SliderStop[] =>
     at: Math.round((index / (values.length - 1)) * 100),
   }));
 
-export const SUMMARY_STOPS = evenStops([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
-/** Inclui 6 s, o tempo que deixa os 10 cards por minuto caberem com um card por vez. */
+export const SUMMARY_STOPS = evenStops([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+/** Inclui 4 s e 6 s, os tempos que deixam 15 e 10 cards por minuto caberem com um card por vez. */
 export const CARD_TIME_STOPS = evenStops([3, 4, 5, 6, 8, 10, 15, 20, 30]);
 
 const upTo = (value: number) => `até ${value}`;

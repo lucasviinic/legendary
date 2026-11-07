@@ -43,9 +43,9 @@ describe('overlay cards', () => {
   });
 
   it('keeps as many summaries as the settings allow', () => {
-    state().setLayout({ ...state(), maxSummaries: 10 });
+    state().setLayout({ ...state(), maxSummaries: 12 });
     'abcdefghijklmn'.split('').forEach((lemma) => state().addCard(card(lemma)));
-    expect(lemmas()).toHaveLength(11);
+    expect(lemmas()).toHaveLength(13);
     expect(lemmas()[0]).toBe('n');
   });
 

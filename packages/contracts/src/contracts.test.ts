@@ -120,10 +120,10 @@ describe('Settings', () => {
   });
 
   it('limits cards per minute to the slider range', () => {
-    expect(SettingsSchema.parse({ ...defaultSettings, cardsPerMinute: 10 }).cardsPerMinute).toBe(
-      10,
-    );
-    expect(() => SettingsSchema.parse({ ...defaultSettings, cardsPerMinute: 11 })).toThrow();
+    const parse = (cardsPerMinute: number) =>
+      SettingsSchema.parse({ ...defaultSettings, cardsPerMinute }).cardsPerMinute;
+    expect(parse(15)).toBe(15);
+    expect(() => parse(16)).toThrow();
   });
 
   it('keeps six summaries and leaves the video alone by default', () => {
@@ -151,9 +151,11 @@ describe('Settings', () => {
   });
 
   it('limits the summaries to the slider range', () => {
-    expect(SettingsSchema.parse({ ...defaultSettings, maxSummaries: 10 }).maxSummaries).toBe(10);
-    expect(() => SettingsSchema.parse({ ...defaultSettings, maxSummaries: 11 })).toThrow();
-    expect(() => SettingsSchema.parse({ ...defaultSettings, maxSummaries: 0 })).toThrow();
+    const parse = (maxSummaries: number) =>
+      SettingsSchema.parse({ ...defaultSettings, maxSummaries }).maxSummaries;
+    expect(parse(12)).toBe(12);
+    expect(() => parse(13)).toThrow();
+    expect(() => parse(0)).toThrow();
   });
 });
 

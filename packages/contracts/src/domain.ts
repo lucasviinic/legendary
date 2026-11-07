@@ -49,13 +49,13 @@ export const SettingsSchema = z.object({
   level: LevelSchema,
   /** Ignora o nível: quase toda palavra vira card, e as repetidas só voltam como resumo. */
   translateAllWords: z.boolean(),
-  cardsPerMinute: z.number().int().min(1).max(10),
+  cardsPerMinute: z.number().int().min(1).max(15),
   /** Quanto tempo um card fica aberto, e só depois disso o lugar dele fica livre para o próximo. */
   cardSeconds: z.number().int().min(3).max(30),
   /** Quantos cards ficam abertos ao mesmo tempo, sem contar os resumos. */
   cardsAtOnce: z.number().int().min(1).max(3),
   /** Quantos cards ficam resumidos abaixo do atual. */
-  maxSummaries: z.number().int().min(1).max(10),
+  maxSummaries: z.number().int().min(1).max(12),
   corner: CornerSchema,
   /** Posição arrastada em cada monitor, pelo nome dele. Sem ela, vale o canto escolhido. */
   cardPlacements: z.record(z.string(), CardPlacementSchema),

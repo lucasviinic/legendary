@@ -358,22 +358,23 @@ test('the settings control the pace of the cards and how many summaries stay', a
   await settings.keyboard.press('ArrowRight');
   await expectRate(2, '33');
   for (const [value, position] of [
-    [4, '50'],
-    [6, '67'],
-    [8, '83'],
-    [10, '100'],
-    [10, '100'],
+    [4, '46'],
+    [6, '60'],
+    [8, '73'],
+    [10, '87'],
+    [15, '100'],
+    [15, '100'],
   ] as const) {
     await settings.keyboard.press('ArrowRight');
     await expectRate(value, position);
   }
   await settings.keyboard.press('ArrowLeft');
-  await expectRate(8, '83');
+  await expectRate(10, '87');
 
   // Quem salvou 3 antes desta mudança continua com 3, e o controle aparece no passo seguinte.
   await invoke(menu, 'settings:set', { cardsPerMinute: 3 });
   await expect(settings.getByText('até 3', { exact: true })).toBeVisible();
-  await expect(rate).toHaveValue('50');
+  await expect(rate).toHaveValue('46');
 
   const summaries = settings.getByLabel('Resumos na tela');
   const expectSummaries = async (value: number) => {
@@ -383,9 +384,9 @@ test('the settings control the pace of the cards and how many summaries stay', a
   await expectSummaries(6);
   await summaries.focus();
   await settings.keyboard.press('End');
-  await expectSummaries(10);
+  await expectSummaries(12);
   await settings.keyboard.press('ArrowLeft');
-  await expectSummaries(9);
+  await expectSummaries(11);
   await settings.keyboard.press('Home');
   await expectSummaries(1);
   await invoke(menu, 'settings:set', { maxSummaries: 6 });
