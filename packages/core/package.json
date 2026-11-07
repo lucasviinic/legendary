@@ -1,0 +1,24 @@
+{
+  "name": "@legendary/core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --coverage"
+  },
+  "dependencies": {
+    "@legendary/contracts": "workspace:*",
+    "wink-eng-lite-web-model": "1.8.1",
+    "wink-nlp": "2.4.0"
+  },
+  "devDependencies": {
+    "@vitest/coverage-v8": "5.1.0",
+    "typescript": "6.0.3",
+    "vitest": "5.1.0"
+  }
+}

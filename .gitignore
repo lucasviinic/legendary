@@ -1,0 +1,12 @@
+node_modules/
+out/
+dist/
+.output/
+.wxt/
+coverage/
+*.log
+.DS_Store
+.env*
+test-results/
+playwright-report/
+apps/desktop/native/audio-helper/.build/
