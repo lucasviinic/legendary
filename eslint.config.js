@@ -33,7 +33,10 @@ export default tseslint.config(
       'import-x/resolver-next': [createTypeScriptImportResolver({ alwaysTryTypes: true })],
     },
     rules: {
-      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        { argsIgnorePattern: '^_', ignoreRestSiblings: true },
+      ],
       'import/no-restricted-paths': [
         'error',
         {
