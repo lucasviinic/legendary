@@ -88,6 +88,7 @@ const getBy: WordCard = {
   surface: 'get by',
   pos: 'phrasal verb',
   translation: null,
+  explanation: null,
 };
 
 const settingsView: View = {

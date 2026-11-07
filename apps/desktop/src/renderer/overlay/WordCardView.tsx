@@ -57,11 +57,16 @@ export function FullCard({
   onKnown,
   onSave,
 }: { card: WordCard; hovered: boolean } & CardActions) {
-  if (card.translation === null) {
+  // Frame 1c. A tradução chega antes do resto da resposta e ocupa o lugar da primeira barra.
+  if (card.explanation === null) {
     return (
       <Glass className="flex flex-col gap-[9px] rounded-[14px] px-4 py-3.5">
         <Header card={card} tight={false} />
-        <span className="h-3 w-[120px] rounded-md bg-accent/22" />
+        {card.translation === null ? (
+          <span className="h-3 w-[120px] rounded-md bg-accent/22" />
+        ) : (
+          <div className="text-[15px] font-medium text-accent">{card.translation}</div>
+        )}
         <span className="box-border h-[9px] w-full rounded-[5px] bg-white/10" />
         <span className="box-border h-[9px] w-[70%] rounded-[5px] bg-white/10" />
       </Glass>

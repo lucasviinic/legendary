@@ -144,20 +144,22 @@ test('captions become cards, and the session ends in a quiz and in the history',
       surfaces: ['head out'],
     });
 
-  // A tradução chega depois, pela fila da IA.
-  await expect(firstCard).toContainText('tradução de head out', { timeout: 15_000 });
+  // A tradução chega logo depois, sem esperar outras palavras. A explicação vem em seguida.
+  await expect(firstCard).toContainText('tradução de head out', { timeout: 2_000 });
+  await expect(firstCard).toContainText('Explicação curta de head out', { timeout: 2_000 });
 
-  // O próximo card respeita o limite por minuto e empurra o anterior para baixo.
-  sendCaption('I reckon that is right.');
+  // A palavra que espera a vez já foi traduzida: o card dela aparece pronto.
   const secondCard = overlay.getByTestId('card-reckon');
   await expect(secondCard).toBeVisible({ timeout: 20_000 });
+  await expect(secondCard).toContainText('tradução de reckon', { timeout: 200 });
   await expect(overlay.getByTestId('status-bar')).toContainText('2 palavras novas');
+
+  // O card anterior continua na pilha, resumido.
+  await expect(firstCard).toContainText('tradução de head out');
+  await expect(firstCard).not.toContainText('Explicação curta');
 
   // Salvar pelo card.
   await invoke(menu, 'vocab:save', { lemma: 'reckon' });
-
-  // Espera a tradução para a palavra entrar no quiz.
-  await expect(secondCard).toContainText('tradução de reckon', { timeout: 15_000 });
 
   // Encerrar abre o quiz com o resumo da sessão.
   const quizOpened = app.waitForEvent('window', (window) => window.url().includes('/quiz/'));

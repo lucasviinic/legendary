@@ -54,6 +54,13 @@ precisa ser conferida contra ele. As telas são componentes sem acesso ao IPC, e
 - **SM-2:** o primeiro acerto agenda a revisão para 3 dias, como no mockup. O SM-2 clássico usa 1 dia.
 - **Quiz sem IA:** se a chave faltar ou a chamada falhar, o quiz é montado localmente com as palavras
   da sessão.
+- **Fila de tradução:** a especificação pedia lotes de 5 palavras ou 8 segundos, mas os cards saem um
+  por vez e cada palavra esperava os 8 segundos inteiros. Agora a palavra de um card vai na hora, e
+  as 3 melhores palavras que esperam a vez são traduzidas antes, em até 6 das 10 chamadas por minuto.
+- **Resposta da IA:** a tradução vem em streaming, para aparecer antes da explicação, e o raciocínio
+  dos modelos fica desligado nessa etapa. No Claude, a tradução usa o Haiku 5.5 e o quiz, o Opus 5.5.
+- **Tempo dos cards:** a especificação previa de 10 a 15 segundos e o mockup desenha 3 cards. O card
+  fica 13 segundos em destaque, encolhe e continua como resumo por até 3 minutos, com até 4 resumos.
 
 ## Dados de terceiros
 

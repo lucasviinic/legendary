@@ -10,16 +10,29 @@ import type { SettingsService } from './settings';
 /** Depois disso a palavra já saiu de cena, então não vale mostrar o card. */
 const WAITING_TTL_MS = 30_000;
 const MINUTE_MS = 60_000;
+/** Quantas das palavras que esperam a vez já têm a tradução adiantada. */
+const AHEAD_WORDS = 3;
 
 interface Entry extends WordCandidate {
   senseId: number | null;
   sense: WordSense | null;
+  /** A tradução que já chegou, enquanto o resto da resposta da IA não termina. */
+  earlyTranslation: string | null;
   firstSeenAt: number;
   firstSentence: string;
   queuedAt: number;
   shownAt: number | null;
+  /** Cada palavra só é adiantada uma vez, mesmo que o pedido falhe. */
+  askedAhead: boolean;
   saved: boolean;
 }
+
+const toRequest = ({ lemma, pos, surface, sentence }: Entry): EnrichRequestWord => ({
+  lemma,
+  pos,
+  surface,
+  sentence,
+});
 
 export interface VocabularyEmitter {
   card(card: WordCard): void;
@@ -123,10 +136,12 @@ export class VocabularyService {
           ...candidate,
           senseId: null,
           sense: null,
+          earlyTranslation: null,
           firstSeenAt: now,
           firstSentence: candidate.sentence,
           queuedAt: now,
           shownAt: null,
+          askedAhead: false,
           saved: false,
         });
       }
@@ -178,15 +193,26 @@ export class VocabularyService {
       else waiting.push(entry);
     }
 
+    waiting.sort((a, b) => b.score - a.score);
     const { cardsPerMinute, highlightSubtitles } = this.deps.settings.get();
-    if (now - this.lastCardAt < MINUTE_MS / cardsPerMinute) return;
+    const next = now - this.lastCardAt >= MINUTE_MS / cardsPerMinute ? waiting.shift() : undefined;
 
-    const next = waiting.sort((a, b) => b.score - a.score)[0];
-    if (!next) return;
+    if (next) {
+      this.show(next, now);
+      if (captionText && highlightSubtitles && next.queuedAt === now) {
+        this.deps.emit.highlight(captionText, [next.surface]);
+      }
+    }
+    this.translateAhead(waiting.slice(0, AHEAD_WORDS));
+  }
 
-    this.show(next, now);
-    if (captionText && highlightSubtitles && next.queuedAt === now) {
-      this.deps.emit.highlight(captionText, [next.surface]);
+  private translateAhead(entries: Entry[]) {
+    for (const entry of entries) {
+      if (entry.askedAhead) continue;
+      entry.askedAhead = true;
+      if (!this.deps.repos.senses.findByLemmaPos(entry.lemma, entry.pos)) {
+        this.queue.addAhead(toRequest(entry));
+      }
     }
   }
 
@@ -196,16 +222,8 @@ export class VocabularyService {
     this.shownOrder.push(wordKey(entry.lemma, entry.pos));
 
     const sense = this.deps.repos.senses.findByLemmaPos(entry.lemma, entry.pos);
-    if (sense) {
-      this.attachSense(entry, sense);
-    } else {
-      this.queue.add({
-        lemma: entry.lemma,
-        pos: entry.pos,
-        surface: entry.surface,
-        sentence: entry.sentence,
-      });
-    }
+    if (sense) this.attachSense(entry, sense);
+    else this.queue.add(toRequest(entry));
     this.deps.emit.card(this.toCard(entry));
   }
 
@@ -234,7 +252,16 @@ export class VocabularyService {
   private enrich(batch: EnrichRequestWord[]): Promise<EnrichedWord[]> {
     const provider = this.deps.getProvider();
     if (!provider) return Promise.reject(new Error('Sem API key configurada.'));
-    return provider.enrichWords(batch);
+    return provider.enrichWords(batch, (word, translation) =>
+      this.handleEarlyTranslation(word, translation),
+    );
+  }
+
+  private handleEarlyTranslation(request: EnrichRequestWord, translation: string) {
+    const entry = this.entries.get(wordKey(request.lemma, request.pos));
+    if (!entry || entry.sense) return;
+    entry.earlyTranslation = translation;
+    if (entry.shownAt != null) this.deps.emit.cardUpdate(this.toCard(entry));
   }
 
   private handleEnriched(request: EnrichRequestWord, result: EnrichedWord) {
@@ -248,8 +275,9 @@ export class VocabularyService {
       cefr: result.cefr,
       provider: this.deps.getProvider()?.name ?? 'unknown',
     });
+    // Palavra adiantada fica só no cache: ela entra na sessão quando o card aparecer.
     const entry = this.entries.get(wordKey(request.lemma, request.pos));
-    if (!entry) return;
+    if (entry?.shownAt == null) return;
     this.attachSense(entry, sense);
     this.deps.emit.cardUpdate(this.toCard(entry));
   }
@@ -261,7 +289,7 @@ export class VocabularyService {
       surface: entry.surface,
       pos: entry.pos,
       cefr: (sense?.cefr as WordCard['cefr']) ?? entry.estimatedCefr,
-      translation: sense?.translation ?? null,
+      translation: sense?.translation ?? entry.earlyTranslation,
       explanation: sense?.explanation ?? null,
       sentence: entry.sentence,
       extraExample: sense?.exampleEn ?? null,
