@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Legendary</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <header>
+      <span class="title">Legendary</span>
+      <span class="status"><span id="dot" class="dot"></span><span id="status">Verificando…</span></span>
+    </header>
+    <form id="form">
+      <label for="token">Código do app</label>
+      <input id="token" type="password" autocomplete="off" placeholder="Cole o código aqui" />
+      <p class="hint">Fica em Configurações, na barra de menus do Legendary.</p>
+      <label for="port">Porta</label>
+      <input id="port" type="number" min="1024" max="65535" />
+      <button type="submit">Salvar</button>
+    </form>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

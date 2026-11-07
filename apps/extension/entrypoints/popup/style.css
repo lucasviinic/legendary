@@ -1,0 +1,80 @@
+/* Sem frame no mockup: usa os tokens das janelas do app (frame 1e). */
+* {
+  box-sizing: border-box;
+}
+body {
+  width: 300px;
+  margin: 0;
+  padding: 16px;
+  background: #1e1e21;
+  color: #fff;
+  font:
+    13px -apple-system,
+    BlinkMacSystemFont,
+    'SF Pro Text',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+.title {
+  font-size: 15px;
+  font-weight: 600;
+}
+.status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.55);
+}
+.dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.4);
+}
+.dot.on {
+  background: #7fdbca;
+}
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+label {
+  color: rgba(255, 255, 255, 0.7);
+}
+input {
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.8);
+  font:
+    12px ui-monospace,
+    Menlo,
+    monospace;
+  outline: none;
+}
+.hint {
+  margin: 0 0 8px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.5);
+}
+button {
+  height: 34px;
+  margin-top: 10px;
+  border: 0;
+  border-radius: 9px;
+  background: #fff;
+  color: #1a1a1c;
+  font: inherit;
+  font-weight: 600;
+}

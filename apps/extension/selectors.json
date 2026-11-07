@@ -1,0 +1,10 @@
+{
+  "netflix": {
+    "caption": ".player-timedtext",
+    "title": ["[data-uia='video-title']"]
+  },
+  "youtube": {
+    "caption": ".ytp-caption-segment",
+    "title": ["h1.ytd-watch-metadata yt-formatted-string", "h1.title"]
+  }
+}

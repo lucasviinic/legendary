@@ -9,7 +9,8 @@
     "zip": "wxt zip",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "postinstall": "wxt prepare"
   },
   "dependencies": {
     "@legendary/contracts": "workspace:*",
