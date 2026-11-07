@@ -1,9 +1,15 @@
-# Legendary: aprenda inglês com as legendas
+# Legendary: imersão sem pausa
 
-Aprenda vocabulário em inglês enquanto assiste séries e vídeos. O Legendary lê as legendas da Netflix e
-do YouTube em tempo real, mostra a tradução das palavras novas num overlay discreto sobre o vídeo e, no
-fim da sessão, faz um quiz com elas. É um app para macOS com uma extensão de navegador, e tudo fica
-salvo no seu Mac, sem conta nem servidor.
+Assistir com áudio e legenda em inglês é uma das recomendações mais comuns de professores para quem
+quer ganhar fluência. O problema é a palavra que você não conhece: parar o vídeo para pesquisar quebra a
+imersão, e deixar passar faz você perder justamente o vocabulário novo.
+
+O Legendary tira essa pausa do caminho. Ele lê a legenda da Netflix ou do YouTube enquanto você assiste
+e, quando aparece uma palavra do seu nível, a tradução surge no canto da tela, já no sentido da cena,
+sem você tocar em nada. O vídeo segue, e no fim da sessão um quiz revisa as palavras que apareceram.
+
+É um app para macOS com uma extensão para Brave ou Chrome. Tudo fica salvo no seu Mac, sem conta nem
+servidor.
 
 <p align="center">
   <img src="docs/screenshots/overlay.webp" width="100%" alt="Card com a palavra knack, traduzida como jeito, talento, com explicação e a frase da cena, ao lado de quatro palavras anteriores resumidas. Embaixo, a legenda com knack sublinhada e, em cima, a barra da sessão.">
