@@ -26,6 +26,8 @@ interface Entry extends WordCandidate {
   shownAt: number | null;
   /** Cada palavra só é adiantada uma vez, mesmo que o pedido falhe. */
   askedAhead: boolean;
+  /** A pessoa buscou esta palavra, então os filtros das legendas não valem mais para ela. */
+  searched: boolean;
   saved: boolean;
 }
 
@@ -39,6 +41,7 @@ const newEntry = (candidate: WordCandidate, now: number): Entry => ({
   queuedAt: now,
   shownAt: null,
   askedAhead: false,
+  searched: false,
   saved: false,
 });
 
@@ -140,7 +143,7 @@ export class VocabularyService {
       sessionCounts: this.counts,
     });
 
-    for (const candidate of candidates) {
+    for (const candidate of this.countSearched(text, candidates)) {
       const key = wordKey(candidate.lemma, candidate.pos);
       this.counts.set(key, candidate.count);
       const entry = this.entries.get(key);
@@ -174,6 +177,7 @@ export class VocabularyService {
     const existing = [...this.entries.values()].find((item) => item.lemma === candidate.lemma);
     const entry = existing ?? newEntry(candidate, now);
     const key = wordKey(entry.lemma, entry.pos);
+    entry.searched = true;
     this.entries.set(key, entry);
     this.counts.set(key, entry.count);
 
@@ -223,6 +227,33 @@ export class VocabularyService {
     const first = this.sessionId === null;
     this.sessionId = sessionId;
     if (first) this.entries.forEach((entry) => this.persistCount(entry));
+  }
+
+  /**
+   * Conta as palavras buscadas que aparecem na legenda, mesmo as que os filtros dispensariam. Elas
+   * nunca viram outro card nem voltam para a IA, mesmo que a legenda dê outra classe à palavra.
+   * Devolve os candidatos que sobram.
+   */
+  private countSearched(text: string, candidates: WordCandidate[]): WordCandidate[] {
+    const searched = [...this.entries.values()].filter((entry) => entry.searched);
+    for (const entry of searched) {
+      const found = this.deps.lookup(entry.lemma, {
+        sentences: [text],
+        sessionCounts: this.counts,
+      });
+      if (!found?.sentence) continue;
+      // Sem frase, a palavra ainda não tinha aparecido: esta é a primeira vez, e o card já conta 1.
+      if (entry.sentence) entry.count += 1;
+      else {
+        entry.sentence = found.sentence;
+        entry.firstSentence = found.sentence;
+        entry.surface = found.surface;
+      }
+      this.counts.set(wordKey(entry.lemma, entry.pos), entry.count);
+      this.persistCount(entry);
+      this.deps.emit.cardUpdate(this.toCard(entry));
+    }
+    return candidates.filter(({ lemma }) => !searched.some((entry) => entry.lemma === lemma));
   }
 
   /** `captionText` é a legenda que acabou de chegar, ou nulo quando quem chama é o relógio. */

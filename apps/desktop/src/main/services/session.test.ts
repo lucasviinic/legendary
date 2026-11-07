@@ -187,6 +187,22 @@ describe('cards', () => {
     expect(h.events.updates.at(-1)).toMatchObject({ lemma: 'reckon', count: 2 });
   });
 
+  it('counts a word that comes back in another sentence, without translating it again', async () => {
+    h.session.handleCaption(caption('I reckon so.'));
+    await settle();
+    h.session.handleCaption(caption('I reckon again.'));
+    await settle();
+    expect(h.provider?.enrichWords).toHaveBeenCalledTimes(1);
+    expect(h.events.cards).toHaveLength(1);
+    expect(h.events.updates.at(-1)).toMatchObject({
+      lemma: 'reckon',
+      count: 2,
+      translation: 'tradução de reckon',
+    });
+    const id = h.repos.sessions.list()[0]!.id;
+    expect(h.repos.sessionWords.listForSession(id)[0]?.count).toBe(2);
+  });
+
   it('keeps counts made before the translation arrived', async () => {
     h.session.handleCaption(caption('I reckon so.'));
     h.session.handleCaption(caption('I reckon again.'));
@@ -355,6 +371,75 @@ describe('searching a word', () => {
     h.clock.now += 60_000;
     h.session.tick();
     expect(h.events.cards).toHaveLength(2);
+  });
+
+  it('counts a searched word each time it appears, even one the captions filter out', async () => {
+    h.session.handleCaption(caption('The house is here.'));
+    h.session.search('house');
+    await settle();
+    h.session.handleCaption(caption('What a house.'));
+    expect(h.events.updates.at(-1)).toMatchObject({ lemma: 'house', count: 2 });
+    h.session.handleCaption(caption('Hello there.'));
+    h.session.handleCaption(caption('Our house is old.'));
+    expect(h.events.updates.at(-1)).toMatchObject({ lemma: 'house', count: 3 });
+
+    const id = h.repos.sessions.list()[0]!.id;
+    const sense = h.repos.senses.findByLemmaPos('house', 'noun')!;
+    expect(h.repos.sessionWords.forSense(id, sense.id)?.count).toBe(3);
+  });
+
+  it('counts a searched word marked as known when it appears', () => {
+    h.vocabulary.markKnown('reckon');
+    h.session.handleCaption(caption('I reckon so.'));
+    h.session.search('reckon');
+    h.session.handleCaption(caption('I reckon again.'));
+    expect(h.events.updates.at(-1)).toMatchObject({ lemma: 'reckon', count: 2 });
+  });
+
+  it('counts only once a searched word the captions also let through', () => {
+    h.session.handleCaption(caption('I reckon so.'));
+    h.session.search('reckon');
+    h.session.handleCaption(caption('I reckon again.'));
+    expect(h.events.updates.at(-1)).toMatchObject({ lemma: 'reckon', count: 2 });
+  });
+
+  it('does not translate again when the caption gives the word another class', async () => {
+    // Sozinha, "hunch" parece substantivo. Nesta legenda, é verbo.
+    h.session.search('hunch');
+    await settle();
+    expect(h.events.cards[0]?.pos).toBe('noun');
+
+    h.session.handleCaption(caption('They hunch over the table.'));
+    // Tempo para a palavra chegar à vez dela e para a fila antecipar a tradução.
+    await vi.advanceTimersByTimeAsync(2_000);
+    h.clock.now += 60_000;
+    h.session.tick();
+    await settle();
+    expect(h.provider?.enrichWords).toHaveBeenCalledTimes(1);
+    expect(h.events.cards).toHaveLength(1);
+    expect(h.session.status().newWords).toBe(1);
+  });
+
+  it('takes the first caption with the word as its first appearance', async () => {
+    h.session.search('knack');
+    await settle();
+    expect(h.events.updates.at(-1)).toMatchObject({ count: 1, sentence: 'Example of knack.' });
+
+    h.session.handleCaption(caption('She has a knack for it.'));
+    expect(h.events.updates.at(-1)).toMatchObject({
+      count: 1,
+      sentence: 'She has a knack for it.',
+      extraExample: 'Example of knack.',
+    });
+    h.session.handleCaption(caption('What a knack.'));
+    expect(h.events.updates.at(-1)).toMatchObject({ count: 2 });
+  });
+
+  it('does not count a searched word in a caption without it', () => {
+    h.session.search('knack');
+    const updates = h.events.updates.length;
+    h.session.handleCaption(caption('Hello there.'));
+    expect(h.events.updates).toHaveLength(updates);
   });
 
   it('makes the next card wait the usual interval', () => {

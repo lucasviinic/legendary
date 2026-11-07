@@ -68,7 +68,7 @@ precisa ser conferida contra ele. As telas são componentes sem acesso ao IPC, e
 - **Busca de palavra:** não está na especificação nem no mockup. O atalho ⌘⇧B abre uma barra durante
   a sessão, e a palavra digitada vira um card na hora, fora do limite por minuto, e entra no histórico
   e no quiz. Ela usa a frase de uma legenda recente que tenha a palavra e, se não houver, um exemplo
-  da IA. A opção "Ao buscar", nas Configurações, volta o vídeo 10 segundos e vem desligada por
+  da IA. Depois disso, ela é contada toda vez que aparece, sem voltar para a IA. A opção "Ao buscar", nas Configurações, volta o vídeo 10 segundos e vem desligada por
   padrão. Na Netflix isso usa a API interna do player, porque mudar o `currentTime` do vídeo gera
   erro, e pode parar de funcionar se ela mudar.
 - **Posição dos cards:** além dos 4 cantos, a pilha pode ser arrastada para qualquer ponto da tela, e
