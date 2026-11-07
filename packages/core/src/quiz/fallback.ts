@@ -36,11 +36,13 @@ function cloze(
   shuffle: Shuffle,
 ): QuizQuestionDraft | null {
   const word = words[index]!;
-  if (!word.sentence.includes(word.surface)) return null;
+  const escaped = word.surface.replace(/[.*+?^${}()|[\]\\]/g, (char) => `\\${char}`);
+  const pattern = new RegExp(`\\b${escaped}\\b`);
+  if (!pattern.test(word.sentence)) return null;
   return {
     word: word.word,
     type: 'cloze',
-    prompt: `“${word.sentence.replace(word.surface, BLANK)}”`,
+    prompt: `“${word.sentence.replace(pattern, BLANK)}”`,
     options: shuffle([word.surface, ...others(words, index, (item) => item.surface)]),
     answer: word.surface,
     explanation: word.explanation,

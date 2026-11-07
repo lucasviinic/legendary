@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   formatDuration,
+  formatSessionHeader,
+  formatSessionMeta,
+  sourceLabel,
   formatElapsed,
   formatNextReview,
   questionTypeLabel,
@@ -73,5 +76,69 @@ describe('scoreHeadline', () => {
     [0, 0, 'Vale revisar.'],
   ])('%i of %i says %s', (score, total, text) => {
     expect(scoreHeadline(score, total)).toBe(text);
+  });
+});
+
+describe('sourceLabel', () => {
+  it.each([
+    ['netflix', 'Netflix'],
+    ['youtube', 'YouTube'],
+    ['audio', 'Áudio'],
+  ] as const)('%s is %s', (source, label) => {
+    expect(sourceLabel(source)).toBe(label);
+  });
+});
+
+describe('formatSessionMeta', () => {
+  const session = {
+    source: 'netflix',
+    durationMs: 42 * 60_000,
+    wordCount: 18,
+    quiz: { score: 8, total: 10 },
+  } as const;
+
+  it('uses the wording of the mockup', () => {
+    expect(formatSessionMeta(session)).toBe('42 min · 18 palavras · 8/10');
+  });
+
+  it('names YouTube and leaves out a missing quiz', () => {
+    expect(
+      formatSessionMeta({
+        ...session,
+        source: 'youtube',
+        durationMs: 14 * 60_000,
+        wordCount: 6,
+        quiz: null,
+      }),
+    ).toBe('YouTube · 14 min · 6 palavras');
+  });
+
+  it('uses the singular for one word', () => {
+    expect(formatSessionMeta({ ...session, wordCount: 1, quiz: null })).toBe('42 min · 1 palavra');
+  });
+});
+
+describe('formatSessionHeader', () => {
+  const session = {
+    source: 'netflix',
+    startedAt: new Date(2026, 10, 6, 21, 2).getTime(),
+    durationMs: 42 * 60_000 + 18_000,
+    quiz: { score: 8, total: 10 },
+  } as const;
+
+  it('uses the wording of the mockup', () => {
+    expect(formatSessionHeader(session, now)).toBe('Hoje, 21:02 · 42:18 · Netflix · quiz 8/10');
+  });
+
+  it('says yesterday', () => {
+    expect(formatSessionHeader(session, now + DAY)).toBe(
+      'Ontem, 21:02 · 42:18 · Netflix · quiz 8/10',
+    );
+  });
+
+  it('shows the date for older sessions', () => {
+    expect(formatSessionHeader({ ...session, quiz: null }, now + 5 * DAY)).toBe(
+      '06/11, 21:02 · 42:18 · Netflix',
+    );
   });
 });

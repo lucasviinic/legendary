@@ -206,6 +206,15 @@ describe('buildFallbackQuiz', () => {
     expect(cloze?.prompt).not.toContain(cloze?.answer);
   });
 
+  it('does not blank part of a longer word', () => {
+    const quiz = buildFallbackQuiz(
+      [{ ...words[0]!, sentence: 'She reckons so.' }, ...words.slice(1)],
+      10,
+      keepOrder,
+    );
+    expect(quiz.find((question) => question.word === 'reckon')?.type).not.toBe('cloze');
+  });
+
   it('respects the limit', () => {
     expect(buildFallbackQuiz(words, 3, keepOrder)).toHaveLength(3);
   });

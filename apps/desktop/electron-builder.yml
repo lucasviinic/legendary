@@ -1,0 +1,27 @@
+appId: app.legendary.desktop
+productName: Legendary
+directories:
+  output: dist
+files:
+  - out/**
+  - package.json
+asarUnpack:
+  - '**/*.node'
+extraResources:
+  - from: resources/lexicon
+    to: lexicon
+  - from: resources/icons
+    to: icons
+  - from: resources/NOTICE.md
+    to: NOTICE.md
+  - from: ../../packages/db/migrations
+    to: migrations
+mac:
+  category: public.app-category.education
+  target:
+    - target: dmg
+      arch: [arm64, x64]
+  hardenedRuntime: true
+  notarize: true
+  extendInfo:
+    LSUIElement: true

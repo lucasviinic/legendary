@@ -1,4 +1,4 @@
-import type { QuestionType } from '@legendary/contracts';
+import type { QuestionType, Source } from '@legendary/contracts';
 
 const pad = (value: number) => String(value).padStart(2, '0');
 
@@ -52,4 +52,59 @@ export function scoreHeadline(score: number, total: number): string {
   if (ratio === 1) return 'Perfeito.';
   if (ratio >= 0.7) return 'Muito bom.';
   return ratio >= 0.5 ? 'Bom começo.' : 'Vale revisar.';
+}
+
+const SOURCE_LABELS: Record<Source, string> = {
+  netflix: 'Netflix',
+  youtube: 'YouTube',
+  audio: 'Áudio',
+};
+
+export const sourceLabel = (source: Source): string => SOURCE_LABELS[source];
+
+interface QuizScore {
+  score: number;
+  total: number;
+}
+
+/** Linha de cada sessão na barra lateral do histórico. */
+export function formatSessionMeta(session: {
+  source: Source;
+  durationMs: number;
+  wordCount: number;
+  quiz: QuizScore | null;
+}): string {
+  const words = session.wordCount === 1 ? '1 palavra' : `${session.wordCount} palavras`;
+  return [
+    session.source === 'youtube' ? sourceLabel(session.source) : null,
+    formatDuration(session.durationMs),
+    words,
+    session.quiz ? `${session.quiz.score}/${session.quiz.total}` : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+}
+
+function dayLabel(timestamp: number, now: number): string {
+  const days = calendarDays(timestamp, now);
+  if (days <= 0) return 'Hoje';
+  if (days === 1) return 'Ontem';
+  const date = new Date(timestamp);
+  return `${pad(date.getDate())}/${pad(date.getMonth() + 1)}`;
+}
+
+/** Linha embaixo do título da sessão selecionada no histórico. */
+export function formatSessionHeader(
+  session: { source: Source; startedAt: number; durationMs: number; quiz: QuizScore | null },
+  now: number,
+): string {
+  const started = new Date(session.startedAt);
+  return [
+    `${dayLabel(session.startedAt, now)}, ${pad(started.getHours())}:${pad(started.getMinutes())}`,
+    formatElapsed(session.durationMs),
+    sourceLabel(session.source),
+    session.quiz ? `quiz ${session.quiz.score}/${session.quiz.total}` : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
 }

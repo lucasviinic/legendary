@@ -66,6 +66,11 @@ export const invokeChannels = {
 
   'window:open': { request: z.object({ window: WindowNameSchema }), response: None },
   'window:close-current': { request: None, response: None },
+  'window:set-content-height': {
+    request: z.object({ height: z.number().positive() }),
+    response: None,
+  },
+  'menu:hide': { request: None, response: None },
   'app:quit': { request: None, response: None },
 } as const;
 
@@ -73,6 +78,7 @@ export const invokeChannels = {
 export const eventChannels = {
   'session:status': SessionStatusSchema,
   'vocab:card': WordCardSchema,
+  'vocab:card-update': WordCardSchema,
   'vocab:card-remove': z.object({ lemma: z.string() }),
   'overlay:visibility': z.object({ visible: z.boolean() }),
   'settings:changed': SettingsViewSchema,
