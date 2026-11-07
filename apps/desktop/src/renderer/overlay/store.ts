@@ -1,9 +1,12 @@
 import type { Corner, SessionStatus, WordCard } from '@legendary/contracts';
 import { create } from 'zustand';
 
-const MAX_CARDS = 3;
-/** Os cards somem sozinhos entre 10 e 15 segundos depois de aparecer. */
-const CARD_LIFETIME_MS = 13_000;
+/** O card atual e até 4 resumos abaixo dele. */
+const MAX_CARDS = 5;
+/** Depois desse tempo em destaque, o card encolhe e vira resumo. */
+const FOCUS_MS = 13_000;
+/** Sem cards novos para empurrar os resumos, eles saem de cena sozinhos. */
+const CARD_LIFETIME_MS = 3 * 60_000;
 
 export const idleStatus: SessionStatus = {
   state: 'idle',
@@ -17,6 +20,8 @@ export const idleStatus: SessionStatus = {
 
 interface Item {
   card: WordCard;
+  focused: boolean;
+  focusUntil: number;
   expiresAt: number;
 }
 
@@ -44,19 +49,24 @@ export const useOverlay = create<OverlayState>((set) => ({
   setCorner: (corner) => set({ corner }),
   setHovered: (hovered) => set({ hovered }),
   addCard: (card) =>
-    set((state) => ({
-      items: [
-        { card, expiresAt: Date.now() + CARD_LIFETIME_MS },
-        ...state.items.filter((item) => item.card.lemma !== card.lemma),
-      ].slice(0, MAX_CARDS),
-    })),
+    set((state) => {
+      const now = Date.now();
+      return {
+        items: [
+          { card, focused: true, focusUntil: now + FOCUS_MS, expiresAt: now + CARD_LIFETIME_MS },
+          ...state.items
+            .filter((item) => item.card.lemma !== card.lemma)
+            .map((item) => ({ ...item, focused: false })),
+        ].slice(0, MAX_CARDS),
+      };
+    }),
   updateCard: (card) =>
     set((state) => ({
       items: state.items.map((item) => {
         if (item.card.lemma !== card.lemma) return item;
-        // O tempo do card recomeça quando a tradução chega, para dar tempo de ler.
-        const translated = item.card.translation === null && card.translation !== null;
-        return { card, expiresAt: translated ? Date.now() + CARD_LIFETIME_MS : item.expiresAt };
+        // O destaque recomeça quando a explicação chega, para dar tempo de ler.
+        const explained = item.card.explanation === null && card.explanation !== null;
+        return { ...item, card, focusUntil: explained ? Date.now() + FOCUS_MS : item.focusUntil };
       }),
     })),
   removeCard: (lemma) =>
@@ -64,9 +74,13 @@ export const useOverlay = create<OverlayState>((set) => ({
   expireCards: () =>
     set((state) => {
       const now = Date.now();
-      const items = state.items.filter(
-        (item) => item.expiresAt > now || item.card.lemma === state.hovered,
-      );
-      return items.length === state.items.length ? state : { items };
+      const isHovered = (item: Item) => item.card.lemma === state.hovered;
+      const shouldShrink = (item: Item) =>
+        item.focused && item.focusUntil <= now && !isHovered(item);
+      const alive = state.items.filter((item) => item.expiresAt > now || isHovered(item));
+      if (alive.length === state.items.length && !alive.some(shouldShrink)) return state;
+      return {
+        items: alive.map((item) => (shouldShrink(item) ? { ...item, focused: false } : item)),
+      };
     }),
 }));

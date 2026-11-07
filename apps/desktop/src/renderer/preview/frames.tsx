@@ -333,6 +333,7 @@ export const FRAMES: Record<string, () => ReactNode> = {
           compact('grumpy', 'mal-humorado'),
         ]}
         corner="tr"
+        focused
         hovered={null}
       />
       <Subtitle before="I " word="reckon" after=" we should head out before it gets dark." />
@@ -347,7 +348,12 @@ export const FRAMES: Record<string, () => ReactNode> = {
       <BarAt opacity={0.22}>
         <StatusBar status={status({ source: 'youtube' })} />
       </BarAt>
-      <CardStack cards={[headOut, compact('reckon', 'achar, supor')]} corner="tr" hovered={null} />
+      <CardStack
+        cards={[headOut, compact('reckon', 'achar, supor')]}
+        corner="tr"
+        focused
+        hovered={null}
+      />
       <Subtitle before="I reckon we should " word="head out" after=" before it gets dark." />
     </div>
   ),

@@ -81,6 +81,7 @@ export function App() {
       <CardStack
         cards={items.map((item) => item.card)}
         corner={corner}
+        focused={items[0]?.focused ?? false}
         hovered={hovered}
         onHover={setHovered}
         onKnown={(lemma) => void api().invoke('vocab:mark-known', { lemma })}
