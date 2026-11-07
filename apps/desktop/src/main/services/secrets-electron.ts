@@ -12,7 +12,12 @@ export function createSafeStorageSecrets(filePath: string): SecretStore {
     get(provider) {
       const encrypted = read()[provider];
       if (!encrypted) return null;
-      return safeStorage.decryptString(Buffer.from(encrypted, 'base64'));
+      try {
+        return safeStorage.decryptString(Buffer.from(encrypted, 'base64'));
+      } catch {
+        // Keychain negado ou chave de outra instalação: para o app, é o mesmo que não ter chave.
+        return null;
+      }
     },
     set(provider, key) {
       if (!safeStorage.isEncryptionAvailable()) {

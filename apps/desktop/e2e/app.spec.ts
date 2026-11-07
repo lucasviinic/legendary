@@ -116,6 +116,21 @@ test('captions become cards, and the session ends in a quiz and in the history',
   // A barra de status aparece com a sessão ativa.
   await expect(overlay.getByTestId('status-bar')).toContainText('Encerrar');
 
+  // Esconder o overlay vale até a pessoa mostrar de novo, mesmo com o status chegando a cada segundo.
+  const overlayVisible = () =>
+    app.evaluate(({ BrowserWindow }) =>
+      BrowserWindow.getAllWindows()
+        .find((window) => window.webContents.getURL().includes('/overlay/'))!
+        .isVisible(),
+    );
+  await expect.poll(overlayVisible).toBe(true);
+  await invoke(menu, 'overlay:toggle');
+  await expect.poll(overlayVisible).toBe(false);
+  await menu.waitForTimeout(1_500);
+  expect(await overlayVisible()).toBe(false);
+  await invoke(menu, 'overlay:toggle');
+  await expect.poll(overlayVisible).toBe(true);
+
   // A legenda gera um card, primeiro sem tradução.
   sendCaption('JOHN: I reckon we should head out before it gets dark.');
   const firstCard = overlay.getByTestId('card-head out');

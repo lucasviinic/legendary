@@ -54,7 +54,9 @@ export class OverlayWindow {
     this.window?.setIgnoreMouseEvents(!interactive, { forward: true });
   }
 
+  /** Chamado a cada atualização de status: só a virada de estado pode mexer na janela. */
   setSessionActive(active: boolean): void {
+    if (active === this.sessionActive) return;
     this.sessionActive = active;
     if (active) this.userHidden = false;
     this.sync();
