@@ -340,3 +340,53 @@ describe('createWordLookup', () => {
     expect(find(query)).toBeNull();
   });
 });
+
+describe('translating every word', () => {
+  const pipeline = createPipeline(lexicon);
+  const lemmas = (text: string, known: string[] = []) =>
+    pipeline(text, {
+      level: 'C1',
+      known: new Set(known),
+      sessionCounts: new Map(),
+      allWords: true,
+    }).map((word) => word.lemma);
+
+  it('ignores the level', () => {
+    expect(lemmas('The house is dark.')).toEqual(expect.arrayContaining(['house', 'dark']));
+  });
+
+  it('takes a word outside the frequency list', () => {
+    expect(lemmas('She felt a pang.')).toContain('pang');
+  });
+
+  it('takes a preposition that is not one of the basic ones', () => {
+    expect(lemmas('We left despite the rain.')).toContain('despite');
+  });
+
+  it('leaves out the basic grammar words', () => {
+    expect(lemmas('She and I were in the car with you.')).toEqual(['car']);
+  });
+
+  it('leaves out names and interjections', () => {
+    expect(lemmas('Oh, I saw Maria in Boston.')).toEqual(['see']);
+  });
+
+  it('leaves out what a contraction leaves behind', () => {
+    expect(lemmas("I'm sure they'll say we've gone, y'all.")).toEqual(
+      expect.not.arrayContaining(["'m", "'ll", "'ve", 'm', 'll', 've', 'y']),
+    );
+  });
+
+  it('still skips a word marked as known', () => {
+    expect(lemmas('The house is here.', ['house'])).toEqual([]);
+  });
+
+  it('is off unless asked for', () => {
+    const run = pipeline('The house is dark.', {
+      level: 'C1',
+      known: new Set(),
+      sessionCounts: new Map(),
+    });
+    expect(run).toEqual([]);
+  });
+});

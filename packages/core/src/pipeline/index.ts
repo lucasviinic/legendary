@@ -21,6 +21,7 @@ export interface PipelineContext {
   known: ReadonlySet<string>;
   /** Aparições anteriores na sessão, pela chave `lemma|pos`. */
   sessionCounts: ReadonlyMap<string, number>;
+  allWords?: boolean | undefined;
 }
 
 export interface WordCandidate {
@@ -67,6 +68,7 @@ export function createPipeline(lexicon: Lexicon) {
       level: context.level,
       known: context.known,
       ranks: lexicon.ranks,
+      allWords: context.allWords,
     });
 
     const byKey = new Map<string, WordCandidate>();

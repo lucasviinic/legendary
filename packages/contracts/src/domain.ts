@@ -47,6 +47,8 @@ export type SessionStatus = z.infer<typeof SessionStatusSchema>;
 export const SettingsSchema = z.object({
   provider: ProviderSchema,
   level: LevelSchema,
+  /** Ignora o nível: quase toda palavra vira card, e as repetidas só voltam como resumo. */
+  translateAllWords: z.boolean(),
   cardsPerMinute: z.number().int().min(1).max(10),
   /** Quanto tempo um card fica aberto, e só depois disso o lugar dele fica livre para o próximo. */
   cardSeconds: z.number().int().min(3).max(30),
@@ -69,6 +71,7 @@ export type Settings = z.infer<typeof SettingsSchema>;
 export const defaultSettings: Settings = {
   provider: 'gemini',
   level: 'B2',
+  translateAllWords: false,
   cardsPerMinute: 2,
   cardSeconds: 10,
   cardsAtOnce: 1,

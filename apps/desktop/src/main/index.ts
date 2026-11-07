@@ -101,6 +101,7 @@ async function bootstrap() {
     emit: {
       card: (card) => broadcast('vocab:card', card),
       cardUpdate: (card) => broadcast('vocab:card-update', card),
+      cardSeen: (card) => broadcast('vocab:card-seen', card),
       cardRemove: (lemma) => broadcast('vocab:card-remove', { lemma }),
       highlight: (text, surfaces) => source.sendHighlight(text, surfaces),
     },

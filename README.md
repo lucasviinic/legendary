@@ -71,6 +71,10 @@ precisa ser conferida contra ele. As telas são componentes sem acesso ao IPC, e
 - **Próximo card:** entre as palavras que esperam a vez, vai primeiro uma que já tenha tradução.
 - **Resumos na tela:** de 1 a 10, com padrão 6. A linha não tem frame no mockup. Um resumo dura até
   3 minutos, então só dá para ver 10 deles a partir de 4 cards por minuto.
+- **Todas as palavras:** não está na especificação nem no mockup. A opção, desligada por padrão, ignora
+  o nível e a lista de frequência. Só ficam de fora as palavras gramaticais básicas e os nomes próprios.
+  A palavra que volta, inclusive de outra sessão, aparece só em resumo com o contador, sem chamar a IA.
+  A que espera mais de 10 segundos pelo card também vira resumo, em vez de se perder.
 - **Busca de palavra:** não está na especificação nem no mockup. O atalho ⌘⇧B abre uma barra durante
   a sessão, e a palavra digitada vira um card na hora, fora do limite por minuto, e entra no histórico
   e no quiz. Ela usa a frase de uma legenda recente que tenha a palavra e, se não houver, um exemplo

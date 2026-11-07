@@ -571,3 +571,40 @@ test('more than one card stays open when the settings allow it', async () => {
   await invoke(menu, 'settings:set', { cardsAtOnce: 1, cardSeconds: 10 });
   await invoke(menu, 'session:stop');
 });
+
+test('with every word on, one that comes back is only a summary with its count', async () => {
+  const menu = await windowOf('menu');
+  const overlay = await windowOf('overlay');
+  if (!socket) {
+    const view = (await invoke(menu, 'settings:get')) as { pairing: { token: string } };
+    await connectExtension(view.pairing.token);
+  }
+  await invoke(menu, 'session:stop');
+  await invoke(menu, 'settings:set', {
+    translateAllWords: true,
+    cardsPerMinute: 10,
+    cardSeconds: 3,
+  });
+  await invoke(menu, 'session:start', { source: 'browser' });
+
+  // Uma palavra comum, que o filtro de nível dispensaria, vira card e é traduzida.
+  sendCaption('The table is here.');
+  const table = overlay.getByTestId('card-table');
+  await expect(table).toContainText('Explicação curta de table', { timeout: 5_000 });
+  await expect(table).not.toContainText('Explicação curta', { timeout: 10_000 });
+  await expect(table).not.toContainText('2x');
+
+  // Quando ela volta, aparece só em resumo, com o contador.
+  sendCaption('What a table.');
+  await expect(table).toContainText('2x');
+  await expect(table).toContainText('tradução de table');
+  await expect(table).not.toContainText('Explicação curta');
+
+  // Passar o mouse mostra o resto, como em qualquer resumo.
+  await table.hover();
+  await expect(table).toContainText('Explicação curta de table');
+  await overlay.mouse.move(5, 5);
+
+  await invoke(menu, 'settings:set', { translateAllWords: false, cardSeconds: 10 });
+  await invoke(menu, 'session:stop');
+});

@@ -170,6 +170,20 @@ export function SettingsView({ view, mockupOnly = false, onChange, onSaveKey }: 
             <span className="text-[12px] text-white/50">{LEVEL_HINTS[settings.level]}</span>
           </div>
         </Row>
+        {!mockupOnly && (
+          <Row label="Todas as palavras">
+            <div className="flex items-center gap-2.5">
+              <Toggle
+                on={settings.translateAllWords}
+                label="Traduzir todas as palavras"
+                onChange={(translateAllWords) => onChange?.({ translateAllWords })}
+              />
+              <span className="text-[12px] text-white/55">
+                Ignora o nível. As palavras repetidas só aparecem em resumo, sem nova tradução
+              </span>
+            </div>
+          </Row>
+        )}
         <Row label="Cards por minuto">
           <StepSlider
             label="Cards por minuto"

@@ -28,6 +28,7 @@ export function App() {
       legendary.on('session:status', state.setStatus),
       legendary.on('vocab:card', state.addCard),
       legendary.on('vocab:card-update', state.updateCard),
+      legendary.on('vocab:card-seen', state.seenCard),
       legendary.on('vocab:card-remove', ({ lemma }) => state.removeCard(lemma)),
       legendary.on('overlay:layout', state.setLayout),
     ];

@@ -92,6 +92,55 @@ describe('overlay cards', () => {
     expect(isFocused('a')).toBe(false);
   });
 
+  describe('a word that comes back', () => {
+    it('enters as a summary, below the open card', () => {
+      state().addCard(card('a'));
+      state().seenCard(card('b', { count: 2 }));
+      expect(lemmas()).toEqual(['a', 'b']);
+      expect(isFocused('a')).toBe(true);
+      expect(isFocused('b')).toBe(false);
+    });
+
+    it('moves to the top of the summaries with its new count', () => {
+      ['a', 'b', 'c'].forEach((lemma) => state().addCard(card(lemma)));
+      state().seenCard(card('a', { count: 4 }));
+      expect(lemmas()).toEqual(['c', 'a', 'b']);
+      expect(state().items[1]?.card.count).toBe(4);
+    });
+
+    it('updates an open card without closing it', () => {
+      state().addCard(card('a'));
+      state().seenCard(card('a', { count: 2 }));
+      expect(isFocused('a')).toBe(true);
+      expect(state().items[0]?.card.count).toBe(2);
+    });
+
+    it('stays for 3 more minutes', () => {
+      state().addCard(card('a'));
+      after(2 * MINUTE);
+      state().seenCard(card('a', { count: 2 }));
+      after(2 * MINUTE);
+      expect(lemmas()).toEqual(['a']);
+    });
+
+    it('respects the limit of summaries', () => {
+      state().setLayout({ ...state(), maxSummaries: 2 });
+      ['a', 'b', 'c'].forEach((lemma) => state().seenCard(card(lemma)));
+      expect(lemmas()).toEqual(['c', 'b']);
+    });
+
+    it('waits while the mouse is over a card, so the card does not run away', () => {
+      ['a', 'b'].forEach((lemma) => state().addCard(card(lemma)));
+      state().setHovered('a');
+      state().seenCard(card('c'));
+      state().seenCard(card('d'));
+      expect(lemmas()).toEqual(['b', 'a']);
+
+      state().setHovered(null);
+      expect(lemmas()).toEqual(['b', 'd', 'c', 'a']);
+    });
+  });
+
   it('gives the focus to the newest card only', () => {
     state().addCard(card('a'));
     state().addCard(card('b'));

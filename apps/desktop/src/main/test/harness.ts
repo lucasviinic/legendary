@@ -82,6 +82,7 @@ export function createHarness(
   const events = {
     cards: [] as import('@legendary/contracts').WordCard[],
     updates: [] as import('@legendary/contracts').WordCard[],
+    seen: [] as import('@legendary/contracts').WordCard[],
     removed: [] as string[],
     highlights: [] as { text: string; surfaces: string[] }[],
     statuses: [] as import('@legendary/contracts').SessionStatus[],
@@ -97,6 +98,7 @@ export function createHarness(
     emit: {
       card: (card) => events.cards.push(card),
       cardUpdate: (card) => events.updates.push(card),
+      cardSeen: (card) => events.seen.push(card),
       cardRemove: (lemma) => events.removed.push(lemma),
       highlight: (text, surfaces) => events.highlights.push({ text, surfaces }),
     },

@@ -55,6 +55,7 @@ const compact = (lemma: string, translation: string): WordCard => ({
   lemma,
   surface: lemma,
   translation,
+  count: 1,
 });
 
 const headOut: WordCard = {
@@ -98,6 +99,7 @@ const settingsView: View = {
   settings: {
     provider: 'claude',
     level: 'B2',
+    translateAllWords: false,
     cardsPerMinute: 2,
     cardSeconds: 10,
     cardsAtOnce: 1,

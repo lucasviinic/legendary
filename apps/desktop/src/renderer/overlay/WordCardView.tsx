@@ -116,12 +116,17 @@ export function FullCard({
   );
 }
 
-/** Card anterior, encolhido para a palavra e a tradução. */
+/** Card anterior, encolhido para a palavra e a tradução. O contador não está no mockup. */
 export function CompactCard({ card }: { card: WordCard }) {
   return (
     <Glass className="flex items-baseline gap-2.5 rounded-[14px] px-3.5 py-[9px]">
       <span className="text-[14px] font-semibold">{card.lemma}</span>
       <span className="text-[13px] text-accent">{card.translation ?? '…'}</span>
+      {card.count > 1 && (
+        <span className="ml-auto flex-none text-[11px] text-white/45 tabular-nums">
+          {card.count}x
+        </span>
+      )}
     </Glass>
   );
 }

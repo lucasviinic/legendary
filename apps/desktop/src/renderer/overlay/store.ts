@@ -35,6 +35,21 @@ const openFirst = (items: Item[]) => [
 const withinLimit = (items: Item[], maxSummaries: number) =>
   items.slice(0, items.filter((item) => item.focused).length + maxSummaries);
 
+/** A palavra que voltou entra como o resumo mais novo. Um card aberto só atualiza o contador. */
+function withReturn(items: Item[], card: WordCard, maxSummaries: number): Item[] {
+  const expiresAt = Date.now() + CARD_LIFETIME_MS;
+  const current = items.find((item) => item.card.lemma === card.lemma);
+  if (current?.focused) {
+    return items.map((item) => (item === current ? { ...item, card, expiresAt } : item));
+  }
+  const others = items.filter((item) => item !== current);
+  const summary: Item = { card, focused: false, focusUntil: 0, expiresAt };
+  return withinLimit(
+    [...others.filter((item) => item.focused), summary, ...others.filter((item) => !item.focused)],
+    maxSummaries,
+  );
+}
+
 interface OverlayState {
   status: SessionStatus;
   items: Item[];
@@ -44,12 +59,15 @@ interface OverlayState {
   cardSeconds: number;
   cardsAtOnce: number;
   hovered: string | null;
+  /** Palavras que voltaram com o mouse sobre a pilha. Entrar agora tiraria o card do lugar. */
+  returning: WordCard[];
   setStatus(status: SessionStatus): void;
   setLayout(layout: OverlayLayout): void;
   setPlacement(placement: CardPlacement): void;
   setHovered(lemma: string | null): void;
   addCard(card: WordCard): void;
   updateCard(card: WordCard): void;
+  seenCard(card: WordCard): void;
   removeCard(lemma: string): void;
   expireCards(): void;
 }
@@ -63,8 +81,9 @@ export const useOverlay = create<OverlayState>((set) => ({
   cardSeconds: defaultSettings.cardSeconds,
   cardsAtOnce: defaultSettings.cardsAtOnce,
   hovered: null,
+  returning: [],
   setStatus: (status) =>
-    set(status.state === 'idle' ? { status, items: [], hovered: null } : { status }),
+    set(status.state === 'idle' ? { status, items: [], hovered: null, returning: [] } : { status }),
   setLayout: ({ placement, safeTop, maxSummaries, cardSeconds, cardsAtOnce }) =>
     set((state) => ({
       placement,
@@ -75,7 +94,19 @@ export const useOverlay = create<OverlayState>((set) => ({
       items: withinLimit(state.items, maxSummaries),
     })),
   setPlacement: (placement) => set({ placement }),
-  setHovered: (hovered) => set({ hovered }),
+  setHovered: (hovered) =>
+    set((state) =>
+      hovered !== null
+        ? { hovered }
+        : {
+            hovered,
+            returning: [],
+            items: state.returning.reduce(
+              (items, card) => withReturn(items, card, state.maxSummaries),
+              state.items,
+            ),
+          },
+    ),
   addCard: (card) =>
     set((state) => {
       const now = Date.now();
@@ -106,6 +137,12 @@ export const useOverlay = create<OverlayState>((set) => ({
         return { ...item, card, focusUntil };
       }),
     })),
+  seenCard: (card) =>
+    set((state) =>
+      state.hovered !== null
+        ? { returning: [...state.returning, card] }
+        : { items: withReturn(state.items, card, state.maxSummaries) },
+    ),
   removeCard: (lemma) =>
     set((state) => ({ items: state.items.filter((item) => item.card.lemma !== lemma) })),
   expireCards: () =>

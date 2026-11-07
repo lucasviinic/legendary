@@ -9,6 +9,8 @@ import type { SettingsService } from './settings';
 
 /** Depois disso a palavra já saiu de cena, então não vale mostrar o card. */
 const WAITING_TTL_MS = 30_000;
+/** Traduzindo tudo, a palavra não se perde: vira resumo enquanto a cena ainda é a mesma. */
+const ALL_WORDS_WAITING_MS = 10_000;
 const MINUTE_MS = 60_000;
 /** Quantas das palavras que esperam a vez já têm a tradução adiantada, com um card por vez. */
 const AHEAD_WORDS = 3;
@@ -57,6 +59,7 @@ const toRequest = ({ lemma, pos, surface, sentence }: Entry): EnrichRequestWord 
 export interface VocabularyEmitter {
   card(card: WordCard): void;
   cardUpdate(card: WordCard): void;
+  cardSeen(card: WordCard): void;
   cardRemove(lemma: string): void;
   highlight(text: string, surfaces: string[]): void;
 }
@@ -141,26 +144,33 @@ export class VocabularyService {
   handleCaption(sessionId: number, text: string): void {
     this.enterSession(sessionId);
     this.recentCaptions = [...this.recentCaptions, text].slice(-RECENT_CAPTIONS);
-    const { level } = this.deps.settings.get();
+    const { level, translateAllWords } = this.deps.settings.get();
     const now = this.deps.now();
     const candidates = this.deps.pipeline(text, {
       level,
       known: this.known,
       sessionCounts: this.counts,
+      allWords: translateAllWords,
     });
 
-    for (const candidate of this.countSearched(text, candidates)) {
+    for (const found of this.countSearched(text, candidates)) {
+      const candidate = translateAllWords ? this.withKnownClass(found) : found;
       const key = wordKey(candidate.lemma, candidate.pos);
       this.counts.set(key, candidate.count);
       const entry = this.entries.get(key);
       if (entry?.shownAt != null) {
         entry.count = candidate.count;
         this.persistCount(entry);
-        this.deps.emit.cardUpdate(this.toCard(entry));
+        this.announceReturn(entry);
       } else if (entry) {
         Object.assign(entry, candidate, { queuedAt: now });
       } else {
-        this.entries.set(key, newEntry(candidate, now));
+        const fresh = newEntry(candidate, now);
+        this.entries.set(key, fresh);
+        // Já traduzida em outra sessão: não precisa de um card, nem da IA.
+        if (translateAllWords && this.deps.repos.senses.findByLemmaPos(fresh.lemma, fresh.pos)) {
+          this.showAsSummary(fresh, now);
+        }
       }
     }
     this.drain(now, text);
@@ -258,22 +268,46 @@ export class VocabularyService {
       }
       this.counts.set(wordKey(entry.lemma, entry.pos), entry.count);
       this.persistCount(entry);
-      this.deps.emit.cardUpdate(this.toCard(entry));
+      this.announceReturn(entry);
     }
     return candidates.filter(({ lemma }) => !searched.some((entry) => entry.lemma === lemma));
   }
 
+  /**
+   * Traduzindo tudo, a palavra aparece muitas vezes e o analisador pode dar outra classe a ela, como
+   * "hunch" verbo depois de "hunch" substantivo. Sem isto, ela voltaria para a IA e abriria outro card.
+   */
+  private withKnownClass(candidate: WordCandidate): WordCandidate {
+    const entry = [...this.entries.values()].find((item) => item.lemma === candidate.lemma);
+    const pos = entry?.pos ?? this.deps.repos.senses.findByLemma(candidate.lemma)?.pos;
+    if (!pos || pos === candidate.pos) return candidate;
+    return {
+      ...candidate,
+      pos,
+      count: (this.counts.get(wordKey(candidate.lemma, pos)) ?? 0) + 1,
+    };
+  }
+
+  /** Traduzindo tudo, a palavra que voltou sobe na pilha. Senão, só o contador do card muda. */
+  private announceReturn(entry: Entry) {
+    const { translateAllWords } = this.deps.settings.get();
+    const emit = translateAllWords ? this.deps.emit.cardSeen : this.deps.emit.cardUpdate;
+    emit(this.toCard(entry));
+  }
+
   /** `captionText` é a legenda que acabou de chegar, ou nulo quando quem chama é o relógio. */
   private drain(now: number, captionText: string | null) {
+    const { cardsAtOnce, highlightSubtitles, translateAllWords } = this.deps.settings.get();
+    const patience = translateAllWords ? ALL_WORDS_WAITING_MS : WAITING_TTL_MS;
     const waiting: Entry[] = [];
     for (const [key, entry] of this.entries) {
       if (entry.shownAt != null) continue;
-      if (now - entry.queuedAt > WAITING_TTL_MS) this.entries.delete(key);
-      else waiting.push(entry);
+      if (now - entry.queuedAt <= patience) waiting.push(entry);
+      else if (translateAllWords) this.showAsSummary(entry, now);
+      else this.entries.delete(key);
     }
 
     waiting.sort((a, b) => b.score - a.score);
-    const { cardsAtOnce, highlightSubtitles } = this.deps.settings.get();
 
     const surfaces: string[] = [];
     while (waiting.length > 0 && this.hasRoomForCard(now)) {
@@ -285,7 +319,9 @@ export class VocabularyService {
     if (captionText && highlightSubtitles && surfaces.length > 0) {
       this.deps.emit.highlight(captionText, surfaces);
     }
-    this.translateAhead(waiting.slice(0, AHEAD_WORDS + cardsAtOnce - 1));
+    this.translateAhead(
+      translateAllWords ? waiting : waiting.slice(0, AHEAD_WORDS + cardsAtOnce - 1),
+    );
   }
 
   /** O próximo card entra quando há um lugar livre e o limite de cards por minuto permite. */
@@ -331,11 +367,22 @@ export class VocabularyService {
     const key = wordKey(entry.lemma, entry.pos);
     this.takePlace(key, now);
     this.shownOrder.push(key);
+    this.loadTranslation(entry);
+    this.deps.emit.card(this.toCard(entry));
+  }
 
+  private showAsSummary(entry: Entry, now: number) {
+    entry.shownAt = now;
+    // No começo da lista, porque o atalho de "já sei" vale para o último card aberto.
+    this.shownOrder.unshift(wordKey(entry.lemma, entry.pos));
+    this.loadTranslation(entry);
+    this.deps.emit.cardSeen(this.toCard(entry));
+  }
+
+  private loadTranslation(entry: Entry) {
     const sense = this.deps.repos.senses.findByLemmaPos(entry.lemma, entry.pos);
     if (sense) this.attachSense(entry, sense);
     else this.queue.add(toRequest(entry));
-    this.deps.emit.card(this.toCard(entry));
   }
 
   private attachSense(entry: Entry, sense: WordSense) {

@@ -130,6 +130,10 @@ describe('Settings', () => {
     expect(defaultSettings).toMatchObject({ maxSummaries: 6, rewindOnSearch: false });
   });
 
+  it('translates only the words of the level by default', () => {
+    expect(defaultSettings.translateAllWords).toBe(false);
+  });
+
   it('keeps one card at a time for 10 seconds by default', () => {
     expect(defaultSettings).toMatchObject({ cardSeconds: 10, cardsAtOnce: 1 });
   });

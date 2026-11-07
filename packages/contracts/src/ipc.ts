@@ -85,6 +85,8 @@ export const eventChannels = {
   'session:status': SessionStatusSchema,
   'vocab:card': WordCardSchema,
   'vocab:card-update': WordCardSchema,
+  /** Uma palavra que voltou: entra como resumo, sem abrir um card. */
+  'vocab:card-seen': WordCardSchema,
   'vocab:card-remove': z.object({ lemma: z.string() }),
   'overlay:visibility': z.object({ visible: z.boolean() }),
   'overlay:layout': OverlayLayoutSchema,

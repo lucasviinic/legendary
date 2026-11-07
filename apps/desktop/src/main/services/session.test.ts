@@ -581,6 +581,176 @@ describe('searching a word', () => {
   });
 });
 
+describe('translating every word', () => {
+  beforeEach(() => {
+    h.settings.update({ translateAllWords: true });
+    h.session.start('browser');
+  });
+
+  const asked = () =>
+    vi
+      .mocked(h.provider!.enrichWords)
+      .mock.calls.flatMap(([batch]) => batch.map((word) => word.lemma));
+
+  it('shows a card for a word below the level', () => {
+    h.session.handleCaption(caption('The house is here.'));
+    expect(h.events.cards[0]?.lemma).toBe('house');
+  });
+
+  it('shows a word that comes back only as a summary, without translating it again', async () => {
+    h.session.handleCaption(caption('The house is here.'));
+    await settle();
+    h.session.handleCaption(caption('What a house.'));
+    await settle();
+    expect(h.events.seen.at(-1)).toMatchObject({
+      lemma: 'house',
+      count: 2,
+      translation: 'tradução de house',
+    });
+    expect(h.events.cards).toHaveLength(1);
+    expect(asked()).toEqual(['house']);
+  });
+
+  it('does not translate again when the same word comes back with another class', async () => {
+    // "hunch" é substantivo na primeira frase e verbo na segunda.
+    h.session.handleCaption(caption('He had a hunch.'));
+    await settle();
+    h.session.handleCaption(caption('They hunch over it.'));
+    await settle();
+    expect(asked()).toEqual(['hunch']);
+    expect(h.events.cards.map((card) => card.lemma)).toEqual(['hunch']);
+    expect(h.events.seen.at(-1)).toMatchObject({
+      lemma: 'hunch',
+      pos: 'noun',
+      count: 2,
+      translation: 'tradução de hunch',
+    });
+  });
+
+  it('uses a translation from another session even with another class', async () => {
+    h.session.handleCaption(caption('He had a hunch.'));
+    await settle();
+    await h.session.stop();
+    h.session.start('browser');
+    h.events.cards.length = 0;
+
+    h.session.handleCaption(caption('They hunch over it.'));
+    await settle();
+    expect(asked()).toEqual(['hunch']);
+    expect(h.events.cards).toEqual([]);
+    expect(h.events.seen.at(-1)).toMatchObject({
+      lemma: 'hunch',
+      translation: 'tradução de hunch',
+    });
+  });
+
+  it('counts each time a word comes back', () => {
+    h.session.handleCaption(caption('The house is here.'));
+    h.session.handleCaption(caption('What a house.'));
+    h.session.handleCaption(caption('Our house is old.'));
+    expect(h.events.seen.at(-1)).toMatchObject({ lemma: 'house', count: 3 });
+  });
+
+  it('shows only a summary for a word translated in another session', async () => {
+    h.session.handleCaption(caption('The house is here.'));
+    await settle();
+    await h.session.stop();
+    h.session.start('browser');
+    h.events.cards.length = 0;
+
+    h.session.handleCaption(caption('The house is here.'));
+    await settle();
+    expect(h.events.cards).toEqual([]);
+    expect(h.events.seen.at(-1)).toMatchObject({
+      lemma: 'house',
+      translation: 'tradução de house',
+    });
+    expect(asked()).toEqual(['house']);
+
+    const id = h.repos.sessions.list()[0]!.id;
+    const sense = h.repos.senses.findByLemmaPos('house', 'noun')!;
+    expect(h.repos.sessionWords.forSense(id, sense.id)).toBeDefined();
+  });
+
+  it('turns a word into a summary when it waited too long, instead of losing it', async () => {
+    h.settings.update({ cardSeconds: 30, cardsPerMinute: 1 });
+    h.session.handleCaption(caption('The grumpy man has a house.'));
+    expect(h.events.cards.map((card) => card.lemma)).toEqual(['man']);
+
+    h.clock.now += 9_999;
+    h.session.tick();
+    expect(h.events.seen).toEqual([]);
+
+    h.clock.now += 2;
+    h.session.tick();
+    await settle();
+    expect(h.events.seen.map((card) => card.lemma).sort()).toEqual(['grumpy', 'house']);
+    expect(h.events.cards).toHaveLength(1);
+    expect(asked()).toEqual(expect.arrayContaining(['grumpy', 'house']));
+  });
+
+  it('translates ahead every word that waits', async () => {
+    h.settings.update({ cardSeconds: 30, cardsPerMinute: 1 });
+    h.session.handleCaption(caption('A grumpy and wary man had a hunch and a knack, I reckon.'));
+    await vi.advanceTimersByTimeAsync(2_000);
+    expect(asked().sort()).toEqual(['grumpy', 'hunch', 'knack', 'man', 'reckon', 'wary']);
+  });
+
+  it('keeps the shortcut for a known word on the card that is open', () => {
+    h.settings.update({ cardSeconds: 30, cardsPerMinute: 1 });
+    h.session.handleCaption(caption('The house is here.'));
+    h.clock.now += 1_000;
+    h.session.handleCaption(caption('What a grumpy man.'));
+    h.clock.now += 10_001;
+    h.session.tick();
+    expect(h.events.seen.length).toBeGreaterThan(0);
+
+    h.vocabulary.markCurrentKnown();
+    expect(h.events.removed).toEqual(['house']);
+  });
+
+  it('counts every word shown in the status', () => {
+    h.settings.update({ cardSeconds: 30, cardsPerMinute: 1 });
+    h.session.handleCaption(caption('The grumpy man has a house.'));
+    h.clock.now += 10_001;
+    h.session.tick();
+    expect(h.session.status().newWords).toBe(3);
+  });
+
+  it('skips a word marked as known', () => {
+    h.vocabulary.markKnown('house');
+    h.session.handleCaption(caption('The house is here.'));
+    expect(h.events.cards).toEqual([]);
+    expect(h.events.seen).toEqual([]);
+  });
+
+  it('shows a searched word that comes back as a summary too', () => {
+    h.session.search('knack');
+    h.session.handleCaption(caption('She has a knack for it.'));
+    h.session.handleCaption(caption('What a knack.'));
+    expect(h.events.seen.at(-1)).toMatchObject({ lemma: 'knack', count: 2 });
+  });
+});
+
+describe('translating only the words of the level', () => {
+  beforeEach(() => h.session.start('browser'));
+
+  it('does not bring back a word that returns', () => {
+    h.session.handleCaption(caption('I reckon so.'));
+    h.session.handleCaption(caption('I reckon again.'));
+    expect(h.events.seen).toEqual([]);
+    expect(h.events.updates.at(-1)).toMatchObject({ lemma: 'reckon', count: 2 });
+  });
+
+  it('forgets a word that waited too long', () => {
+    h.settings.update({ cardsPerMinute: 1 });
+    h.session.handleCaption(caption('I reckon he is wary.'));
+    h.clock.now += 30_001;
+    h.session.tick();
+    expect(h.events.seen).toEqual([]);
+  });
+});
+
 describe('translating ahead', () => {
   beforeEach(() => h.session.start('browser'));
 

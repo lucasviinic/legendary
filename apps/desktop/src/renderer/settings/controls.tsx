@@ -207,7 +207,7 @@ export function Toggle({
       aria-checked={on}
       aria-label={label}
       onClick={() => onChange?.(!on)}
-      className={`relative h-[19px] w-8 rounded-[10px] transition-colors duration-200 ${on ? 'bg-ok' : 'bg-white/20'}`}
+      className={`relative h-[19px] w-8 flex-none rounded-[10px] transition-colors duration-200 ${on ? 'bg-ok' : 'bg-white/20'}`}
     >
       <span
         className="absolute top-0.5 size-[15px] rounded-full bg-white transition-[left] duration-200"

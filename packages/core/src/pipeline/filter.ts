@@ -5,6 +5,8 @@ import type { Token } from './tokenize';
 export const FREQUENCY_CUT: Record<Level, number> = { B1: 1500, B2: 3000, C1: 7000 };
 
 const CONTENT_POS = new Set(['VERB', 'NOUN', 'ADJ', 'ADV']);
+/** Ao traduzir tudo, também entram palavras como "despite". As mais básicas estão em STOPWORDS. */
+const ALL_WORDS_POS = new Set([...CONTENT_POS, 'ADP', 'CCONJ', 'SCONJ']);
 
 const STOPWORDS = new Set(
   (
@@ -23,6 +25,8 @@ export interface FilterOptions {
   level: Level;
   known: ReadonlySet<string>;
   ranks: ReadonlyMap<string, number>;
+  /** Não corta pela frequência, então vale até para palavras fora da lista. */
+  allWords?: boolean | undefined;
 }
 
 function startsSentence(tokens: readonly Token[], index: number): boolean {
@@ -37,9 +41,10 @@ export function filterTokens(tokens: readonly Token[], options: FilterOptions): 
   return tokens.filter((token, index) => {
     if (options.known.has(token.lemma)) return false;
     if (token.pos === 'PHRASE') return true;
-    if (!CONTENT_POS.has(token.pos)) return false;
+    if (!(options.allWords ? ALL_WORDS_POS : CONTENT_POS).has(token.pos)) return false;
     if (!WORD.test(token.lemma) || STOPWORDS.has(token.lemma)) return false;
     if (/^[A-Z]/.test(token.surface) && !startsSentence(tokens, index)) return false;
+    if (options.allWords) return true;
     const rank = options.ranks.get(token.lemma);
     return rank !== undefined && rank >= cut;
   });

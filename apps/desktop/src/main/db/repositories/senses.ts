@@ -15,6 +15,8 @@ export function sensesRepository(db: Db) {
 
   return {
     findByLemmaPos,
+    findByLemma: (lemma: string): WordSense | undefined =>
+      db.select().from(wordSenses).where(eq(wordSenses.lemma, lemma)).get(),
     byId: (id: number) => db.select().from(wordSenses).where(eq(wordSenses.id, id)).get(),
     byIds: (ids: number[]) =>
       ids.length ? db.select().from(wordSenses).where(inArray(wordSenses.id, ids)).all() : [],
