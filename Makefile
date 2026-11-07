@@ -68,10 +68,10 @@ db-generate: ## Gera migração a partir do schema Drizzle
 	$(PNPM) --filter db drizzle-kit generate
 
 db-migrate: ## Aplica migrações no banco de desenvolvimento
-	$(PNPM) --filter db drizzle-kit migrate
+	$(PNPM) --filter desktop exec node scripts/drizzle-electron.mjs migrate
 
 db-studio: ## Abre o Drizzle Studio para inspecionar o banco
-	$(PNPM) --filter db drizzle-kit studio
+	$(PNPM) --filter desktop exec node scripts/drizzle-electron.mjs studio
 
 package: build build-native ## Gera o .dmg local, sem assinatura
 	$(PNPM) --filter desktop exec electron-builder --mac --publish never \
