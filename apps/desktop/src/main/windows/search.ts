@@ -5,6 +5,8 @@ const WIDTH = 480;
 /** A barra tem 44 de altura. O resto da janela transparente é espaço para a sombra. */
 const HEIGHT = 92;
 const FROM_TOP = 0.2;
+/** O sistema e a extensão podem avisar do mesmo toque, e isso não pode abrir e fechar a barra. */
+const SAME_PRESS_MS = 200;
 
 /**
  * Barra de busca de palavras. É um painel, como o menu: recebe o teclado sem ativar o app, então o
@@ -12,6 +14,7 @@ const FROM_TOP = 0.2;
  */
 export class SearchWindow {
   private window: BrowserWindow | null = null;
+  private toggledAt = -Infinity;
 
   create(): void {
     const window = new BrowserWindow({
@@ -48,6 +51,9 @@ export class SearchWindow {
 
   toggle({ bounds }: Pick<Display, 'bounds'>): void {
     if (!this.window) return;
+    const now = Date.now();
+    if (now - this.toggledAt < SAME_PRESS_MS) return;
+    this.toggledAt = now;
     if (this.window.isVisible()) {
       this.window.hide();
       return;

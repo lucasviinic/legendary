@@ -73,6 +73,11 @@ export class AppConnection {
     this.options.saveOutbox(this.outbox);
   }
 
+  /** Com o app fechado, o toque se perde: abrir a barra depois de um tempo só atrapalharia. */
+  sendOpenSearch(): void {
+    if (this.connected) this.socket?.send(JSON.stringify({ type: 'open-search' }));
+  }
+
   /** Tenta conectar agora, se estiver esperando. Chamado quando o service worker acorda. */
   wake(): void {
     if (!this.config || this.socket) return;

@@ -93,6 +93,8 @@ export class ExtensionSource extends EventEmitter implements CaptionSource {
     if (message.data.type === 'ping') {
       const reply: ServerMessage = { type: 'pong' };
       socket.send(JSON.stringify(reply));
+    } else if (message.data.type === 'open-search') {
+      this.emit('open-search');
     } else {
       this.emit('caption', message.data.caption);
     }

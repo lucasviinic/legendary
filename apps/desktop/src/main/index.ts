@@ -1,4 +1,5 @@
 import { randomBytes } from 'node:crypto';
+import { appendFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { app, BrowserWindow, nativeTheme } from 'electron';
 import type { CaptionEvent, Provider, SettingsView } from '@legendary/contracts';
@@ -161,9 +162,16 @@ async function bootstrap() {
     overlay.toggle();
     broadcast('overlay:visibility', { visible: !overlay.hiddenByUser });
   };
+  const logShortcut = (line: string) =>
+    appendFileSync(join(userData, 'shortcuts.log'), `${new Date().toISOString()} ${line}\n`);
   const toggleSearch = () => {
-    if (session.status().state !== 'idle') searchBar.toggle(overlay.display);
+    logShortcut(`barra de busca: sessão ${session.status().state}`);
+    searchBar.toggle(overlay.display);
   };
+  source.on('open-search', () => {
+    logShortcut('extensão: apertou o atalho no player');
+    toggleSearch();
+  });
   const searchWord = (query: string) => {
     searchBar.hide();
     if (!session.search(query)) return;
@@ -220,13 +228,16 @@ async function bootstrap() {
   });
 
   setApplicationMenu(() => openSettingsWindow());
-  registerShortcuts({
-    toggleSession,
-    stopSession: () => void stopSession(),
-    markCurrentKnown: () => vocabulary.markCurrentKnown(),
-    toggleOverlay,
-    toggleSearch,
-  });
+  registerShortcuts(
+    {
+      toggleSession,
+      stopSession: () => void stopSession(),
+      markCurrentKnown: () => vocabulary.markCurrentKnown(),
+      toggleOverlay,
+      toggleSearch,
+    },
+    logShortcut,
+  );
   // Um teste não consegue apertar um atalho global do sistema.
   if (isE2E) app.on('legendary:toggle-search' as never, toggleSearch);
 

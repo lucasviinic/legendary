@@ -110,6 +110,14 @@ describe('ExtensionSource', () => {
     });
   });
 
+  it('tells the app when the shortcut was pressed in the player', async () => {
+    const socket = connect(TOKEN);
+    await opened(socket);
+    const pressed = new Promise<void>((resolve) => source.once('open-search', () => resolve()));
+    socket.send(JSON.stringify({ type: 'open-search' }));
+    await expect(pressed).resolves.toBeUndefined();
+  });
+
   it('asks connected extensions to rewind the video', async () => {
     const socket = connect(TOKEN);
     await opened(socket);

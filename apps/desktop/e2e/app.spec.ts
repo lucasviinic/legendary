@@ -422,8 +422,13 @@ test('a word typed in the search bar becomes a card, and can rewind the video', 
       };
     });
   const searchVisible = async () => (await searchState()).visible;
-  const toggleSearch = () =>
-    app.evaluate(({ app: electronApp }) => electronApp.emit('legendary:toggle-search' as never));
+  // Dois avisos seguidos do mesmo toque contam uma vez só, então um teste precisa dar um intervalo.
+  const toggleSearch = async () => {
+    await overlay.waitForTimeout(250);
+    await app.evaluate(({ app: electronApp }) =>
+      electronApp.emit('legendary:toggle-search' as never),
+    );
+  };
 
   expect(
     await app.evaluate(({ globalShortcut }) =>
@@ -431,10 +436,15 @@ test('a word typed in the search bar becomes a card, and can rewind the video', 
     ),
   ).toBe(true);
 
-  // Sem sessão não há onde mostrar o card, então a barra não abre.
+  // Sem sessão não há onde mostrar o card, e a barra abre avisando em vez de não fazer nada.
   await invoke(menu, 'session:stop');
   await toggleSearch();
-  expect(await searchVisible()).toBe(false);
+  await expect.poll(searchVisible).toBe(true);
+  await expect(field).toHaveAttribute('placeholder', /Inicie uma sessão/);
+  await field.fill('knack');
+  await field.press('Enter');
+  await expect.poll(searchVisible).toBe(false);
+  await expect(overlay.getByTestId('card-knack')).toHaveCount(0);
 
   await invoke(menu, 'session:start', { source: 'browser' });
   await invoke(menu, 'settings:set', { cardsPerMinute: 1, rewindOnSearch: false });
@@ -449,6 +459,14 @@ test('a word typed in the search bar becomes a card, and can rewind the video', 
   expect(opened.focused).toBe(true);
   expect(opened.bounds.x + opened.bounds.width / 2).toBeCloseTo(opened.display.width / 2, 0);
   await expect(field).toBeFocused();
+  await expect(field).toHaveAttribute('placeholder', 'Buscar palavra em inglês');
+
+  // Um segundo aviso do mesmo toque, como o da extensão junto com o do sistema, não fecha a barra.
+  await app.evaluate(({ app: electronApp }) =>
+    electronApp.emit('legendary:toggle-search' as never),
+  );
+  await overlay.waitForTimeout(100);
+  expect(await searchVisible()).toBe(true);
 
   await field.fill('knack');
   await field.press('Enter');

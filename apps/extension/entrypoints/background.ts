@@ -60,6 +60,10 @@ export default defineBackground(() => {
       connection.sendCaption(message.caption);
       return undefined;
     }
+    if (message.type === 'open-search') {
+      connection.sendOpenSearch();
+      return undefined;
+    }
     if (message.type === 'status') {
       const reply: StatusReply = { connected: connection.connected, queued: connection.queued };
       sendResponse(reply);

@@ -126,6 +126,34 @@ test('a caption on the page reaches the app and comes back underlined', async ()
   );
 });
 
+test('the shortcut pressed inside the player opens the search bar', async () => {
+  const search = await windowOf('search');
+  const searchVisible = () =>
+    app.evaluate(({ BrowserWindow }) =>
+      BrowserWindow.getAllWindows()
+        .find((window) => window.webContents.getURL().includes('/search/'))!
+        .isVisible(),
+    );
+  expect(await searchVisible()).toBe(false);
+
+  // A página recebe a tecla antes do navegador: ⌘⇧B não muda a barra de favoritos.
+  const prevented = netflix.evaluate(
+    () =>
+      new Promise<boolean>((resolve) => {
+        // O Meta e o Shift chegam antes, cada um com o seu próprio keydown.
+        window.addEventListener('keydown', (event) => {
+          if (event.code === 'KeyB') resolve(event.defaultPrevented);
+        });
+      }),
+  );
+  await netflix.bringToFront();
+  await netflix.keyboard.press('Meta+Shift+KeyB');
+  await expect.poll(searchVisible).toBe(true);
+  expect(await prevented).toBe(true);
+  await search.getByLabel('Buscar palavra').press('Escape');
+  await expect.poll(searchVisible).toBe(false);
+});
+
 test('searching with the option on rewinds the video in the tab of the captions', async () => {
   const menu = await windowOf('menu');
   await invoke(menu, 'settings:set', { rewindOnSearch: true });

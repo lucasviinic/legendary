@@ -170,6 +170,20 @@ describe('AppConnection', () => {
     });
   });
 
+  it('tells the app the search shortcut was pressed', () => {
+    const { connection } = setup();
+    latest().open();
+    connection.sendOpenSearch();
+    expect(latest().sent.map((data) => JSON.parse(data))).toContainEqual({ type: 'open-search' });
+  });
+
+  it('does not keep the shortcut for later when the app is closed', () => {
+    const { connection } = setup();
+    connection.sendOpenSearch();
+    latest().open();
+    expect(latest().sent).toEqual([]);
+  });
+
   it('delivers rewind requests from the app', () => {
     const { onRewind, onHighlight } = setup();
     latest().open();

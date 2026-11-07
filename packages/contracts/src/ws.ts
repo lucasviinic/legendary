@@ -7,6 +7,8 @@ export const DEFAULT_WS_PORT = 47615;
 export const ClientMessageSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('caption'), caption: CaptionEventSchema }),
   z.object({ type: z.literal('ping') }),
+  /** O atalho da busca foi apertado dentro do player. */
+  z.object({ type: z.literal('open-search') }),
 ]);
 export type ClientMessage = z.infer<typeof ClientMessageSchema>;
 

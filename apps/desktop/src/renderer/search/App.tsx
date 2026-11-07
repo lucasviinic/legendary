@@ -5,7 +5,15 @@ import { SearchBar } from './SearchBar';
 /** A janela fica escondida em memória: cada abertura começa com o campo vazio e pronto para digitar. */
 export function App() {
   const [query, setQuery] = useState('');
+  const [idle, setIdle] = useState(true);
   const input = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    void api()
+      .invoke('session:get-status')
+      .then((status) => setIdle(status.state === 'idle'));
+    return api().on('session:status', (status) => setIdle(status.state === 'idle'));
+  }, []);
 
   useEffect(() => {
     const onFocus = () => input.current?.focus();
@@ -24,7 +32,7 @@ export function App() {
   };
   const submit = () => {
     const word = query.trim();
-    if (!word) return close();
+    if (idle || !word) return close();
     setQuery('');
     void api().invoke('search:submit', { query: word });
   };
@@ -32,7 +40,8 @@ export function App() {
   return (
     <div className="box-border h-full px-5 pt-2">
       <SearchBar
-        value={query}
+        value={idle ? '' : query}
+        idle={idle}
         inputRef={input}
         onChange={setQuery}
         onSubmit={submit}
