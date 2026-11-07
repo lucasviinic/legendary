@@ -99,6 +99,8 @@ const settingsView: View = {
     provider: 'claude',
     level: 'B2',
     cardsPerMinute: 2,
+    cardSeconds: 10,
+    cardsAtOnce: 1,
     maxSummaries: 6,
     corner: 'tr',
     cardPlacements: {},
@@ -340,7 +342,7 @@ export const FRAMES: Record<string, () => ReactNode> = {
           compact('grumpy', 'mal-humorado'),
         ]}
         placement={TOP_RIGHT}
-        focused
+        openCards={1}
         hovered={null}
       />
       <Subtitle before="I " word="reckon" after=" we should head out before it gets dark." />
@@ -358,7 +360,7 @@ export const FRAMES: Record<string, () => ReactNode> = {
       <CardStack
         cards={[headOut, compact('reckon', 'achar, supor')]}
         placement={TOP_RIGHT}
-        focused
+        openCards={1}
         hovered={null}
       />
       <Subtitle before="I reckon we should " word="head out" after=" before it gets dark." />

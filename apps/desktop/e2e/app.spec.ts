@@ -390,6 +390,28 @@ test('the settings control the pace of the cards and how many summaries stay', a
   await expectSummaries(1);
   await invoke(menu, 'settings:set', { maxSummaries: 6 });
 
+  // O tempo de cada card começa em 10 s, e os cards por vez, em 1.
+  const time = settings.getByLabel('Tempo de cada card');
+  await expect(time).toHaveAttribute('aria-valuetext', '10 s');
+  await time.focus();
+  await settings.keyboard.press('Home');
+  await expect(time).toHaveAttribute('aria-valuetext', '3 s');
+  await settings.keyboard.press('ArrowRight');
+  await expect(time).toHaveAttribute('aria-valuetext', '4 s');
+  await settings.keyboard.press('End');
+  await expect(time).toHaveAttribute('aria-valuetext', '30 s');
+  await invoke(menu, 'settings:set', { cardSeconds: 10 });
+
+  await settings.getByRole('button', { name: '2', exact: true }).click();
+  await expect
+    .poll(
+      async () =>
+        ((await invoke(menu, 'settings:get')) as { settings: { cardsAtOnce: number } }).settings
+          .cardsAtOnce,
+    )
+    .toBe(2);
+  await invoke(menu, 'settings:set', { cardsAtOnce: 1 });
+
   // Voltar o vídeo começa desligado e liga pelas Configurações.
   const rewind = settings.getByRole('switch', { name: 'Voltar o vídeo ao buscar' });
   await expect(rewind).toHaveAttribute('aria-checked', 'false');
@@ -530,4 +552,22 @@ test('a word typed in the search bar becomes a card, and can rewind the video', 
   await expect.poll(searchVisible).toBe(true);
   await invoke(menu, 'session:stop');
   await expect.poll(searchVisible).toBe(false);
+});
+
+test('more than one card stays open when the settings allow it', async () => {
+  const menu = await windowOf('menu');
+  const overlay = await windowOf('overlay');
+  if (!socket) {
+    const view = (await invoke(menu, 'settings:get')) as { pairing: { token: string } };
+    await connectExtension(view.pairing.token);
+  }
+  await invoke(menu, 'session:stop');
+  await invoke(menu, 'settings:set', { cardsAtOnce: 2, cardsPerMinute: 10, cardSeconds: 3 });
+  await invoke(menu, 'session:start', { source: 'browser' });
+
+  sendCaption('A grumpy and wary man had a hunch.');
+  await expect(overlay.getByText('Explicação curta')).toHaveCount(2, { timeout: 5_000 });
+
+  await invoke(menu, 'settings:set', { cardsAtOnce: 1, cardSeconds: 10 });
+  await invoke(menu, 'session:stop');
 });

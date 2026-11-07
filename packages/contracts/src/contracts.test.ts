@@ -130,6 +130,22 @@ describe('Settings', () => {
     expect(defaultSettings).toMatchObject({ maxSummaries: 6, rewindOnSearch: false });
   });
 
+  it('keeps one card at a time for 10 seconds by default', () => {
+    expect(defaultSettings).toMatchObject({ cardSeconds: 10, cardsAtOnce: 1 });
+  });
+
+  it('limits the time of a card and how many stay open at once', () => {
+    const parse = (patch: object) => SettingsSchema.parse({ ...defaultSettings, ...patch });
+    expect(parse({ cardSeconds: 3, cardsAtOnce: 3 })).toMatchObject({
+      cardSeconds: 3,
+      cardsAtOnce: 3,
+    });
+    expect(() => parse({ cardSeconds: 2 })).toThrow();
+    expect(() => parse({ cardSeconds: 31 })).toThrow();
+    expect(() => parse({ cardsAtOnce: 0 })).toThrow();
+    expect(() => parse({ cardsAtOnce: 4 })).toThrow();
+  });
+
   it('limits the summaries to the slider range', () => {
     expect(SettingsSchema.parse({ ...defaultSettings, maxSummaries: 10 }).maxSummaries).toBe(10);
     expect(() => SettingsSchema.parse({ ...defaultSettings, maxSummaries: 11 })).toThrow();

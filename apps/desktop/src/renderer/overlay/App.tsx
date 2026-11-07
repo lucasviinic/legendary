@@ -93,7 +93,7 @@ export function App() {
       <CardStack
         cards={items.map((item) => item.card)}
         placement={placement}
-        focused={items[0]?.focused ?? false}
+        openCards={items.filter((item) => item.focused).length}
         hovered={hovered}
         onHover={setHovered}
         onPlace={place}

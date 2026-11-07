@@ -13,8 +13,8 @@ const LOWEST_OPACITY = 0.3;
 export interface CardStackProps extends CardActions {
   cards: WordCard[];
   placement: CardPlacement;
-  /** Se o card mais novo ainda está em destaque. Depois de um tempo ele também vira resumo. */
-  focused: boolean;
+  /** Quantos dos primeiros cards estão abertos. Depois de um tempo eles também viram resumo. */
+  openCards: number;
   hovered: string | null;
   onHover?: (lemma: string | null) => void;
   /** Sem esta função, a pilha não pode ser arrastada. */
@@ -26,7 +26,7 @@ export interface CardStackProps extends CardActions {
 export function CardStack({
   cards,
   placement,
-  focused,
+  openCards,
   hovered,
   onHover,
   onKnown,
@@ -50,8 +50,10 @@ export function CardStack({
       <AnimatePresence initial={false} mode="popLayout">
         {cards.map((card, position) => {
           const isHovered = hovered === card.lemma;
-          const expanded = (position === 0 && focused) || isHovered;
-          const opacity = OPACITY_BY_RANK[focused ? position : position + 1] ?? LOWEST_OPACITY;
+          const open = position < openCards;
+          const expanded = open || isHovered;
+          const rank = open ? 0 : position - openCards + 1;
+          const opacity = OPACITY_BY_RANK[rank] ?? LOWEST_OPACITY;
           return (
             <motion.div
               key={card.lemma}

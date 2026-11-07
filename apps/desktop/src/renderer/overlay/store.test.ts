@@ -55,6 +55,43 @@ describe('overlay cards', () => {
     expect(lemmas()).toEqual(['d', 'c']);
   });
 
+  describe('with more than one card at a time', () => {
+    beforeEach(() => state().setLayout({ ...state(), cardsAtOnce: 2 }));
+
+    it('keeps the newest cards open and shrinks the older ones', () => {
+      ['a', 'b', 'c'].forEach((lemma) => state().addCard(card(lemma)));
+      expect(lemmas()).toEqual(['c', 'b', 'a']);
+      expect(['a', 'b', 'c'].map(isFocused)).toEqual([false, true, true]);
+    });
+
+    it('does not count the open cards among the summaries', () => {
+      state().setLayout({ ...state(), maxSummaries: 1 });
+      ['a', 'b', 'c', 'd'].forEach((lemma) => state().addCard(card(lemma)));
+      expect(lemmas()).toEqual(['d', 'c', 'b']);
+    });
+
+    it('keeps the open cards on top when an older one stays open longer', () => {
+      state().addCard(card('a', { translation: null, explanation: null }));
+      after(5 * SECOND);
+      state().addCard(card('b'));
+      after(4 * SECOND);
+      state().updateCard(card('a'));
+      after(6 * SECOND);
+      expect(isFocused('b')).toBe(false);
+      expect(isFocused('a')).toBe(true);
+      expect(lemmas()).toEqual(['a', 'b']);
+    });
+  });
+
+  it('uses the time of a card from the settings', () => {
+    state().setLayout({ ...state(), cardSeconds: 3 });
+    state().addCard(card('a'));
+    after(2 * SECOND);
+    expect(isFocused('a')).toBe(true);
+    after(1 * SECOND);
+    expect(isFocused('a')).toBe(false);
+  });
+
   it('gives the focus to the newest card only', () => {
     state().addCard(card('a'));
     state().addCard(card('b'));

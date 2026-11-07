@@ -56,13 +56,19 @@ precisa ser conferida contra ele. As telas são componentes sem acesso ao IPC, e
   da sessão.
 - **Fila de tradução:** a especificação pedia lotes de 5 palavras ou 8 segundos, mas os cards saem um
   por vez e cada palavra esperava os 8 segundos inteiros. Agora a palavra de um card vai na hora, e
-  as 3 melhores palavras que esperam a vez são traduzidas antes, em até 6 das 10 chamadas por minuto.
+  as melhores palavras que esperam a vez são traduzidas antes, em paralelo, em até 6 das 10 chamadas
+  por minuto.
 - **Resposta da IA:** a tradução vem em streaming, para aparecer antes da explicação, e o raciocínio
   dos modelos fica desligado nessa etapa. No Claude, a tradução usa o Haiku 5.5 e o quiz, o Opus 5.5.
 - **Tempo dos cards:** a especificação previa de 10 a 15 segundos e o mockup desenha 3 cards. O card
-  fica até 10 segundos em destaque, encolhe e continua como resumo por até 3 minutos.
-- **Cards por minuto:** a especificação ia de 1 a 4. Agora vai até 10, um card a cada 6 segundos, nos
-  passos 1, 2, 4, 6, 8 e 10. O "até 2" continua em 33% da faixa, como no frame 1e.
+  encolhe depois do tempo escolhido e continua como resumo por até 3 minutos.
+- **Cards por minuto:** a especificação ia de 1 a 4. Agora vai até 10, nos passos 1, 2, 4, 6, 8 e 10. O
+  "até 2" continua em 33% da faixa, como no frame 1e.
+- **Tempo de cada card e cards por vez:** não estão na especificação nem no mockup. O próximo card só
+  entra quando há um lugar livre e o limite por minuto permite. Cada card ocupa um lugar pelo tempo
+  escolhido, contado a partir da explicação, e podem ficar até 3 abertos. Com um card por vez e 10 cards
+  por minuto, o tempo precisa ser de até 6 segundos.
+- **Próximo card:** entre as palavras que esperam a vez, vai primeiro uma que já tenha tradução.
 - **Resumos na tela:** de 1 a 10, com padrão 6. A linha não tem frame no mockup. Um resumo dura até
   3 minutos, então só dá para ver 10 deles a partir de 4 cards por minuto.
 - **Busca de palavra:** não está na especificação nem no mockup. O atalho ⌘⇧B abre uma barra durante

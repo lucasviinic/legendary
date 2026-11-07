@@ -48,6 +48,10 @@ export const SettingsSchema = z.object({
   provider: ProviderSchema,
   level: LevelSchema,
   cardsPerMinute: z.number().int().min(1).max(10),
+  /** Quanto tempo um card fica aberto, e só depois disso o lugar dele fica livre para o próximo. */
+  cardSeconds: z.number().int().min(3).max(30),
+  /** Quantos cards ficam abertos ao mesmo tempo, sem contar os resumos. */
+  cardsAtOnce: z.number().int().min(1).max(3),
   /** Quantos cards ficam resumidos abaixo do atual. */
   maxSummaries: z.number().int().min(1).max(10),
   corner: CornerSchema,
@@ -66,6 +70,8 @@ export const defaultSettings: Settings = {
   provider: 'gemini',
   level: 'B2',
   cardsPerMinute: 2,
+  cardSeconds: 10,
+  cardsAtOnce: 1,
   maxSummaries: 6,
   corner: 'tr',
   cardPlacements: {},
@@ -106,6 +112,8 @@ export const OverlayLayoutSchema = z.object({
   /** Altura da faixa da barra de menus, que a janela do overlay também cobre. */
   safeTop: z.number().nonnegative(),
   maxSummaries: SettingsSchema.shape.maxSummaries,
+  cardSeconds: SettingsSchema.shape.cardSeconds,
+  cardsAtOnce: SettingsSchema.shape.cardsAtOnce,
 });
 export type OverlayLayout = z.infer<typeof OverlayLayoutSchema>;
 

@@ -117,10 +117,17 @@ export const CARD_STOPS: SliderStop[] = [
   { value: 10, at: 100 },
 ];
 
-export const SUMMARY_STOPS: SliderStop[] = Array.from({ length: 10 }, (_, index) => ({
-  value: index + 1,
-  at: Math.round((index / 9) * 100),
-}));
+const evenStops = (values: number[]): SliderStop[] =>
+  values.map((value, index) => ({
+    value,
+    at: Math.round((index / (values.length - 1)) * 100),
+  }));
+
+export const SUMMARY_STOPS = evenStops([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+/** Inclui 6 s, o tempo que deixa os 10 cards por minuto caberem com um card por vez. */
+export const CARD_TIME_STOPS = evenStops([3, 4, 5, 6, 8, 10, 15, 20, 30]);
+
+const upTo = (value: number) => `até ${value}`;
 
 const ARROW_STEP: Record<string, number> = {
   ArrowRight: 1,
@@ -134,11 +141,13 @@ export function StepSlider({
   label,
   stops,
   value,
+  format = upTo,
   onChange,
 }: {
   label: string;
   stops: SliderStop[];
   value: number;
+  format?: (value: number) => string;
   onChange?: (value: number) => void;
 }) {
   // Um valor salvo fora dos passos, como 3, aparece no passo seguinte até ser alterado.
@@ -162,7 +171,7 @@ export function StepSlider({
         <input
           type="range"
           aria-label={label}
-          aria-valuetext={`até ${value}`}
+          aria-valuetext={format(value)}
           min={0}
           max={100}
           value={at}
@@ -178,7 +187,7 @@ export function StepSlider({
           className="absolute -inset-x-2 -top-2 m-0 box-border h-5 w-[216px] opacity-0"
         />
       </div>
-      <span className="tabular-nums">até {value}</span>
+      <span className="tabular-nums">{format(value)}</span>
     </div>
   );
 }

@@ -7,8 +7,6 @@ import {
 } from '@legendary/contracts';
 import { create } from 'zustand';
 
-/** Depois desse tempo em destaque, o card encolhe e vira resumo. */
-const FOCUS_MS = 10_000;
 /** Sem cards novos para empurrar os resumos, eles saem de cena sozinhos. */
 const CARD_LIFETIME_MS = 3 * 60_000;
 
@@ -29,12 +27,22 @@ interface Item {
   expiresAt: number;
 }
 
+/** Os cards abertos ficam em cima, e os resumos, do mais novo para o mais velho, embaixo. */
+const openFirst = (items: Item[]) => [
+  ...items.filter((item) => item.focused),
+  ...items.filter((item) => !item.focused),
+];
+const withinLimit = (items: Item[], maxSummaries: number) =>
+  items.slice(0, items.filter((item) => item.focused).length + maxSummaries);
+
 interface OverlayState {
   status: SessionStatus;
   items: Item[];
   placement: CardPlacement;
   safeTop: number;
   maxSummaries: number;
+  cardSeconds: number;
+  cardsAtOnce: number;
   hovered: string | null;
   setStatus(status: SessionStatus): void;
   setLayout(layout: OverlayLayout): void;
@@ -52,29 +60,41 @@ export const useOverlay = create<OverlayState>((set) => ({
   placement: { corner: 'tr', x: 20, y: 20 },
   safeTop: 0,
   maxSummaries: defaultSettings.maxSummaries,
+  cardSeconds: defaultSettings.cardSeconds,
+  cardsAtOnce: defaultSettings.cardsAtOnce,
   hovered: null,
   setStatus: (status) =>
     set(status.state === 'idle' ? { status, items: [], hovered: null } : { status }),
-  setLayout: ({ placement, safeTop, maxSummaries }) =>
+  setLayout: ({ placement, safeTop, maxSummaries, cardSeconds, cardsAtOnce }) =>
     set((state) => ({
       placement,
       safeTop,
       maxSummaries,
-      items: state.items.slice(0, maxSummaries + 1),
+      cardSeconds,
+      cardsAtOnce,
+      items: withinLimit(state.items, maxSummaries),
     })),
   setPlacement: (placement) => set({ placement }),
   setHovered: (hovered) => set({ hovered }),
   addCard: (card) =>
     set((state) => {
       const now = Date.now();
-      return {
-        items: [
-          { card, focused: true, focusUntil: now + FOCUS_MS, expiresAt: now + CARD_LIFETIME_MS },
-          ...state.items
-            .filter((item) => item.card.lemma !== card.lemma)
-            .map((item) => ({ ...item, focused: false })),
-        ].slice(0, state.maxSummaries + 1),
+      const fresh: Item = {
+        card,
+        focused: true,
+        focusUntil: now + state.cardSeconds * 1000,
+        expiresAt: now + CARD_LIFETIME_MS,
       };
+      // Os abertos mais novos continuam abertos, até o limite. Os outros viram resumo.
+      let room = state.cardsAtOnce - 1;
+      const others = state.items
+        .filter((item) => item.card.lemma !== card.lemma)
+        .map((item) => {
+          if (!item.focused) return item;
+          room -= 1;
+          return room >= 0 ? item : { ...item, focused: false };
+        });
+      return { items: withinLimit(openFirst([fresh, ...others]), state.maxSummaries) };
     }),
   updateCard: (card) =>
     set((state) => ({
@@ -82,7 +102,8 @@ export const useOverlay = create<OverlayState>((set) => ({
         if (item.card.lemma !== card.lemma) return item;
         // O destaque recomeça quando a explicação chega, para dar tempo de ler.
         const explained = item.card.explanation === null && card.explanation !== null;
-        return { ...item, card, focusUntil: explained ? Date.now() + FOCUS_MS : item.focusUntil };
+        const focusUntil = explained ? Date.now() + state.cardSeconds * 1000 : item.focusUntil;
+        return { ...item, card, focusUntil };
       }),
     })),
   removeCard: (lemma) =>
@@ -95,8 +116,7 @@ export const useOverlay = create<OverlayState>((set) => ({
         item.focused && item.focusUntil <= now && !isHovered(item);
       const alive = state.items.filter((item) => item.expiresAt > now || isHovered(item));
       if (alive.length === state.items.length && !alive.some(shouldShrink)) return state;
-      return {
-        items: alive.map((item) => (shouldShrink(item) ? { ...item, focused: false } : item)),
-      };
+      const items = alive.map((item) => (shouldShrink(item) ? { ...item, focused: false } : item));
+      return { items: withinLimit(openFirst(items), state.maxSummaries) };
     }),
 }));

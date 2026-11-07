@@ -4,10 +4,12 @@ const MAX_BATCH = 5;
 const MAX_CALLS_PER_MINUTE = 10;
 /** Antecipar nunca gasta todas as chamadas do minuto: as outras ficam para os cards na tela. */
 const MAX_AHEAD_CALLS_PER_MINUTE = 6;
-/** Assim um card na tela não espera a chamada que já está em andamento. */
-const MAX_RUNNING_CALLS = 2;
-/** Junta as palavras antecipadas de legendas seguidas numa chamada só. */
-const AHEAD_GATHER_MS = 1_500;
+/** Assim um card na tela não espera as chamadas que já estão em andamento. */
+const MAX_RUNNING_CALLS = 3;
+/** Antecipar corre em paralelo com o resto, mas deixa uma chamada livre para o card na tela. */
+const MAX_RUNNING_AHEAD_CALLS = 2;
+/** Junta as palavras antecipadas da mesma legenda numa chamada só. */
+const AHEAD_GATHER_MS = 400;
 const MINUTE_MS = 60_000;
 const BASE_BACKOFF_MS = 2_000;
 const MAX_BACKOFF_MS = 60_000;
@@ -105,7 +107,7 @@ export class EnrichQueue {
     if (this.held || !oldest) return;
 
     const urgent = this.waiting.some((item) => item.urgent);
-    if (this.running.size >= (urgent ? MAX_RUNNING_CALLS : 1)) return;
+    if (this.running.size >= (urgent ? MAX_RUNNING_CALLS : MAX_RUNNING_AHEAD_CALLS)) return;
 
     const now = Date.now();
     this.callTimes = this.callTimes.filter((time) => now - time < MINUTE_MS);

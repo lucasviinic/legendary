@@ -10,8 +10,10 @@ import type { SettingsService } from './settings';
 /** Depois disso a palavra já saiu de cena, então não vale mostrar o card. */
 const WAITING_TTL_MS = 30_000;
 const MINUTE_MS = 60_000;
-/** Quantas das palavras que esperam a vez já têm a tradução adiantada. */
+/** Quantas das palavras que esperam a vez já têm a tradução adiantada, com um card por vez. */
 const AHEAD_WORDS = 3;
+/** O limite de cards por vez nas configurações: mais que isso nunca é consultado. */
+const MAX_RECENT_CARDS = 3;
 /** Onde procurar a frase de uma palavra buscada: um pouco mais de um minuto de diálogo. */
 const RECENT_CAPTIONS = 30;
 
@@ -77,7 +79,10 @@ export class VocabularyService {
   private counts = new Map<string, number>();
   private known = new Set<string>();
   private recentCaptions: string[] = [];
-  private lastCardAt = -Infinity;
+  /** Quando entraram os últimos cards, do mais antigo para o mais novo. */
+  private recentCards: number[] = [];
+  /** Até quando cada card aberto ocupa o lugar dele, pela chave da palavra. */
+  private places = new Map<string, number>();
   private shownOrder: string[] = [];
   private failing = false;
   private queued = 0;
@@ -115,7 +120,8 @@ export class VocabularyService {
     this.counts = new Map();
     this.known = this.deps.repos.known.all();
     this.recentCaptions = [];
-    this.lastCardAt = -Infinity;
+    this.recentCards = [];
+    this.places = new Map();
     this.shownOrder = [];
     this.failing = false;
     this.queued = 0;
@@ -184,7 +190,7 @@ export class VocabularyService {
     if (entry.shownAt == null) {
       this.show(entry, now);
     } else {
-      this.lastCardAt = now;
+      this.takePlace(key, now);
       this.shownOrder = [...this.shownOrder.filter((item) => item !== key), key];
       this.deps.emit.card(this.toCard(entry));
     }
@@ -198,6 +204,7 @@ export class VocabularyService {
     for (const [key, entry] of this.entries) {
       if (entry.lemma === lemma) {
         this.entries.delete(key);
+        this.places.delete(key);
         this.shownOrder = this.shownOrder.filter((item) => item !== key);
       }
     }
@@ -266,16 +273,47 @@ export class VocabularyService {
     }
 
     waiting.sort((a, b) => b.score - a.score);
-    const { cardsPerMinute, highlightSubtitles } = this.deps.settings.get();
-    const next = now - this.lastCardAt >= MINUTE_MS / cardsPerMinute ? waiting.shift() : undefined;
+    const { cardsAtOnce, highlightSubtitles } = this.deps.settings.get();
 
-    if (next) {
+    const surfaces: string[] = [];
+    while (waiting.length > 0 && this.hasRoomForCard(now)) {
+      const next = waiting.find((entry) => this.isTranslated(entry)) ?? waiting[0]!;
+      waiting.splice(waiting.indexOf(next), 1);
       this.show(next, now);
-      if (captionText && highlightSubtitles && next.queuedAt === now) {
-        this.deps.emit.highlight(captionText, [next.surface]);
-      }
+      if (next.queuedAt === now) surfaces.push(next.surface);
     }
-    this.translateAhead(waiting.slice(0, AHEAD_WORDS));
+    if (captionText && highlightSubtitles && surfaces.length > 0) {
+      this.deps.emit.highlight(captionText, surfaces);
+    }
+    this.translateAhead(waiting.slice(0, AHEAD_WORDS + cardsAtOnce - 1));
+  }
+
+  /** O próximo card entra quando há um lugar livre e o limite de cards por minuto permite. */
+  private hasRoomForCard(now: number): boolean {
+    const { cardsPerMinute, cardsAtOnce } = this.deps.settings.get();
+    for (const [key, until] of this.places) {
+      if (until <= now) this.places.delete(key);
+    }
+    if (this.places.size >= cardsAtOnce) return false;
+    // Vários cards podem entrar juntos, e a média continua sendo a dos cards por minuto.
+    const oldest = this.recentCards.at(-cardsAtOnce);
+    return oldest === undefined || now - oldest >= (cardsAtOnce * MINUTE_MS) / cardsPerMinute;
+  }
+
+  private placeEnd(now: number): number {
+    return now + this.deps.settings.get().cardSeconds * 1000;
+  }
+
+  private takePlace(key: string, now: number) {
+    this.places.set(key, this.placeEnd(now));
+    this.recentCards = [...this.recentCards, now].slice(-MAX_RECENT_CARDS);
+  }
+
+  private isTranslated(entry: Entry): boolean {
+    return (
+      entry.earlyTranslation !== null ||
+      this.deps.repos.senses.findByLemmaPos(entry.lemma, entry.pos) !== undefined
+    );
   }
 
   private translateAhead(entries: Entry[]) {
@@ -290,8 +328,9 @@ export class VocabularyService {
 
   private show(entry: Entry, now: number) {
     entry.shownAt = now;
-    this.lastCardAt = now;
-    this.shownOrder.push(wordKey(entry.lemma, entry.pos));
+    const key = wordKey(entry.lemma, entry.pos);
+    this.takePlace(key, now);
+    this.shownOrder.push(key);
 
     const sense = this.deps.repos.senses.findByLemmaPos(entry.lemma, entry.pos);
     if (sense) this.attachSense(entry, sense);
@@ -348,9 +387,12 @@ export class VocabularyService {
       provider: this.deps.getProvider()?.name ?? 'unknown',
     });
     // Palavra adiantada fica só no cache: ela entra na sessão quando o card aparecer.
-    const entry = this.entries.get(wordKey(request.lemma, request.pos));
+    const key = wordKey(request.lemma, request.pos);
+    const entry = this.entries.get(key);
     if (entry?.shownAt == null) return;
     this.attachSense(entry, sense);
+    // O overlay recomeça o tempo do card quando a explicação chega, para dar tempo de ler.
+    if (this.places.has(key)) this.places.set(key, this.placeEnd(this.deps.now()));
     this.deps.emit.cardUpdate(this.toCard(entry));
   }
 

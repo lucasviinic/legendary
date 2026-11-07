@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { TrafficLights } from '../shared/TrafficLights';
 import {
   CARD_STOPS,
+  CARD_TIME_STOPS,
   KeyField,
   Row,
   Segmented,
@@ -36,6 +37,12 @@ const CORNER_NAMES: Record<Corner, string> = {
   br: 'Canto inferior direito',
 };
 const CORNERS: Corner[] = ['tl', 'tr', 'bl', 'br'];
+
+const CARDS_AT_ONCE = [
+  { value: '1', label: '1' },
+  { value: '2', label: '2' },
+  { value: '3', label: '3' },
+] as const;
 
 const KEY_STATUS_TEXT = {
   missing: '',
@@ -171,6 +178,27 @@ export function SettingsView({ view, mockupOnly = false, onChange, onSaveKey }: 
             onChange={(cardsPerMinute) => onChange?.({ cardsPerMinute })}
           />
         </Row>
+        {!mockupOnly && (
+          <Row label="Tempo de cada card">
+            <StepSlider
+              label="Tempo de cada card"
+              stops={CARD_TIME_STOPS}
+              value={settings.cardSeconds}
+              format={(seconds) => `${seconds} s`}
+              onChange={(cardSeconds) => onChange?.({ cardSeconds })}
+            />
+          </Row>
+        )}
+        {!mockupOnly && (
+          <Row label="Cards por vez">
+            <Segmented
+              options={CARDS_AT_ONCE}
+              value={String(settings.cardsAtOnce) as '1' | '2' | '3'}
+              itemClass="w-11"
+              onChange={(value) => onChange?.({ cardsAtOnce: Number(value) })}
+            />
+          </Row>
+        )}
         {!mockupOnly && (
           <Row label="Resumos na tela">
             <StepSlider

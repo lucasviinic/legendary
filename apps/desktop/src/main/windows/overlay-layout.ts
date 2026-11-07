@@ -39,5 +39,7 @@ export function overlayLayout(settings: Settings, display: OverlayDisplay): Over
       settings.cardPlacements[displayKey(display)] ?? defaultPlacement(settings.corner, display),
     safeTop: display.workArea.y - display.bounds.y,
     maxSummaries: settings.maxSummaries,
+    cardSeconds: settings.cardSeconds,
+    cardsAtOnce: settings.cardsAtOnce,
   };
 }

@@ -232,7 +232,7 @@ describe('cards', () => {
   });
 
   it('shows a new card every 6 seconds at the fastest setting', () => {
-    h.settings.update({ cardsPerMinute: 10 });
+    h.settings.update({ cardsPerMinute: 10, cardSeconds: 6 });
     h.session.handleCaption(caption('I reckon he is wary.'));
     expect(h.events.cards).toHaveLength(1);
     h.clock.now += 5_999;
@@ -241,6 +241,99 @@ describe('cards', () => {
     h.clock.now += 1;
     h.session.tick();
     expect(h.events.cards).toHaveLength(2);
+  });
+
+  it('keeps the next card out until the time of the current one ends', () => {
+    h.settings.update({ cardsPerMinute: 10, cardSeconds: 15 });
+    h.session.handleCaption(caption('I reckon he is wary.'));
+    h.clock.now += 14_999;
+    h.session.tick();
+    expect(h.events.cards).toHaveLength(1);
+    h.clock.now += 1;
+    h.session.tick();
+    expect(h.events.cards).toHaveLength(2);
+  });
+
+  it('counts the time of the card from when its explanation arrives', async () => {
+    h.close();
+    const finish: (() => void)[] = [];
+    const provider = fakeProvider({
+      enrichWords: vi.fn(
+        (batch: EnrichRequestWord[]) =>
+          new Promise<EnrichedWord[]>((resolve) => {
+            finish.push(() => resolve(batch.map(enriched)));
+          }),
+      ),
+    });
+    h = createHarness({ provider, settings: { cardsPerMinute: 10, cardSeconds: 6 } });
+    h.session.start('browser');
+    h.session.handleCaption(caption('I reckon he is wary.'));
+    await settle();
+    h.clock.now += 5_000;
+    finish[0]?.();
+    await settle();
+
+    h.clock.now += 5_999;
+    h.session.tick();
+    expect(h.events.cards).toHaveLength(1);
+    h.clock.now += 1;
+    h.session.tick();
+    expect(h.events.cards).toHaveLength(2);
+  });
+
+  it('frees the place of a card marked as known', () => {
+    h.settings.update({ cardsPerMinute: 10, cardSeconds: 30 });
+    h.session.handleCaption(caption('I reckon he is wary.'));
+    h.vocabulary.markKnown('wary');
+    h.clock.now += 6_000;
+    h.session.tick();
+    expect(h.events.cards.at(-1)?.lemma).toBe('reckon');
+  });
+
+  describe('with more than one card at a time', () => {
+    beforeEach(() => h.settings.update({ cardsAtOnce: 2, cardsPerMinute: 10, cardSeconds: 10 }));
+
+    it('shows as many cards together as the setting allows', () => {
+      h.session.handleCaption(caption('The grumpy wary man had a hunch.'));
+      expect(h.events.cards.map((card) => card.lemma)).toEqual(['hunch', 'wary']);
+    });
+
+    it('underlines every word that got a card, in one message', () => {
+      h.session.handleCaption(caption('I reckon he is wary.'));
+      expect(h.events.highlights).toEqual([
+        { text: 'I reckon he is wary.', surfaces: ['wary', 'reckon'] },
+      ]);
+    });
+
+    it('waits for a place to open', () => {
+      h.settings.update({ cardsPerMinute: 10, cardSeconds: 20 });
+      h.session.handleCaption(caption('The grumpy wary man had a hunch.'));
+      h.clock.now += 19_999;
+      h.session.tick();
+      expect(h.events.cards).toHaveLength(2);
+      h.clock.now += 1;
+      h.session.tick();
+      expect(h.events.cards.at(-1)?.lemma).toBe('grumpy');
+    });
+
+    it('still respects the cards per minute', () => {
+      h.session.handleCaption(caption('The grumpy wary man had a hunch.'));
+      h.clock.now += 11_999;
+      h.session.tick();
+      expect(h.events.cards).toHaveLength(2);
+      h.clock.now += 1;
+      h.session.tick();
+      expect(h.events.cards).toHaveLength(3);
+    });
+
+    it('translates ahead more words, because they are used faster', async () => {
+      h.session.handleCaption(caption('The grumpy wary man had a hunch and a knack, I reckon.'));
+      await vi.advanceTimersByTimeAsync(2_000);
+      const asked = vi
+        .mocked(h.provider!.enrichWords)
+        .mock.calls.flatMap(([batch]) => batch.map((word) => word.lemma));
+      expect(asked.sort()).toEqual(['grumpy', 'hunch', 'knack', 'reckon', 'wary']);
+    });
   });
 
   it('spaces cards evenly inside the minute', () => {
@@ -534,6 +627,22 @@ describe('translating ahead', () => {
     expect(senseIds()).toContain(reckon.id);
   });
 
+  it('picks a word already translated for the next card, ahead of a better one that is not', async () => {
+    h.session.handleCaption(caption('I reckon he is wary.'));
+    await vi.advanceTimersByTimeAsync(2_000);
+    h.clock.now += 15_000;
+    // "knack" tem pontuação maior que "reckon", mas ainda não foi traduzida.
+    h.session.handleCaption(caption('She has a knack for it.'));
+    expect(h.events.cards.at(-1)).toMatchObject({
+      lemma: 'reckon',
+      translation: 'tradução de reckon',
+    });
+
+    h.clock.now += 15_000;
+    h.session.tick();
+    expect(h.events.cards.at(-1)?.lemma).toBe('knack');
+  });
+
   it('asks only for the three best words waiting', async () => {
     h.session.handleCaption(caption('The grumpy wary man had a hunch and a knack, I reckon.'));
     await vi.advanceTimersByTimeAsync(2_000);
@@ -570,7 +679,7 @@ describe('translating ahead', () => {
     cacheSense('wary');
     h.session.start('browser');
     h.session.handleCaption(caption('I reckon he is wary.'));
-    await vi.advanceTimersByTimeAsync(1_500);
+    await vi.advanceTimersByTimeAsync(400);
     expect(provider.enrichWords).toHaveBeenCalledTimes(1);
 
     for (let i = 0; i < 20; i++) {

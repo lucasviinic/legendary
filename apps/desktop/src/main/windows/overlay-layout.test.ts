@@ -59,6 +59,13 @@ describe('overlayLayout', () => {
     expect(overlayLayout(settings({ maxSummaries: 10 }), hdmi).maxSummaries).toBe(10);
   });
 
+  it('tells the overlay how long a card stays and how many stay open', () => {
+    expect(overlayLayout(settings({ cardSeconds: 6, cardsAtOnce: 2 }), hdmi)).toMatchObject({
+      cardSeconds: 6,
+      cardsAtOnce: 2,
+    });
+  });
+
   it('uses the position dragged on this monitor', () => {
     const placed = { corner: 'tr' as const, x: 20, y: 12 };
     const withPlacement = settings({ cardPlacements: { [displayKey(hdmi)]: placed } });

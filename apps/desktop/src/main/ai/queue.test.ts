@@ -66,7 +66,7 @@ describe('EnrichQueue', () => {
       const { enrich } = heldCalls();
       const { queue } = setup(enrich);
       queue.addAhead(request('grumpy'));
-      await vi.advanceTimersByTimeAsync(1_500);
+      await vi.advanceTimersByTimeAsync(400);
       expect(enrich).toHaveBeenCalledTimes(1);
 
       queue.add(request('reckon'));
@@ -75,20 +75,20 @@ describe('EnrichQueue', () => {
       expect(lemmasOf(enrich.mock.calls[1]?.[0])).toEqual(['reckon']);
     });
 
-    it('waits when two calls are already running', async () => {
+    it('waits when three calls are already running', async () => {
       const { enrich, finish } = heldCalls();
       const { queue } = setup(enrich);
-      queue.add(request('a'));
-      await vi.advanceTimersByTimeAsync(0);
-      queue.add(request('b'));
-      await vi.advanceTimersByTimeAsync(0);
-      queue.add(request('c'));
+      for (const word of ['a', 'b', 'c']) {
+        queue.add(request(word));
+        await vi.advanceTimersByTimeAsync(0);
+      }
+      queue.add(request('d'));
       await vi.advanceTimersByTimeAsync(5_000);
-      expect(enrich).toHaveBeenCalledTimes(2);
+      expect(enrich).toHaveBeenCalledTimes(3);
 
       finish[0]?.();
       await vi.advanceTimersByTimeAsync(0);
-      expect(enrich).toHaveBeenCalledTimes(3);
+      expect(enrich).toHaveBeenCalledTimes(4);
     });
 
     it('travels ahead of the words being translated early in the same call', async () => {
@@ -105,9 +105,9 @@ describe('EnrichQueue', () => {
     it('waits a moment so nearby captions share the call', async () => {
       const { queue, enrich } = setup();
       queue.addAhead(request('grumpy'));
-      await vi.advanceTimersByTimeAsync(1_000);
+      await vi.advanceTimersByTimeAsync(300);
       queue.addAhead(request('wary'));
-      await vi.advanceTimersByTimeAsync(499);
+      await vi.advanceTimersByTimeAsync(99);
       expect(enrich).not.toHaveBeenCalled();
       await vi.advanceTimersByTimeAsync(1);
       expect(enrich).toHaveBeenCalledTimes(1);
@@ -123,14 +123,30 @@ describe('EnrichQueue', () => {
       expect(enrich.mock.calls[0]?.[0]).toHaveLength(1);
     });
 
-    it('does not start a call while another one is running', async () => {
+    it('runs beside a call already running, so the next card gets ready sooner', async () => {
       const { enrich } = heldCalls();
       const { queue } = setup(enrich);
       queue.add(request('reckon'));
       await vi.advanceTimersByTimeAsync(0);
       queue.addAhead(request('grumpy'));
-      await vi.advanceTimersByTimeAsync(5_000);
-      expect(enrich).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(400);
+      expect(enrich).toHaveBeenCalledTimes(2);
+    });
+
+    it('leaves the third running call to a word on the screen', async () => {
+      const { enrich, finish } = heldCalls();
+      const { queue } = setup(enrich);
+      for (const word of ['a', 'b', 'c']) {
+        queue.addAhead(request(word));
+        await vi.advanceTimersByTimeAsync(400);
+      }
+      expect(enrich).toHaveBeenCalledTimes(2);
+
+      queue.add(request('reckon'));
+      await vi.advanceTimersByTimeAsync(0);
+      expect(enrich).toHaveBeenCalledTimes(3);
+      expect(lemmasOf(enrich.mock.calls[2]?.[0])).toEqual(['reckon', 'c']);
+      finish.forEach((done) => done());
     });
 
     it('leaves part of the calls of the minute to the words on the screen', async () => {
@@ -147,7 +163,7 @@ describe('EnrichQueue', () => {
     it('is dropped without a notice or a new try when the call fails', async () => {
       const { queue, enrich, onFailure } = setup(offline());
       queue.addAhead(request('grumpy'));
-      await vi.advanceTimersByTimeAsync(1_500);
+      await vi.advanceTimersByTimeAsync(400);
       expect(enrich).toHaveBeenCalledTimes(1);
       expect(onFailure).not.toHaveBeenCalled();
       expect(queue.pending).toBe(0);
@@ -177,7 +193,7 @@ describe('EnrichQueue', () => {
       );
       const { queue, onResult, onFailure } = setup(enrich);
       queue.addAhead(request('grumpy'));
-      await vi.advanceTimersByTimeAsync(1_500);
+      await vi.advanceTimersByTimeAsync(400);
       queue.add(request('grumpy'));
       expect(queue.pending).toBe(1);
 
