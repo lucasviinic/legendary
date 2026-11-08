@@ -102,6 +102,7 @@ export function App() {
           dragging.current = value;
         }}
         onKnown={(lemma) => void api().invoke('vocab:mark-known', { lemma })}
+        onUnmarkKnown={(lemma) => void api().invoke('vocab:unmark-known', { lemma })}
         onSave={(lemma) => void api().invoke('vocab:save', { lemma })}
       />
     </div>

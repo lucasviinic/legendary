@@ -186,6 +186,7 @@ async function bootstrap() {
     'session:toggle-pause': () => session.togglePause(),
     'session:get-status': () => session.status(),
     'vocab:mark-known': ({ lemma }) => vocabulary.markKnown(lemma),
+    'vocab:unmark-known': ({ lemma }) => vocabulary.unmarkKnown(lemma),
     'vocab:save': ({ lemma }) => ({ saved: vocabulary.toggleSaved(lemma) }),
     'overlay:set-interactive': ({ interactive }) => overlay.setInteractive(interactive),
     'overlay:toggle': toggleOverlay,

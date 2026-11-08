@@ -24,6 +24,8 @@ export const WordCardSchema = z.object({
   extraExample: z.string().nullable(),
   count: z.number().int().positive(),
   saved: z.boolean(),
+  /** Marcada como "já sei": só tem card porque a pessoa buscou. */
+  known: z.boolean(),
 });
 export type WordCard = z.infer<typeof WordCardSchema>;
 

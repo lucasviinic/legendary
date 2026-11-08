@@ -730,6 +730,23 @@ describe('translating every word', () => {
     h.session.handleCaption(caption('What a knack.'));
     expect(h.events.seen.at(-1)).toMatchObject({ lemma: 'knack', count: 2 });
   });
+
+  it('only counts a searched word marked as known when it comes back', () => {
+    h.vocabulary.markKnown('knack');
+    h.session.search('knack');
+    h.session.handleCaption(caption('She has a knack for it.'));
+    h.session.handleCaption(caption('What a knack.'));
+    expect(h.events.seen.map(({ lemma }) => lemma)).not.toContain('knack');
+    expect(h.events.updates.at(-1)).toMatchObject({ lemma: 'knack', count: 2 });
+  });
+
+  it('brings back a searched word once it is unmarked', () => {
+    h.vocabulary.markKnown('knack');
+    h.session.search('knack');
+    h.vocabulary.unmarkKnown('knack');
+    h.session.handleCaption(caption('What a knack.'));
+    expect(h.events.seen.at(-1)).toMatchObject({ lemma: 'knack', known: false });
+  });
 });
 
 describe('translating only the words of the level', () => {
@@ -1010,6 +1027,76 @@ describe('known and saved words', () => {
     h.session.handleCaption(caption('She is wary.'));
     h.vocabulary.markCurrentKnown();
     expect(h.events.removed).toEqual(['wary']);
+  });
+
+  describe('searching a word marked as known', () => {
+    beforeEach(() => h.vocabulary.markKnown('reckon'));
+
+    it('marks the card', () => {
+      h.session.search('reckon');
+      expect(h.events.cards.at(-1)).toMatchObject({ lemma: 'reckon', known: true });
+    });
+
+    it('marks the card in a later session too', async () => {
+      await h.session.stop();
+      h.session.start('browser');
+      h.session.search('reckon');
+      expect(h.events.cards.at(-1)).toMatchObject({ lemma: 'reckon', known: true });
+    });
+
+    it('does not count it as a new word', () => {
+      h.session.search('reckon');
+      expect(h.session.status().newWords).toBe(0);
+    });
+
+    it('does not offer a quiz when it is the only word of the session', async () => {
+      h.session.handleCaption(caption('I reckon so.'));
+      h.session.search('reckon');
+      await expect(h.session.stop()).resolves.toBeNull();
+    });
+
+    it('keeps the card and the mark when the shortcut is pressed', () => {
+      h.session.search('reckon');
+      h.events.removed.length = 0;
+      h.vocabulary.markCurrentKnown();
+      expect(h.events.removed).toEqual([]);
+      expect(h.repos.known.all().has('reckon')).toBe(true);
+    });
+
+    describe('and unmarking it', () => {
+      beforeEach(() => {
+        h.session.search('reckon');
+        h.events.removed.length = 0;
+        h.vocabulary.unmarkKnown('reckon');
+      });
+
+      it('keeps the card open, without the mark', () => {
+        expect(h.events.updates.at(-1)).toMatchObject({ lemma: 'reckon', known: false });
+        expect(h.events.removed).toEqual([]);
+      });
+
+      it('counts it as a new word', () => {
+        expect(h.session.status().newWords).toBe(1);
+      });
+
+      it('lets captions bring it back in the next session', async () => {
+        await h.session.stop();
+        h.session.start('browser');
+        h.session.handleCaption(caption('I reckon so.'));
+        expect(h.events.cards.at(-1)).toMatchObject({ lemma: 'reckon', known: false });
+      });
+
+      it('closes the card when it is marked again', () => {
+        h.vocabulary.markKnown('reckon');
+        expect(h.events.removed).toEqual(['reckon']);
+        expect(h.session.status().newWords).toBe(0);
+      });
+    });
+  });
+
+  it('does not mark the card of a searched word that is not known', () => {
+    h.session.search('reckon');
+    expect(h.events.cards.at(-1)).toMatchObject({ lemma: 'reckon', known: false });
   });
 
   it('toggles a saved word', async () => {

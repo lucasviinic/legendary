@@ -30,6 +30,7 @@ export function CardStack({
   hovered,
   onHover,
   onKnown,
+  onUnmarkKnown,
   onSave,
   onPlace,
   onDragging,
@@ -68,7 +69,13 @@ export function CardStack({
               onMouseLeave={() => onHover?.(null)}
             >
               {expanded ? (
-                <FullCard card={card} hovered={isHovered} onKnown={onKnown} onSave={onSave} />
+                <FullCard
+                  card={card}
+                  hovered={isHovered}
+                  onKnown={onKnown}
+                  onUnmarkKnown={onUnmarkKnown}
+                  onSave={onSave}
+                />
               ) : (
                 <CompactCard card={card} />
               )}

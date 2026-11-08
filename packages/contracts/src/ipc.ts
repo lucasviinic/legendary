@@ -28,6 +28,7 @@ export const invokeChannels = {
   'session:get-status': { request: None, response: SessionStatusSchema },
 
   'vocab:mark-known': { request: z.object({ lemma: z.string() }), response: None },
+  'vocab:unmark-known': { request: z.object({ lemma: z.string() }), response: None },
   'vocab:save': {
     request: z.object({ lemma: z.string() }),
     response: z.object({ saved: z.boolean() }),

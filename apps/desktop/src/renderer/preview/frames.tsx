@@ -48,6 +48,7 @@ const reckon: WordCard = {
   extraExample: null,
   count: 3,
   saved: false,
+  known: false,
 };
 
 const compact = (lemma: string, translation: string): WordCard => ({
@@ -69,6 +70,7 @@ const headOut: WordCard = {
   extraExample: null,
   count: 1,
   saved: false,
+  known: false,
 };
 
 const grumpy: WordCard = {
@@ -82,6 +84,7 @@ const grumpy: WordCard = {
   extraExample: "She's always grumpy before her first coffee.",
   count: 2,
   saved: true,
+  known: false,
 };
 
 const getBy: WordCard = {

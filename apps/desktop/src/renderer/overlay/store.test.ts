@@ -13,6 +13,7 @@ const card = (lemma: string, overrides: Partial<WordCard> = {}): WordCard => ({
   extraExample: null,
   count: 1,
   saved: false,
+  known: false,
   ...overrides,
 });
 

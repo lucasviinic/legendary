@@ -609,3 +609,47 @@ test('with every word on, one that comes back is only a summary with its count',
   await invoke(menu, 'settings:set', { translateAllWords: false, cardSeconds: 10 });
   await invoke(menu, 'session:stop');
 });
+
+test('a word marked as known stays out of the cards, and a search shows it marked', async () => {
+  const menu = await windowOf('menu');
+  const overlay = await windowOf('overlay');
+  if (!socket) {
+    const view = (await invoke(menu, 'settings:get')) as { pairing: { token: string } };
+    await connectExtension(view.pairing.token);
+  }
+  await invoke(menu, 'session:stop');
+  await invoke(menu, 'settings:set', { cardsPerMinute: 15 });
+  await invoke(menu, 'session:start', { source: 'browser' });
+
+  sendCaption('He was a gloomy man.');
+  const gloomy = overlay.getByTestId('card-gloomy');
+  await expect(gloomy).toContainText('Explicação curta de gloomy', { timeout: 5_000 });
+  const known = gloomy.getByRole('button', { name: 'Já sei', exact: true });
+  await known.click();
+  await expect(gloomy).toHaveCount(0);
+  await overlay.mouse.move(5, 5);
+
+  // Em outra sessão, a legenda traz as duas palavras e só a que a pessoa não sabe vira card.
+  await invoke(menu, 'session:stop');
+  await invoke(menu, 'session:start', { source: 'browser' });
+  sendCaption('The gloomy and weary man.');
+  await expect(overlay.getByTestId('card-weary')).toBeVisible();
+  await expect(gloomy).toHaveCount(0);
+
+  // A busca abre o card normal, com a marcação.
+  await invoke(menu, 'search:submit', { query: 'gloomy' });
+  await expect(gloomy).toContainText('Explicação curta de gloomy', { timeout: 2_000 });
+  const marked = gloomy.getByRole('button', { name: 'Já sei ✓' });
+  await expect(marked).toBeVisible();
+
+  // Clicar desmarca, e o card continua aberto.
+  await marked.click();
+  await expect(known).toBeVisible();
+  await expect(marked).toHaveCount(0);
+
+  // Depois disso ela vale como qualquer palavra: marcar de novo fecha o card.
+  await known.click();
+  await expect(gloomy).toHaveCount(0);
+  await overlay.mouse.move(5, 5);
+  await invoke(menu, 'session:stop');
+});

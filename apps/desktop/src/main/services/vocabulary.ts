@@ -114,7 +114,10 @@ export class VocabularyService {
   }
 
   get newWords(): number {
-    return this.shownOrder.length;
+    // Uma palavra conhecida só aparece porque foi buscada, então não é nova.
+    return [...this.entries.values()].filter(
+      (entry) => entry.shownAt != null && !this.known.has(entry.lemma),
+    ).length;
   }
 
   begin(): void {
@@ -221,10 +224,19 @@ export class VocabularyService {
     this.deps.emit.cardRemove(lemma);
   }
 
+  /** Desfaz o "já sei": o card continua aberto, e a palavra volta a poder entrar na fila. */
+  unmarkKnown(lemma: string): void {
+    this.deps.repos.known.remove(lemma);
+    this.known.delete(lemma);
+    const entry = [...this.entries.values()].find((item) => item.lemma === lemma);
+    if (entry) this.deps.emit.cardUpdate(this.toCard(entry));
+  }
+
+  /** O atalho só marca: num card já marcado, um toque sem querer não muda nada. */
   markCurrentKnown(): void {
     const key = this.shownOrder.at(-1);
     const entry = key ? this.entries.get(key) : undefined;
-    if (entry) this.markKnown(entry.lemma);
+    if (entry && !this.known.has(entry.lemma)) this.markKnown(entry.lemma);
   }
 
   /** Inverte o estado de salva. Antes da tradução chegar, a escolha fica guardada na memória. */
@@ -288,10 +300,14 @@ export class VocabularyService {
     };
   }
 
-  /** Traduzindo tudo, a palavra que voltou sobe na pilha. Senão, só o contador do card muda. */
+  /**
+   * Traduzindo tudo, a palavra que voltou sobe na pilha. Senão, só o contador do card muda. A palavra
+   * conhecida também só muda o contador: ela entra na pilha pela busca, nunca por aparecer de novo.
+   */
   private announceReturn(entry: Entry) {
     const { translateAllWords } = this.deps.settings.get();
-    const emit = translateAllWords ? this.deps.emit.cardSeen : this.deps.emit.cardUpdate;
+    const climbs = translateAllWords && !this.known.has(entry.lemma);
+    const emit = climbs ? this.deps.emit.cardSeen : this.deps.emit.cardUpdate;
     emit(this.toCard(entry));
   }
 
@@ -457,6 +473,7 @@ export class VocabularyService {
       extraExample: entry.sentence ? (sense?.exampleEn ?? null) : null,
       count: entry.count,
       saved: entry.saved,
+      known: this.known.has(entry.lemma),
     };
   }
 }

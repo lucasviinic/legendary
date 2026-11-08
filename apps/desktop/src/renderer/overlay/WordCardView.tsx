@@ -45,6 +45,7 @@ function Header({ card, tight }: { card: WordCard; tight: boolean }) {
 
 export interface CardActions {
   onKnown?: (lemma: string) => void;
+  onUnmarkKnown?: (lemma: string) => void;
   onSave?: (lemma: string) => void;
 }
 
@@ -55,6 +56,7 @@ export function FullCard({
   card,
   hovered,
   onKnown,
+  onUnmarkKnown,
   onSave,
 }: { card: WordCard; hovered: boolean } & CardActions) {
   // Frame 1c. A tradução chega antes do resto da resposta e ocupa o lugar da primeira barra.
@@ -97,10 +99,10 @@ export function FullCard({
       )}
       <div className={`flex items-center gap-1.5 ${hovered ? 'mt-1' : 'mt-1.5'}`}>
         <button
-          onClick={() => onKnown?.(card.lemma)}
-          className={`${BUTTON} bg-white/10 hover:bg-white/18`}
+          onClick={() => (card.known ? onUnmarkKnown : onKnown)?.(card.lemma)}
+          className={`${BUTTON} ${card.known ? 'bg-white/16' : 'bg-white/10'} hover:bg-white/18`}
         >
-          Já sei
+          {card.known ? 'Já sei ✓' : 'Já sei'}
         </button>
         <button
           onClick={() => onSave?.(card.lemma)}
