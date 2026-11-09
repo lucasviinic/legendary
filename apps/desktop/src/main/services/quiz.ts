@@ -8,6 +8,7 @@ import {
   type QuizResult,
   type QuizSummary,
   type QuizView,
+  type TriageWord,
 } from '@legendary/contracts';
 import {
   buildFallbackQuiz,
@@ -85,10 +86,50 @@ export class QuizService {
       sessionId,
       title: session.title,
       durationMs: session.endedAt === null ? 0 : session.endedAt - session.startedAt,
-      newWords: sessionWords.length,
+      newWords: sessionWords.filter((word) => isNew(senses.get(word.senseId))).length,
       savedWords: repos.saved.countForSession(sessionId),
       words,
     };
+  }
+
+  /**
+   * As palavras da sessão para a pessoa dizer se já sabe, na ordem em que apareceram. "Já sei" vale
+   * para a palavra inteira, então ela aparece uma vez só, mesmo vista em duas classes. Salvar durante
+   * o vídeo já diz que a pessoa quer estudar a palavra, então as salvas ficam de fora.
+   */
+  triage(sessionId: number): TriageWord[] {
+    const { repos } = this.deps;
+    const known = repos.known.all();
+    const sessionWords = repos.sessionWords
+      .listForSession(sessionId)
+      .sort((a, b) => a.firstSeenAt - b.firstSeenAt);
+    const senses = new Map(
+      repos.senses
+        .byIds(sessionWords.map((word) => word.senseId))
+        .map((sense) => [sense.id, sense]),
+    );
+    const saved = new Set(
+      sessionWords
+        .filter((word) => repos.saved.isSaved(word.senseId))
+        .map((word) => senses.get(word.senseId)?.lemma),
+    );
+
+    const words = new Map<string, TriageWord>();
+    for (const { senseId, contextSentence } of sessionWords) {
+      const sense = senses.get(senseId);
+      if (!sense || words.has(sense.lemma) || known.has(sense.lemma) || saved.has(sense.lemma)) {
+        continue;
+      }
+      words.set(sense.lemma, {
+        senseId,
+        word: sense.lemma,
+        pos: sense.pos,
+        cefr: sense.cefr as TriageWord['cefr'],
+        translation: sense.translation,
+        sentence: contextSentence,
+      });
+    }
+    return [...words.values()];
   }
 
   async create(sessionId: number, senseIds: number[]): Promise<QuizView> {

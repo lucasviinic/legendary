@@ -7,6 +7,7 @@ import type {
   QuizSummary,
   SessionStatus,
   SettingsView as View,
+  TriageWord,
   WordCard,
 } from '@legendary/contracts';
 import type { CSSProperties, ReactNode } from 'react';
@@ -14,11 +15,15 @@ import { HistoryView } from '../history/HistoryView';
 import { MenuView } from '../menu/MenuView';
 import { CardStack } from '../overlay/CardStack';
 import { StatusBar } from '../overlay/StatusBar';
-import { FullCard } from '../overlay/WordCardView';
+import { CompactCard, FullCard } from '../overlay/WordCardView';
 import { FinalView } from '../quiz/FinalView';
 import { MatchView } from '../quiz/MatchView';
+import { NoWordsView } from '../quiz/NoWordsView';
 import { QuestionView } from '../quiz/QuestionView';
 import { SummaryView } from '../quiz/SummaryView';
+import { TriageView } from '../quiz/TriageView';
+import { SearchBar } from '../search/SearchBar';
+import { OnboardingView } from '../settings/OnboardingView';
 import { SettingsView } from '../settings/SettingsView';
 
 /** Os dados daqui são os do mockup, para cada tela poder ser comparada com o frame dela. */
@@ -96,6 +101,28 @@ const getBy: WordCard = {
   explanation: null,
 };
 
+const figureOut: WordCard = {
+  ...getBy,
+  lemma: 'figure out',
+  surface: 'figure out',
+  cefr: 'B1',
+  translation: 'entender, descobrir',
+};
+
+const wary: WordCard = {
+  lemma: 'wary',
+  surface: 'wary',
+  pos: 'adj',
+  cefr: 'C1',
+  translation: 'desconfiado, cauteloso',
+  explanation: 'Cauteloso porque desconfia de algo ou de alguém.',
+  sentence: 'She is wary of strangers.',
+  extraExample: null,
+  count: 1,
+  saved: false,
+  known: true,
+};
+
 const TOP_RIGHT: CardPlacement = { corner: 'tr', x: 20, y: 20 };
 
 const settingsView: View = {
@@ -120,7 +147,17 @@ const settingsView: View = {
     claude: { mask: 'sk-ant-••••••••••••••3f9a', status: 'ok' },
     deepseek: { mask: 'sk-••••••••••••••••b21c', status: 'ok' },
   },
-  pairing: { token: 'abc', port: 47615, connected: true },
+  pairing: { token: '3f9a1c2e5d7b4a60', port: 47615, connected: true },
+};
+
+const onboardingView: View = {
+  settings: { ...settingsView.settings, provider: 'gemini', onboarded: false },
+  keys: {
+    gemini: { mask: null, status: 'missing' },
+    claude: { mask: null, status: 'missing' },
+    deepseek: { mask: null, status: 'missing' },
+  },
+  pairing: { ...settingsView.pairing, connected: false },
 };
 
 const WORDS: [string, string][] = [
@@ -159,6 +196,24 @@ const cloze: QuizQuestionView = {
   options: ['wonder', 'reckon', 'doubt', 'figure'],
   matchWords: null,
   context: 'Northbound · T1E3 · 12:04',
+};
+
+const triageWord: TriageWord = {
+  senseId: 1,
+  word: 'reckon',
+  pos: 'verb',
+  cefr: 'B2',
+  translation: 'achar, supor',
+  sentence: 'I reckon we should head out before it gets dark.',
+};
+
+const typeWord: QuizQuestionView = {
+  id: 3,
+  type: 'type_word',
+  prompt: 'Escreva em inglês: “dar de cara com”',
+  options: null,
+  matchWords: null,
+  context: 'Northbound · T1E3 · 31:40',
 };
 
 const match: QuizQuestionView = {
@@ -271,6 +326,16 @@ const SCENE_DARK =
 const SCENE_LIGHT =
   'radial-gradient(ellipse 50% 55% at 22% 32%,#fbf0d6 0%,transparent 70%),radial-gradient(ellipse 45% 55% at 80% 70%,#b7d3e6 0%,transparent 70%),radial-gradient(ellipse 35% 30% at 60% 25%,#f3f6f8 0%,transparent 70%),linear-gradient(180deg,#e8e2d6,#c9d4db)';
 
+/** Fundo das folhas de estados, como a do frame 1c. */
+const SHEET =
+  'radial-gradient(ellipse 60% 60% at 25% 40%,#3d4a3a 0%,transparent 70%),radial-gradient(ellipse 50% 60% at 80% 70%,#5a4a62 0%,transparent 70%),linear-gradient(160deg,#20242a,#2c2a30)';
+
+const SEARCH_STATES = [
+  { label: 'Com sessão — Enter abre o card na hora, Esc fecha', value: '', idle: false },
+  { label: 'Digitando', value: 'reckoned', idle: false },
+  { label: 'Sem sessão — não há onde mostrar o card', value: '', idle: true },
+];
+
 const SUBTITLE: CSSProperties = {
   textShadow: '0 2px 3px rgba(0,0,0,.9),0 0 12px rgba(0,0,0,.6)',
 };
@@ -375,10 +440,7 @@ export const FRAMES: Record<string, () => ReactNode> = {
     <div
       data-frame
       className="box-border grid w-[820px] grid-cols-[minmax(0,1fr)_320px] gap-9 overflow-hidden rounded-lg p-8 text-white [--glass-bg:rgba(30,30,34,0.58)]"
-      style={{
-        background:
-          'radial-gradient(ellipse 60% 60% at 25% 40%,#3d4a3a 0%,transparent 70%),radial-gradient(ellipse 50% 60% at 80% 70%,#5a4a62 0%,transparent 70%),linear-gradient(160deg,#20242a,#2c2a30)',
-      }}
+      style={{ background: SHEET }}
     >
       <div className="flex flex-col gap-[18px]">
         <SheetTitle>Barra de status</SheetTitle>
@@ -412,8 +474,20 @@ export const FRAMES: Record<string, () => ReactNode> = {
           <FullCard card={getBy} hovered={false} />
         </div>
         <div className="flex flex-col gap-1.5">
+          <StateLabel>A tradução chega antes da explicação</StateLabel>
+          <FullCard card={figureOut} hovered={false} />
+        </div>
+        <div className="flex flex-col gap-1.5">
           <StateLabel>Hover num card antigo — cresce e mostra outro exemplo</StateLabel>
           <FullCard card={grumpy} hovered />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <StateLabel>Palavra buscada que você já sabe — clicar desmarca</StateLabel>
+          <FullCard card={wary} hovered={false} />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <StateLabel>Resumo de uma palavra que voltou, com o contador</StateLabel>
+          <CompactCard card={{ ...compact('hunch', 'pressentimento'), count: 2 }} />
         </div>
       </div>
     </div>
@@ -447,7 +521,7 @@ export const FRAMES: Record<string, () => ReactNode> = {
   ),
   '1e': () => (
     <WindowFrame width={560}>
-      <SettingsView view={settingsView} mockupOnly />
+      <SettingsView view={settingsView} />
     </WindowFrame>
   ),
   '1f': () => (
@@ -493,6 +567,43 @@ export const FRAMES: Record<string, () => ReactNode> = {
         total={historyWords.length}
         now={NOW}
       />
+    </WindowFrame>
+  ),
+  '2a': () => (
+    <WindowFrame width={760} height={580}>
+      <TriageView word={triageWord} position={3} total={12} />
+    </WindowFrame>
+  ),
+  '2b': () => (
+    <WindowFrame width={760} height={580}>
+      <NoWordsView />
+    </WindowFrame>
+  ),
+  '2c': () => (
+    <WindowFrame width={760} height={580}>
+      <QuestionView question={typeWord} position={7} total={10} picked={null} result={null} />
+    </WindowFrame>
+  ),
+  '2d': () => (
+    <div
+      data-frame
+      className="box-border flex w-[504px] flex-col gap-[18px] overflow-hidden rounded-lg p-8 text-white"
+      style={{ background: SHEET }}
+    >
+      <SheetTitle>Barra de busca</SheetTitle>
+      {SEARCH_STATES.map(({ label, value, idle }) => (
+        <div key={label} className="flex flex-col gap-1.5">
+          <StateLabel>{label}</StateLabel>
+          <div className="w-[440px]">
+            <SearchBar value={value} idle={idle} />
+          </div>
+        </div>
+      ))}
+    </div>
+  ),
+  '2e': () => (
+    <WindowFrame width={560}>
+      <OnboardingView view={onboardingView} />
     </WindowFrame>
   ),
 };

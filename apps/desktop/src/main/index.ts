@@ -152,7 +152,7 @@ async function bootstrap() {
 
   const stopSession = async () => {
     const sessionId = await session.stop();
-    if (sessionId !== null) openQuizWindow(sessionId);
+    if (sessionId !== null) openQuizWindow(sessionId, { triage: true });
   };
   const toggleSession = () => {
     if (session.status().state === 'idle') session.start(settings.get().origin);
@@ -195,6 +195,7 @@ async function bootstrap() {
       settings.placeCards(displayKey(overlay.display), placement),
     'search:submit': ({ query }) => searchWord(query),
     'search:hide': () => searchBar.hide(),
+    'quiz:triage': ({ sessionId }) => quiz.triage(sessionId),
     'quiz:summary': ({ sessionId }) => quiz.summary(sessionId),
     'quiz:get': ({ sessionId, senseIds }) => quiz.create(sessionId, senseIds),
     'quiz:review-mistakes': ({ quizId }) => quiz.reviewMistakes(quizId),

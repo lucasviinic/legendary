@@ -10,7 +10,7 @@ export interface OnboardingViewProps {
   onFinish?: () => void;
 }
 
-/** Configuração da primeira vez. O mockup ainda não tem frame dela: segue o estilo do frame 1e. */
+/** Configuração da primeira vez: frame 2e. */
 export function OnboardingView({ view, onChange, onSaveKey, onFinish }: OnboardingViewProps) {
   const { settings } = view;
   const hasKey = view.keys[settings.provider].status !== 'missing';

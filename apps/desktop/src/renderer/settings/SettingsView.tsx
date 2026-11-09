@@ -97,7 +97,7 @@ export function KeyRow({
   );
 }
 
-/** Código que a pessoa cola na extensão. Não tem frame no mockup: segue o estilo das outras linhas. */
+/** Código que a pessoa cola na extensão: última linha do frame 1e e do frame 2e. */
 export function PairingRow({ view }: { view: View }) {
   const [copied, setCopied] = useState(false);
   const { token, connected } = view.pairing;
@@ -129,14 +129,12 @@ export function PairingRow({ view }: { view: View }) {
 
 export interface SettingsViewProps {
   view: View;
-  /** Só as linhas que o frame 1e desenha, para a comparação com o mockup. */
-  mockupOnly?: boolean;
   onChange?: (patch: Partial<Settings>) => void;
   onSaveKey?: (provider: Provider, key: string) => void;
 }
 
 /** Janela de configurações: frame 1e. */
-export function SettingsView({ view, mockupOnly = false, onChange, onSaveKey }: SettingsViewProps) {
+export function SettingsView({ view, onChange, onSaveKey }: SettingsViewProps) {
   const { settings } = view;
   return (
     <div className="bg-surface text-[13px] text-white">
@@ -170,20 +168,18 @@ export function SettingsView({ view, mockupOnly = false, onChange, onSaveKey }: 
             <span className="text-[12px] text-white/50">{LEVEL_HINTS[settings.level]}</span>
           </div>
         </Row>
-        {!mockupOnly && (
-          <Row label="Todas as palavras">
-            <div className="flex items-center gap-2.5">
-              <Toggle
-                on={settings.translateAllWords}
-                label="Traduzir todas as palavras"
-                onChange={(translateAllWords) => onChange?.({ translateAllWords })}
-              />
-              <span className="text-[12px] text-white/55">
-                Ignora o nível. As palavras repetidas só aparecem em resumo, sem nova tradução
-              </span>
-            </div>
-          </Row>
-        )}
+        <Row label="Todas as palavras">
+          <div className="flex items-center gap-2.5">
+            <Toggle
+              on={settings.translateAllWords}
+              label="Traduzir todas as palavras"
+              onChange={(translateAllWords) => onChange?.({ translateAllWords })}
+            />
+            <span className="text-[12px] text-white/55">
+              Ignora o nível. As palavras repetidas só aparecem em resumo, sem nova tradução
+            </span>
+          </div>
+        </Row>
         <Row label="Cards por minuto">
           <StepSlider
             label="Cards por minuto"
@@ -192,37 +188,31 @@ export function SettingsView({ view, mockupOnly = false, onChange, onSaveKey }: 
             onChange={(cardsPerMinute) => onChange?.({ cardsPerMinute })}
           />
         </Row>
-        {!mockupOnly && (
-          <Row label="Tempo de cada card">
-            <StepSlider
-              label="Tempo de cada card"
-              stops={CARD_TIME_STOPS}
-              value={settings.cardSeconds}
-              format={(seconds) => `${seconds} s`}
-              onChange={(cardSeconds) => onChange?.({ cardSeconds })}
-            />
-          </Row>
-        )}
-        {!mockupOnly && (
-          <Row label="Cards por vez">
-            <Segmented
-              options={CARDS_AT_ONCE}
-              value={String(settings.cardsAtOnce) as '1' | '2' | '3'}
-              itemClass="w-11"
-              onChange={(value) => onChange?.({ cardsAtOnce: Number(value) })}
-            />
-          </Row>
-        )}
-        {!mockupOnly && (
-          <Row label="Resumos na tela">
-            <StepSlider
-              label="Resumos na tela"
-              stops={SUMMARY_STOPS}
-              value={settings.maxSummaries}
-              onChange={(maxSummaries) => onChange?.({ maxSummaries })}
-            />
-          </Row>
-        )}
+        <Row label="Tempo de cada card">
+          <StepSlider
+            label="Tempo de cada card"
+            stops={CARD_TIME_STOPS}
+            value={settings.cardSeconds}
+            format={(seconds) => `${seconds} s`}
+            onChange={(cardSeconds) => onChange?.({ cardSeconds })}
+          />
+        </Row>
+        <Row label="Cards por vez">
+          <Segmented
+            options={CARDS_AT_ONCE}
+            value={String(settings.cardsAtOnce) as '1' | '2' | '3'}
+            itemClass="w-11"
+            onChange={(value) => onChange?.({ cardsAtOnce: Number(value) })}
+          />
+        </Row>
+        <Row label="Resumos na tela">
+          <StepSlider
+            label="Resumos na tela"
+            stops={SUMMARY_STOPS}
+            value={settings.maxSummaries}
+            onChange={(maxSummaries) => onChange?.({ maxSummaries })}
+          />
+        </Row>
         <Row label="Posição dos cards" top>
           <div className="flex items-center gap-3.5">
             <CornerPicker value={settings.corner} onChange={(corner) => onChange?.({ corner })} />
@@ -241,21 +231,19 @@ export function SettingsView({ view, mockupOnly = false, onChange, onSaveKey }: 
             </span>
           </div>
         </Row>
-        {!mockupOnly && (
-          <Row label="Ao buscar (⌘⇧B)">
-            <div className="flex items-center gap-2.5">
-              <Toggle
-                on={settings.rewindOnSearch}
-                label="Voltar o vídeo ao buscar"
-                onChange={(rewindOnSearch) => onChange?.({ rewindOnSearch })}
-              />
-              <span className="text-[12px] text-white/55">
-                Volta o vídeo 10 s para você ouvir a palavra de novo
-              </span>
-            </div>
-          </Row>
-        )}
-        {!mockupOnly && <PairingRow view={view} />}
+        <Row label="Ao buscar (⌘⇧B)">
+          <div className="flex items-center gap-2.5">
+            <Toggle
+              on={settings.rewindOnSearch}
+              label="Voltar o vídeo ao buscar"
+              onChange={(rewindOnSearch) => onChange?.({ rewindOnSearch })}
+            />
+            <span className="text-[12px] text-white/55">
+              Volta o vídeo 10 s para você ouvir a palavra de novo
+            </span>
+          </div>
+        </Row>
+        <PairingRow view={view} />
       </div>
     </div>
   );

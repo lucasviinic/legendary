@@ -12,6 +12,7 @@ import {
   SessionStatusSchema,
   SettingsSchema,
   SettingsViewSchema,
+  TriageWordSchema,
   WordCardSchema,
 } from './domain';
 
@@ -42,6 +43,10 @@ export const invokeChannels = {
   'search:submit': { request: z.object({ query: z.string().min(1).max(60) }), response: None },
   'search:hide': { request: None, response: None },
 
+  'quiz:triage': {
+    request: z.object({ sessionId: z.number().int() }),
+    response: z.array(TriageWordSchema),
+  },
   'quiz:summary': {
     request: z.object({ sessionId: z.number().int() }),
     response: QuizSummarySchema,

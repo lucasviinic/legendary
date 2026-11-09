@@ -111,7 +111,7 @@ function Choices({
   );
 }
 
-/** Resposta digitada. Não tem frame no mockup: usa as medidas dos botões do frame 1g. */
+/** Resposta digitada: frame 2c. */
 function TypedAnswer({
   result,
   onAnswer,

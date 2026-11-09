@@ -3,7 +3,7 @@
 Cópia local do projeto do Claude Design "Legendary software UI mockups":
 https://claude.ai/design/p/176db64f-20f3-4236-b34e-22baf21ccdf1?file=Legendary+Mockups.dc.html
 
-- `Legendary Mockups.dc.html` é o mockup, com os frames 1a a 1j.
+- `Legendary Mockups.dc.html` é o mockup, com os frames 1a a 1j e 2a a 2e.
 - `support.js` é o runtime genérico do Claude Design. O app não depende dele.
 - `reference/` guarda um PNG de cada frame, usado por `make test-visual`.
 

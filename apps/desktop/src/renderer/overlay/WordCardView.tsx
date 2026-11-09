@@ -1,33 +1,9 @@
 import type { WordCard } from '@legendary/contracts';
 import { Glass } from '../shared/Glass';
+import { Sentence } from '../shared/Sentence';
 
 function levelLabel(card: WordCard) {
   return card.cefr ? `${card.cefr} · ${card.pos}` : card.pos;
-}
-
-function Sentence({
-  sentence,
-  surface,
-  thick,
-}: {
-  sentence: string;
-  surface: string;
-  thick: boolean;
-}) {
-  const start = sentence.toLowerCase().indexOf(surface.toLowerCase());
-  if (start < 0) return <>“{sentence}”</>;
-  const end = start + surface.length;
-  return (
-    <>
-      “{sentence.slice(0, start)}
-      <span
-        className={`underline decoration-accent underline-offset-[3px] ${thick ? 'decoration-[1.5px]' : ''}`}
-      >
-        {sentence.slice(start, end)}
-      </span>
-      {sentence.slice(end)}”
-    </>
-  );
 }
 
 function Header({ card, tight }: { card: WordCard; tight: boolean }) {
@@ -118,7 +94,7 @@ export function FullCard({
   );
 }
 
-/** Card anterior, encolhido para a palavra e a tradução. O contador não está no mockup. */
+/** Card anterior, encolhido para a palavra e a tradução, com o contador quando ela voltou (1c). */
 export function CompactCard({ card }: { card: WordCard }) {
   return (
     <Glass className="flex items-baseline gap-2.5 rounded-[14px] px-3.5 py-[9px]">

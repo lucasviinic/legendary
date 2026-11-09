@@ -177,10 +177,14 @@ test('captions become cards, and the session ends in a quiz and in the history',
   // Salvar pelo card.
   await invoke(menu, 'vocab:save', { lemma: 'reckon' });
 
-  // Encerrar abre o quiz com o resumo da sessão.
+  // Encerrar abre o quiz pela triagem, sem a palavra salva. Enter pula para o resumo.
   const quizOpened = app.waitForEvent('window', (window) => window.url().includes('/quiz/'));
   await invoke(menu, 'session:stop');
   const quiz = await quizOpened;
+  await expect(quiz.getByText('Você já sabe esta?')).toBeVisible();
+  await expect(quiz.getByText('1 de 1')).toBeVisible();
+  await expect(quiz.getByTestId('triage-word')).toHaveText('head out');
+  await quiz.keyboard.press('Enter');
   await expect(quiz.getByText('Sessão encerrada')).toBeVisible();
   await expect(quiz.getByText(TITLE)).toBeVisible();
   await expect(quiz.getByRole('checkbox')).toHaveCount(2);
@@ -652,4 +656,85 @@ test('a word marked as known stays out of the cards, and a search shows it marke
   await expect(gloomy).toHaveCount(0);
   await overlay.mouse.move(5, 5);
   await invoke(menu, 'session:stop');
+});
+
+test('at the end, the arrows mark the words already known before the quiz', async () => {
+  const menu = await windowOf('menu');
+  const overlay = await windowOf('overlay');
+  if (!socket) {
+    const view = (await invoke(menu, 'settings:get')) as { pairing: { token: string } };
+    await connectExtension(view.pairing.token);
+  }
+  await invoke(menu, 'session:stop');
+  await invoke(menu, 'settings:set', { cardsPerMinute: 15, cardsAtOnce: 3 });
+  await invoke(menu, 'session:start', { source: 'browser' });
+
+  // Só palavras traduzidas entram na sessão, então cada card espera a explicação.
+  sendCaption('A bleak frown and a shrug.');
+  for (const word of ['bleak', 'frown', 'shrug']) {
+    await expect(overlay.getByTestId(`card-${word}`)).toContainText(`Explicação curta de ${word}`, {
+      timeout: 5_000,
+    });
+  }
+
+  const quizOpened = app.waitForEvent('window', (window) => window.url().includes('/quiz/'));
+  await invoke(menu, 'session:stop');
+  const quiz = await quizOpened;
+  const word = quiz.getByTestId('triage-word');
+  await expect(quiz.getByText('Você já sabe esta?')).toBeVisible();
+  await expect(quiz.getByText('1 de 3')).toBeVisible();
+  const first = await word.innerText();
+
+  // Segurar a seta conta um toque só. ↓ deixa a palavra para o quiz.
+  await quiz.keyboard.down('ArrowDown');
+  await quiz.keyboard.down('ArrowDown');
+  await quiz.keyboard.up('ArrowDown');
+  await expect(quiz.getByText('2 de 3')).toBeVisible();
+  const second = await word.innerText();
+
+  // ↑ marca e passa para a próxima. ← volta e desfaz a marcação.
+  await quiz.keyboard.press('ArrowUp');
+  await expect(quiz.getByText('3 de 3')).toBeVisible();
+  const third = await word.innerText();
+  await quiz.keyboard.press('ArrowLeft');
+  await expect(word).toHaveText(second);
+  await quiz.keyboard.press('ArrowDown');
+  await expect(word).toHaveText(third);
+
+  // A última resposta leva ao resumo, que fica só com as palavras que a pessoa não sabe.
+  await quiz.keyboard.press('ArrowUp');
+  await expect(quiz.getByText('Sessão encerrada')).toBeVisible();
+  await expect(quiz.getByText(/· 2 palavras novas ·/)).toBeVisible();
+  const chips = quiz.getByRole('checkbox');
+  await expect(chips).toHaveCount(2);
+  await expect(chips.filter({ hasText: first })).toHaveCount(1);
+  await expect(chips.filter({ hasText: second })).toHaveCount(1);
+  await expect(chips.filter({ hasText: third })).toHaveCount(0);
+
+  // Pelo histórico, o quiz abre direto no resumo.
+  const sessionId = Number(new URL(quiz.url()).searchParams.get('sessionId'));
+  const reopened = app.waitForEvent('window', (window) => window.url().includes('/quiz/'));
+  await invoke(menu, 'quiz:open', { sessionId });
+  const retake = await reopened;
+  await expect(retake.getByText('Sessão encerrada')).toBeVisible();
+  await expect(retake.getByText('Você já sabe esta?')).toHaveCount(0);
+
+  // Quem já sabia todas as palavras não tem quiz, e Enter fecha a janela.
+  await invoke(menu, 'session:start', { source: 'browser' });
+  sendCaption('He felt drowsy.');
+  await expect(overlay.getByTestId('card-drowsy')).toContainText('Explicação curta de drowsy', {
+    timeout: 5_000,
+  });
+  const lastOpened = app.waitForEvent('window', (window) => window.url().includes('/quiz/'));
+  await invoke(menu, 'session:stop');
+  const last = await lastOpened;
+  await expect(last.getByTestId('triage-word')).toHaveText('drowsy');
+  await last.keyboard.press('ArrowUp');
+  await expect(last.getByText('Nenhuma palavra para o quiz')).toBeVisible();
+  // A janela fecha já ao apertar a tecla, então o teste não espera ela ser solta.
+  const closed = last.waitForEvent('close');
+  await last.keyboard.down('Enter');
+  await closed;
+
+  await invoke(menu, 'settings:set', { cardsAtOnce: 1 });
 });

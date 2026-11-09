@@ -12,8 +12,8 @@ export interface SearchBarProps {
 }
 
 /**
- * Não tem frame no mockup. Usa o vidro dos cards (frame 1a), mais opaco porque o texto digitado não
- * pode sumir em uma cena clara, e a cor do texto de exemplo do campo de busca do histórico (1f).
+ * Barra de busca: frame 2d. O vidro é o dos cards (frame 1a), mais opaco porque o texto digitado não
+ * pode sumir em uma cena clara.
  */
 export function SearchBar({ value, idle, inputRef, onChange, onSubmit, onCancel }: SearchBarProps) {
   return (

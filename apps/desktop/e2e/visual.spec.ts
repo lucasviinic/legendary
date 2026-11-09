@@ -1,6 +1,9 @@
 import { expect, test } from '@playwright/test';
 
-const FRAMES = ['1a', '1b', '1c', '1d', '1e', '1f', '1g', '1h', '1i', '1j'];
+const FRAMES = [
+  ...['1a', '1b', '1c', '1d', '1e', '1f', '1g', '1h', '1i', '1j'],
+  ...['2a', '2b', '2c', '2d', '2e'],
+];
 
 /**
  * O que sobra de diferença é arredondamento de subpixel: os frames ficam em posições fracionárias

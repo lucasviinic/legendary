@@ -130,6 +130,18 @@ export const QuizSummaryWordSchema = z.object({
 });
 export type QuizSummaryWord = z.infer<typeof QuizSummaryWordSchema>;
 
+/** Palavra da triagem do fim da sessão, em que a pessoa diz se já sabe (frame 2a). */
+export const TriageWordSchema = z.object({
+  senseId: z.number().int(),
+  word: z.string(),
+  pos: z.string(),
+  cefr: CefrSchema.nullable(),
+  translation: z.string(),
+  /** A primeira frase em que a palavra apareceu. */
+  sentence: z.string(),
+});
+export type TriageWord = z.infer<typeof TriageWordSchema>;
+
 export const QuizSummarySchema = z.object({
   sessionId: z.number().int(),
   title: z.string(),

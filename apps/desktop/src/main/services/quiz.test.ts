@@ -106,6 +106,104 @@ describe('summary', () => {
     h.repos.saved.toggle(senseIds(h, sessionId)[0]!, h.clock.now);
     expect(h.quiz.summary(sessionId).savedWords).toBe(1);
   });
+
+  it('does not count words marked as known as new', () => {
+    const sessionId = seedSession(h);
+    h.repos.known.add('reckon', h.clock.now);
+    expect(h.quiz.summary(sessionId).newWords).toBe(3);
+  });
+});
+
+describe('words to sort at the end of the session', () => {
+  let sessionId: number;
+  beforeEach(() => {
+    sessionId = h.repos.sessions.create({
+      title: 'Northbound · T1E3',
+      source: 'netflix',
+      startedAt: h.clock.now,
+    }).id;
+  });
+
+  /** Grava uma palavra da sessão vista pela primeira vez `seconds` depois do começo. */
+  const seen = (lemma: string, seconds: number, pos = 'adj') => {
+    const sense = h.repos.senses.insert({
+      lemma,
+      pos,
+      translation: `t-${lemma}`,
+      explanation: `e-${lemma}`,
+      exampleEn: `Example ${lemma}.`,
+      examplePt: `Exemplo ${lemma}.`,
+      cefr: 'B2',
+      provider: 'gemini',
+    });
+    h.repos.sessionWords.upsert({
+      sessionId,
+      senseId: sense.id,
+      count: 1,
+      contextSentence: `They said ${lemma} today.`,
+      firstSeenAt: h.clock.now + seconds * 1000,
+    });
+    return sense.id;
+  };
+  const sorted = () => h.quiz.triage(sessionId).map(({ word }) => word);
+
+  it('lists the words in the order they first appeared', () => {
+    seen('grumpy', 30);
+    seen('reckon', 10);
+    seen('wary', 20);
+    expect(sorted()).toEqual(['reckon', 'wary', 'grumpy']);
+  });
+
+  it('shows the translation and the sentence where the word appeared', () => {
+    const senseId = seen('reckon', 10, 'verb');
+    expect(h.quiz.triage(sessionId)).toEqual([
+      {
+        senseId,
+        word: 'reckon',
+        pos: 'verb',
+        cefr: 'B2',
+        translation: 't-reckon',
+        sentence: 'They said reckon today.',
+      },
+    ]);
+  });
+
+  it('leaves out words already marked as known', () => {
+    seen('reckon', 10);
+    seen('wary', 20);
+    h.repos.known.add('reckon', h.clock.now);
+    expect(sorted()).toEqual(['wary']);
+  });
+
+  it('leaves out words saved during the video', () => {
+    seen('reckon', 10);
+    h.repos.saved.toggle(seen('wary', 20), h.clock.now);
+    expect(sorted()).toEqual(['reckon']);
+  });
+
+  it('shows a word once even when it appeared with two classes', () => {
+    seen('hunch', 10, 'noun');
+    seen('hunch', 20, 'verb');
+    expect(h.quiz.triage(sessionId)).toMatchObject([{ word: 'hunch', pos: 'noun' }]);
+  });
+
+  it('leaves out the whole word when one of its classes was saved', () => {
+    seen('hunch', 10, 'noun');
+    h.repos.saved.toggle(seen('hunch', 20, 'verb'), h.clock.now);
+    expect(sorted()).toEqual([]);
+  });
+
+  it('leaves out words due for review from other sessions', () => {
+    const old = seedSession(h, ['knack']);
+    h.repos.reviews.upsert(senseIds(h, old)[0]!, {
+      ease: 2.5,
+      intervalDays: 1,
+      repetitions: 0,
+      dueAt: h.clock.now - DAY_MS,
+    });
+    seen('wary', 10);
+    expect(sorted()).toEqual(['wary']);
+  });
 });
 
 describe('creating a quiz', () => {

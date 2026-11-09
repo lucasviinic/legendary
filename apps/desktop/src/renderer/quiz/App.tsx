@@ -3,11 +3,27 @@ import { api } from '../shared/api';
 import { TrafficLights } from '../shared/TrafficLights';
 import { FinalView } from './FinalView';
 import { MatchView } from './MatchView';
+import { NoWordsView } from './NoWordsView';
 import { choicesOf, QuestionView } from './QuestionView';
 import { useQuiz } from './store';
 import { SummaryView } from './SummaryView';
+import { TriageView } from './TriageView';
 
-const sessionId = Number(new URLSearchParams(location.search).get('sessionId'));
+const params = new URLSearchParams(location.search);
+const sessionId = Number(params.get('sessionId'));
+const triage = params.has('triage');
+
+type QuizStore = ReturnType<typeof useQuiz.getState>;
+
+/** As teclas da triagem, como no frame 2a. */
+const TRIAGE_KEYS: Record<string, (state: QuizStore) => void> = {
+  ArrowUp: (state) => state.knowWord(),
+  ArrowDown: (state) => state.skipWord(),
+  ArrowLeft: (state) => state.backWord(),
+  Enter: (state) => void state.finishTriage(),
+};
+
+const closeWindow = () => void api().invoke('window:close-current');
 
 function Message({ text }: { text: string }) {
   return (
@@ -25,7 +41,7 @@ export function App() {
   const question = state.quiz?.questions[state.index];
 
   useEffect(() => {
-    void useQuiz.getState().load(sessionId);
+    void useQuiz.getState().load(sessionId, triage);
   }, []);
 
   // Teclas 1 a 4 respondem, e Enter avança ou começa o quiz, como no frame 1g.
@@ -33,6 +49,19 @@ export function App() {
     const onKey = (event: KeyboardEvent) => {
       if (event.target instanceof HTMLInputElement && !event.target.disabled) return;
       const current = useQuiz.getState();
+      if (current.phase === 'triage') {
+        const action = TRIAGE_KEYS[event.key];
+        if (!action) return;
+        event.preventDefault();
+        // Segurar a tecla repete o toque, e isso marcaria palavras que a pessoa nem chegou a ver.
+        if (!event.repeat) action(current);
+        return;
+      }
+      if (current.phase === 'empty' && event.key === 'Enter') {
+        event.preventDefault();
+        closeWindow();
+        return;
+      }
       if (event.key === 'Enter') {
         if (current.phase === 'summary') void current.start();
         else if (current.phase === 'question') void current.next();
@@ -51,6 +80,22 @@ export function App() {
 
   if (state.phase === 'loading') return <Message text="Carregando…" />;
   if (state.phase === 'error') return <Message text="Não deu para abrir este quiz." />;
+  if (state.phase === 'empty') return <NoWordsView onClose={closeWindow} />;
+
+  const triageWord = state.phase === 'triage' ? state.triage[state.triageIndex] : undefined;
+  if (triageWord) {
+    return (
+      <TriageView
+        word={triageWord}
+        position={state.triageIndex + 1}
+        total={state.triage.length}
+        onKnown={state.knowWord}
+        onUnknown={state.skipWord}
+        onBack={state.backWord}
+        onSkip={() => void state.finishTriage()}
+      />
+    );
+  }
 
   if (state.phase === 'summary' && state.summary) {
     return (
@@ -69,7 +114,7 @@ export function App() {
       <FinalView
         result={state.final}
         onHistory={() => void api().invoke('window:open', { window: 'history' })}
-        onClose={() => void api().invoke('window:close-current')}
+        onClose={closeWindow}
         onReview={() => void state.reviewMistakes()}
       />
     );

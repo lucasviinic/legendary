@@ -3,7 +3,8 @@ import { loadPage, normalWindowOptions } from './common';
 
 let current: BrowserWindow | null = null;
 
-export function openQuizWindow(sessionId: number): void {
+/** `triage` começa pela triagem das palavras: vale ao encerrar a sessão, não ao refazer o quiz. */
+export function openQuizWindow(sessionId: number, { triage = false } = {}): void {
   current?.close();
   const window = new BrowserWindow({
     ...normalWindowOptions,
@@ -20,6 +21,6 @@ export function openQuizWindow(sessionId: number): void {
     window.show();
     app.focus({ steal: true });
   });
-  loadPage(window, 'quiz', { sessionId: String(sessionId) });
+  loadPage(window, 'quiz', { sessionId: String(sessionId), ...(triage && { triage: '1' }) });
   current = window;
 }
