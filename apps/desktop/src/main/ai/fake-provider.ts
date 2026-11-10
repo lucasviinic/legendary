@@ -21,6 +21,24 @@ export const fakeProvider: LLMProvider = {
       cefr: 'B2' as const,
     }));
   },
-  generateQuiz: async (words) => buildFallbackQuiz(words, 10, (items) => items),
+  // Com duas palavras ou mais, o quiz abre com uma questão de associar, que só a IA gera.
+  generateQuiz: async (words) => [
+    ...(words.length >= 2
+      ? [
+          {
+            word: words[0]!.word,
+            type: 'match' as const,
+            prompt: 'Associe cada expressão ao significado',
+            options: null,
+            answer: '',
+            explanation: 'Cada expressão com a tradução dela.',
+            pairs: words
+              .slice(0, 3)
+              .map(({ word, translation }) => ({ word, meaning: translation })),
+          },
+        ]
+      : []),
+    ...buildFallbackQuiz(words, 9, (items) => items),
+  ],
   check: async () => undefined,
 };

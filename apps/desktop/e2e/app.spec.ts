@@ -203,7 +203,18 @@ test('captions become cards, and the session ends in a quiz and in the history',
     const next = quiz.getByRole('button', { name: /Próxima/ });
     await expect(quiz.getByText(/\d+ de \d+/).first()).toBeVisible();
     const typed = quiz.getByLabel('Sua resposta');
-    if (await typed.isVisible()) {
+    if (await quiz.getByText('Associar').isVisible()) {
+      // Arrasta cada expressão até a tradução dela, como faria com o mouse.
+      for (const word of ['head out', 'reckon']) {
+        const from = (await quiz.getByTestId(`match-word-${word}`).boundingBox())!;
+        const to = (await quiz.locator(`[data-meaning="tradução de ${word}"]`).boundingBox())!;
+        await quiz.mouse.move(from.x + 20, from.y + from.height / 2);
+        await quiz.mouse.down();
+        await quiz.mouse.move(to.x + 20, to.y + to.height / 2, { steps: 8 });
+        await quiz.mouse.up();
+      }
+      await expect(quiz.getByText('2 de 2 pares certos.')).toBeVisible();
+    } else if (await typed.isVisible()) {
       await typed.fill('head out');
       await typed.press('Enter');
     } else {

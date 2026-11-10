@@ -111,10 +111,14 @@ export function MatchView({
           <div className="flex flex-col gap-2.5">
             {words.map((word) => {
               if (drag?.word === word) {
+                // O React reaproveita o elemento da linha, que guarda a captura do ponteiro: sem
+                // estes handlers, o arrasto não acompanha o mouse nem solta.
                 return (
                   <div
                     key={word}
                     className="h-[50px] rounded-xl border border-dashed border-white/18"
+                    onPointerMove={onPointerMove}
+                    onPointerUp={onPointerUp}
                   />
                 );
               }
