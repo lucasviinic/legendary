@@ -21,12 +21,18 @@ afterEach(() => close());
 
 describe('SettingsService', () => {
   it('fills the options that did not exist when the settings were saved', () => {
-    const { maxSummaries: _summaries, rewindOnSearch: _rewind, ...older } = defaultSettings;
+    const {
+      maxSummaries: _summaries,
+      rewindOnSearch: _rewind,
+      quizQuestions: _questions,
+      ...older
+    } = defaultSettings;
     repo.set('app', { ...older, cardsPerMinute: 4 });
     expect(service.get()).toMatchObject({
       cardsPerMinute: 4,
       maxSummaries: 6,
       rewindOnSearch: false,
+      quizQuestions: 10,
     });
   });
 

@@ -123,7 +123,7 @@ async function bootstrap() {
       if (status.state === 'idle') searchBar.hide();
     },
   });
-  const quiz = new QuizService({ repos, getProvider, now, shuffle });
+  const quiz = new QuizService({ repos, getProvider, now, shuffle, settings });
   const history = new HistoryService({ repos, now });
 
   const settingsView = (): SettingsView => ({

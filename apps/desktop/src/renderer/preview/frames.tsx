@@ -138,6 +138,7 @@ const settingsView: View = {
     cardPlacements: {},
     highlightSubtitles: true,
     rewindOnSearch: false,
+    quizQuestions: 10,
     origin: 'browser',
     wsPort: 47615,
     onboarded: true,
@@ -181,6 +182,7 @@ const summary: QuizSummary = {
   durationMs: 42 * 60_000 + 18_000,
   newWords: 18,
   savedWords: 3,
+  maxQuestions: 10,
   words: WORDS.map(([word, translation], index) => ({
     senseId: index,
     word,

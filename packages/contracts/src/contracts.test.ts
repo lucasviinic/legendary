@@ -134,6 +134,13 @@ describe('Settings', () => {
     expect(defaultSettings.translateAllWords).toBe(false);
   });
 
+  it('starts with 10 quiz questions, and accepts from 5 to 20', () => {
+    const parse = (quizQuestions: number) =>
+      SettingsSchema.safeParse({ ...defaultSettings, quizQuestions }).success;
+    expect(defaultSettings.quizQuestions).toBe(10);
+    expect([parse(5), parse(20), parse(4), parse(21)]).toEqual([true, true, false, false]);
+  });
+
   it('keeps one card at a time for 10 seconds by default', () => {
     expect(defaultSettings).toMatchObject({ cardSeconds: 10, cardsAtOnce: 1 });
   });

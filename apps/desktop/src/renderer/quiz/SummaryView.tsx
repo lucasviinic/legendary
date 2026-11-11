@@ -2,7 +2,6 @@ import type { QuizSummary } from '@legendary/contracts';
 import { formatElapsed } from '@legendary/core';
 import { TrafficLights } from '../shared/TrafficLights';
 
-const MAX_QUESTIONS = 10;
 const MINUTES_PER_QUESTION = 0.4;
 
 export interface SummaryViewProps {
@@ -11,12 +10,20 @@ export interface SummaryViewProps {
   preparing?: boolean;
   onToggle?: (senseId: number) => void;
   onStart?: () => void;
+  onSkip?: () => void;
 }
 
 /** Resumo da sessão antes do quiz: frame 1f. */
-export function SummaryView({ summary, excluded, preparing, onToggle, onStart }: SummaryViewProps) {
+export function SummaryView({
+  summary,
+  excluded,
+  preparing,
+  onToggle,
+  onStart,
+  onSkip,
+}: SummaryViewProps) {
   const selected = summary.words.filter((word) => !excluded.has(word.senseId)).length;
-  const questions = Math.min(selected, MAX_QUESTIONS);
+  const questions = Math.min(selected, summary.maxQuestions);
   const minutes = Math.max(1, Math.round(questions * MINUTES_PER_QUESTION));
 
   return (
@@ -41,7 +48,8 @@ export function SummaryView({ summary, excluded, preparing, onToggle, onStart }:
             {selected} de {summary.words.length} selecionadas · desmarque as que não quer testar
           </span>
         </div>
-        <div className="grid grid-cols-3 gap-2">
+        {/* Com 15 ou 20 questões a grade não cabe na janela e rola. */}
+        <div className="grid min-h-0 grid-cols-3 content-start gap-2 overflow-y-auto">
           {summary.words.map((word) => {
             const on = !excluded.has(word.senseId);
             return (
@@ -74,6 +82,12 @@ export function SummaryView({ summary, excluded, preparing, onToggle, onStart }:
             ? 'Preparando as questões…'
             : `${questions} ${questions === 1 ? 'questão' : 'questões'} · uns ${minutes} ${minutes === 1 ? 'minuto' : 'minutos'}`}
         </span>
+        <button
+          onClick={onSkip}
+          className="flex h-[34px] items-center gap-2 rounded-[9px] bg-white/10 px-4 font-medium"
+        >
+          Agora não <span className="text-[11px] opacity-55">esc</span>
+        </button>
         <button
           disabled={questions === 0 || preparing}
           onClick={onStart}

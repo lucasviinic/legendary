@@ -64,6 +64,8 @@ export const SettingsSchema = z.object({
   highlightSubtitles: z.boolean(),
   /** Volta o vídeo ao buscar uma palavra, para a pessoa ouvir de novo. */
   rewindOnSearch: z.boolean(),
+  /** Quantas questões o quiz tem no máximo, e quantas palavras o resumo já marca. */
+  quizQuestions: z.number().int().min(5).max(20),
   origin: CaptureOriginSchema,
   wsPort: z.number().int().min(1024).max(65535),
   onboarded: z.boolean(),
@@ -82,6 +84,7 @@ export const defaultSettings: Settings = {
   cardPlacements: {},
   highlightSubtitles: true,
   rewindOnSearch: false,
+  quizQuestions: 10,
   origin: 'browser',
   wsPort: DEFAULT_WS_PORT,
   onboarded: false,
@@ -148,6 +151,8 @@ export const QuizSummarySchema = z.object({
   durationMs: z.number().nonnegative(),
   newWords: z.number().int().nonnegative(),
   savedWords: z.number().int().nonnegative(),
+  /** O limite das Configurações: com mais palavras marcadas, o quiz fica só com este tanto. */
+  maxQuestions: z.number().int().positive(),
   words: z.array(QuizSummaryWordSchema),
 });
 export type QuizSummary = z.infer<typeof QuizSummarySchema>;

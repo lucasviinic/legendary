@@ -27,15 +27,29 @@ describe('prompts', () => {
 
   it('quiz prompt', () => {
     expect(
-      buildQuizPrompt([
-        {
-          word: 'reckon',
-          translation: 'achar, supor',
-          explanation: 'Jeito informal de dar uma opinião.',
-          sentence: 'I reckon we should go.',
-          surface: 'reckon',
-        },
-      ]),
+      buildQuizPrompt(
+        [
+          {
+            word: 'reckon',
+            translation: 'achar, supor',
+            explanation: 'Jeito informal de dar uma opinião.',
+            sentence: 'I reckon we should go.',
+            surface: 'reckon',
+          },
+        ],
+        10,
+      ),
     ).toMatchSnapshot();
+  });
+
+  it('asks the AI for at most the questions set in the settings', () => {
+    const word = {
+      word: 'reckon',
+      translation: 'achar',
+      explanation: '',
+      sentence: '',
+      surface: '',
+    };
+    expect(buildQuizPrompt([word], 15).system).toContain('no máximo 15 no total');
   });
 });

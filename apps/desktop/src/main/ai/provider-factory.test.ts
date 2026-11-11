@@ -270,7 +270,7 @@ describe('what is sent to build the quiz', () => {
         { status: 200, headers: { 'content-type': 'application/json' } },
       ),
     );
-    await createProvider('claude', 'key').generateQuiz([word]);
+    await createProvider('claude', 'key').generateQuiz([word], 10);
     expect(lastRequest().body).toMatchObject({
       model: 'claude-opus-5-5',
       fallbacks: 'default',

@@ -174,6 +174,8 @@
       <div style="display:flex;align-items:center;gap:10px"><span onClick="{{ toggleHl }}" style="width:32px;height:19px;border-radius:10px;cursor:pointer;position:relative;background:{{ hlTrack }};transition:background .2s"><span style="position:absolute;top:2px;left:{{ hlKnob }};width:15px;height:15px;border-radius:50%;background:#fff;transition:left .2s"></span></span><span style="font-size:12px;color:rgba(255,255,255,.55)">Sublinha as palavras novas na legenda da Netflix e do YouTube</span></div></div>
     <div style="display:grid;grid-template-columns:150px minmax(0,1fr);align-items:center;gap:14px"><span style="color:rgba(255,255,255,.7);text-align:right">Ao buscar (⌘⇧B)</span>
       <div style="display:flex;align-items:center;gap:10px"><span onClick="{{ toggleRewind }}" style="flex:none;width:32px;height:19px;border-radius:10px;cursor:pointer;position:relative;background:{{ rewindTrack }};transition:background .2s"><span style="position:absolute;top:2px;left:{{ rewindKnob }};width:15px;height:15px;border-radius:50%;background:#fff;transition:left .2s"></span></span><span style="font-size:12px;color:rgba(255,255,255,.55)">Volta o vídeo 10 s para você ouvir a palavra de novo</span></div></div>
+    <div style="display:grid;grid-template-columns:150px minmax(0,1fr);align-items:center;gap:14px"><span style="color:rgba(255,255,255,.7);text-align:right">Questões do quiz</span>
+      <div style="display:flex;gap:2px;padding:2px;background:rgba(255,255,255,.08);border-radius:8px;width:max-content"><sc-for list="{{ quizCount }}" as="q" hint-placeholder-count="4"><span onClick="{{ q.onClick }}" style="height:24px;width:44px;border-radius:6px;display:flex;align-items:center;justify-content:center;cursor:pointer;background:{{ q.bg }};color:{{ q.color }};font-weight:500">{{ q.label }}</span></sc-for></div></div>
     <div style="display:grid;grid-template-columns:150px minmax(0,1fr);align-items:center;gap:14px"><span style="color:rgba(255,255,255,.7);text-align:right">Extensão</span>
       <div style="display:flex;align-items:center;gap:10px"><span style="flex:1;min-width:0;height:28px;padding:0 10px;border-radius:7px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);display:flex;align-items:center;font-family:ui-monospace,Menlo,monospace;font-size:12px;color:rgba(255,255,255,.8)">3f9a1c2e••••••••</span><span style="height:26px;padding:0 10px;border-radius:8px;background:rgba(255,255,255,.1);display:flex;align-items:center;font-size:12px;font-weight:500">Copiar</span><span style="font-size:12px;color:rgba(255,255,255,.55);white-space:nowrap">✓ Conectada</span></div></div>
   </div>
@@ -189,7 +191,7 @@
       <sc-for list="{{ chips }}" as="w" hint-placeholder-count="12"><div onClick="{{ w.onClick }}" style="display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:10px;cursor:pointer;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);opacity:{{ w.op }}"><span style="width:16px;height:16px;flex:none;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#1e1e21;background:{{ w.cb }};border:1.5px solid rgba(255,255,255,.4);box-sizing:border-box">{{ w.mark }}</span><div style="display:flex;flex-direction:column;min-width:0"><span style="font-weight:600">{{ w.word }}</span><span style="font-size:12px;color:#7FDBCA;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ w.tr }}</span></div></div></sc-for>
     </div>
   </div>
-  <div style="flex:none;padding:18px 36px 24px;display:flex;align-items:center;justify-content:flex-end;gap:10px"><span style="font-size:12px;color:rgba(255,255,255,.45)">10 questões · uns 4 minutos</span><span style="height:34px;padding:0 18px;border-radius:9px;background:#fff;color:#1a1a1c;font-weight:600;display:flex;align-items:center;gap:8px">Começar quiz <span style="font-size:11px;opacity:.55">↵</span></span></div>
+  <div style="flex:none;padding:18px 36px 24px;display:flex;align-items:center;justify-content:flex-end;gap:10px"><span style="font-size:12px;color:rgba(255,255,255,.45)">10 questões · uns 4 minutos</span><span style="height:34px;padding:0 16px;border-radius:9px;background:rgba(255,255,255,.1);font-weight:500;display:flex;align-items:center;gap:8px">Agora não <span style="font-size:11px;opacity:.55">esc</span></span><span style="height:34px;padding:0 18px;border-radius:9px;background:#fff;color:#1a1a1c;font-weight:600;display:flex;align-items:center;gap:8px">Começar quiz <span style="font-size:11px;opacity:.55">↵</span></span></div>
 </div></div>
 
 <div class="dv-opt" id="1g"><div class="dv-olabel"><a class="dv-oid" href="#1g">1g</a>Quiz · completar lacuna (clique ou teclas 1–4, Enter reinicia)</div>
@@ -356,7 +358,7 @@ class Component extends DCLogic {
   state = {
     picked: null, provider: 'Claude', level: 'B2', corner: 'tr', hl: true,
     off: { 'figure out': true, 'mess up': true },
-    all: false, rewind: false, atOnce: '1', tri: 2
+    all: false, rewind: false, atOnce: '1', quizCount: '10', tri: 2
   };
   componentDidMount() {
     this._k = (e) => {
@@ -448,6 +450,7 @@ class Component extends DCLogic {
       toggleAll: () => this.setState({ all: !s.all }), allTrack: s.all ? '#32D74B' : 'rgba(255,255,255,.2)', allKnob: s.all ? '15px' : '2px',
       toggleRewind: () => this.setState({ rewind: !s.rewind }), rewindTrack: s.rewind ? '#32D74B' : 'rgba(255,255,255,.2)', rewindKnob: s.rewind ? '15px' : '2px',
       atOnce: seg(['1', '2', '3'], s.atOnce, 'atOnce'),
+      quizCount: seg(['5', '10', '15', '20'], s.quizCount, 'quizCount'),
       tri: triWords[s.tri], triTotal: triWords.length, triPosition: s.tri + 1,
       triProgress: `${((s.tri + 1) / triWords.length) * 100}%`,
       triChoices: [{ key: '↑', label: 'Já sei', onClick: triNext }, { key: '↓', label: 'Não sei', onClick: triNext }],

@@ -77,6 +77,23 @@ describe('summary', () => {
     expect(listed.filter((word) => word.selected)).toHaveLength(10);
   });
 
+  it('selects as many words as the questions set in the settings', () => {
+    h.settings.update({ quizQuestions: 5 });
+    const words = Array.from({ length: 15 }, (_, i) => `word${i}`);
+    const summary = h.quiz.summary(seedSession(h, words));
+    expect(summary.maxQuestions).toBe(5);
+    expect(summary.words).toHaveLength(12);
+    expect(summary.words.filter((word) => word.selected)).toHaveLength(5);
+  });
+
+  it('shows every word a longer quiz needs', () => {
+    h.settings.update({ quizQuestions: 20 });
+    const words = Array.from({ length: 25 }, (_, i) => `word${i}`);
+    const { words: listed } = h.quiz.summary(seedSession(h, words));
+    expect(listed).toHaveLength(20);
+    expect(listed.filter((word) => word.selected)).toHaveLength(20);
+  });
+
   it('lists the most frequent words first', () => {
     const sessionId = seedSession(h);
     expect(h.quiz.summary(sessionId).words[0]?.word).toBe('reckon');
@@ -265,6 +282,27 @@ describe('creating a quiz', () => {
     const sessionId = seedSession(h, words);
     const quiz = await h.quiz.create(sessionId, senseIds(h, sessionId));
     expect(quiz.questions).toHaveLength(10);
+  });
+
+  it('caps the quiz without AI at the questions set in the settings', async () => {
+    h.settings.update({ quizQuestions: 15 });
+    const words = Array.from({ length: 20 }, (_, i) => `word${i}`);
+    const sessionId = seedSession(h, words);
+    const quiz = await h.quiz.create(sessionId, senseIds(h, sessionId));
+    expect(quiz.questions).toHaveLength(15);
+  });
+
+  it('asks the AI for the questions set in the settings, and keeps no more than that', async () => {
+    const words = [...WORDS, 'knack', 'bail', 'fed'];
+    const generateQuiz = vi.fn(async () =>
+      words.map((word) => aiDraft({ word, options: [`t-${word}`, 'b'], answer: `t-${word}` })),
+    );
+    h.close();
+    h = createHarness({ provider: fakeProvider({ generateQuiz }), settings: { quizQuestions: 5 } });
+    const sessionId = seedSession(h, words);
+    const quiz = await h.quiz.create(sessionId, senseIds(h, sessionId));
+    expect(generateQuiz).toHaveBeenCalledWith(expect.any(Array), 5);
+    expect(quiz.questions).toHaveLength(5);
   });
 
   it('adds where the sentence came from to a cloze question', async () => {

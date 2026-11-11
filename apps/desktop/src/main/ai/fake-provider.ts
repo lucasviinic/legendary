@@ -22,7 +22,7 @@ export const fakeProvider: LLMProvider = {
     }));
   },
   // Com duas palavras ou mais, o quiz abre com uma questão de associar, que só a IA gera.
-  generateQuiz: async (words) => [
+  generateQuiz: async (words, maxQuestions) => [
     ...(words.length >= 2
       ? [
           {
@@ -38,7 +38,7 @@ export const fakeProvider: LLMProvider = {
           },
         ]
       : []),
-    ...buildFallbackQuiz(words, 9, (items) => items),
+    ...buildFallbackQuiz(words, maxQuestions - 1, (items) => items),
   ],
   check: async () => undefined,
 };

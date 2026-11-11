@@ -110,11 +110,11 @@ export function createProvider(provider: Provider, apiKey: string): LLMProvider 
       return words;
     },
 
-    async generateQuiz(words) {
+    async generateQuiz(words, maxQuestions) {
       const { object } = await generateObject({
         model: quizModel,
         schema: QuizResponseSchema,
-        ...buildQuizPrompt(words),
+        ...buildQuizPrompt(words, maxQuestions),
         maxOutputTokens: MAX_OUTPUT_TOKENS,
         maxRetries: 1,
         abortSignal: AbortSignal.timeout(QUIZ_TIMEOUT_MS),

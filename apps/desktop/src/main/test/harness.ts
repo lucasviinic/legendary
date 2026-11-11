@@ -116,6 +116,7 @@ export function createHarness(
     getProvider: () => provider,
     now,
     shuffle: <T>(items: T[]) => items,
+    settings,
   });
   const history = new HistoryService({ repos, now });
 

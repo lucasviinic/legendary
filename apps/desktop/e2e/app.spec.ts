@@ -428,6 +428,15 @@ test('the settings control the pace of the cards and how many summaries stay', a
     .toBe(2);
   await invoke(menu, 'settings:set', { cardsAtOnce: 1 });
 
+  // O quiz começa com 10 questões, e as Configurações mudam isso.
+  const quizQuestions = async () =>
+    ((await invoke(menu, 'settings:get')) as { settings: { quizQuestions: number } }).settings
+      .quizQuestions;
+  expect(await quizQuestions()).toBe(10);
+  await settings.getByRole('button', { name: '15', exact: true }).click();
+  await expect.poll(quizQuestions).toBe(15);
+  await invoke(menu, 'settings:set', { quizQuestions: 10 });
+
   // Voltar o vídeo começa desligado e liga pelas Configurações.
   const rewind = settings.getByRole('switch', { name: 'Voltar o vídeo ao buscar' });
   await expect(rewind).toHaveAttribute('aria-checked', 'false');
@@ -729,6 +738,18 @@ test('at the end, the arrows mark the words already known before the quiz', asyn
   const retake = await reopened;
   await expect(retake.getByText('Sessão encerrada')).toBeVisible();
   await expect(retake.getByText('Você já sabe esta?')).toHaveCount(0);
+
+  // Dá para sair sem fazer o quiz, pelo botão ou pelo Esc.
+  const retakeClosed = retake.waitForEvent('close');
+  await retake.getByRole('button', { name: /Agora não/ }).click();
+  await retakeClosed;
+  const again = app.waitForEvent('window', (window) => window.url().includes('/quiz/'));
+  await invoke(menu, 'quiz:open', { sessionId });
+  const another = await again;
+  await expect(another.getByText('Sessão encerrada')).toBeVisible();
+  const anotherClosed = another.waitForEvent('close');
+  await another.keyboard.down('Escape');
+  await anotherClosed;
 
   // Quem já sabia todas as palavras não tem quiz, e Enter fecha a janela.
   await invoke(menu, 'session:start', { source: 'browser' });

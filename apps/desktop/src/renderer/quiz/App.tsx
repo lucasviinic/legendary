@@ -5,7 +5,7 @@ import { FinalView } from './FinalView';
 import { MatchView } from './MatchView';
 import { NoWordsView } from './NoWordsView';
 import { choicesOf, QuestionView } from './QuestionView';
-import { useQuiz } from './store';
+import { marksSaved, useQuiz } from './store';
 import { SummaryView } from './SummaryView';
 import { TriageView } from './TriageView';
 
@@ -23,7 +23,7 @@ const TRIAGE_KEYS: Record<string, (state: QuizStore) => void> = {
   Enter: (state) => void state.finishTriage(),
 };
 
-const closeWindow = () => void api().invoke('window:close-current');
+const closeWindow = () => void marksSaved().then(() => api().invoke('window:close-current'));
 
 function Message({ text }: { text: string }) {
   return (
@@ -47,6 +47,12 @@ export function App() {
   // Teclas 1 a 4 respondem, e Enter avança ou começa o quiz, como no frame 1g.
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
+      // Esc sai do quiz em qualquer etapa. Ele fica no histórico para fazer depois.
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        closeWindow();
+        return;
+      }
       if (event.target instanceof HTMLInputElement && !event.target.disabled) return;
       const current = useQuiz.getState();
       if (current.phase === 'triage') {
@@ -105,6 +111,7 @@ export function App() {
         preparing={state.preparing}
         onToggle={state.toggleWord}
         onStart={() => void state.start()}
+        onSkip={closeWindow}
       />
     );
   }

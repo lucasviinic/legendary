@@ -46,6 +46,9 @@ const write = (channel: 'vocab:mark-known' | 'vocab:unmark-known', lemma: string
   writes = writes.then(() => api().invoke(channel, { lemma })).catch(() => undefined);
 };
 
+/** Fechar a janela antes disso perderia as marcações que ainda estão na fila. */
+export const marksSaved = () => writes;
+
 export const useQuiz = create<QuizState>((set, get) => {
   async function summarize(sessionId: number) {
     const summary = await api().invoke('quiz:summary', { sessionId });

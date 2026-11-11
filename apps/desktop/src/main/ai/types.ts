@@ -13,7 +13,7 @@ export type OnTranslation = (word: EnrichRequestWord, translation: string) => vo
 export interface LLMProvider {
   readonly name: Provider;
   enrichWords(batch: EnrichRequestWord[], onTranslation?: OnTranslation): Promise<EnrichedWord[]>;
-  generateQuiz(words: FallbackWord[]): Promise<QuizQuestionDraft[]>;
+  generateQuiz(words: FallbackWord[], maxQuestions: number): Promise<QuizQuestionDraft[]>;
   /** Faz uma chamada mínima para confirmar que a chave funciona. */
   check(): Promise<void>;
 }

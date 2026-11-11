@@ -44,6 +44,13 @@ const CARDS_AT_ONCE = [
   { value: '3', label: '3' },
 ] as const;
 
+const QUIZ_QUESTIONS = [
+  { value: '5', label: '5' },
+  { value: '10', label: '10' },
+  { value: '15', label: '15' },
+  { value: '20', label: '20' },
+] as const;
+
 const KEY_STATUS_TEXT = {
   missing: '',
   untested: 'Testando…',
@@ -242,6 +249,14 @@ export function SettingsView({ view, onChange, onSaveKey }: SettingsViewProps) {
               Volta o vídeo 10 s para você ouvir a palavra de novo
             </span>
           </div>
+        </Row>
+        <Row label="Questões do quiz">
+          <Segmented
+            options={QUIZ_QUESTIONS}
+            value={String(settings.quizQuestions) as '5' | '10' | '15' | '20'}
+            itemClass="w-11"
+            onChange={(value) => onChange?.({ quizQuestions: Number(value) })}
+          />
         </Row>
         <PairingRow view={view} />
       </div>

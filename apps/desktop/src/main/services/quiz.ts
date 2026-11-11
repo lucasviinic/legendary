@@ -24,9 +24,10 @@ import type { LLMProvider } from '../ai/types';
 import type { Repositories } from '../db/repositories';
 import type { QuizQuestionRow } from '../db/repositories/quizzes';
 import type { WordSense } from '../db/repositories/senses';
+import type { SettingsService } from './settings';
 
+/** O resumo do frame 1f mostra 12 palavras. Um quiz mais longo mostra todas as que ele precisa. */
 const SUMMARY_WORDS = 12;
-const QUIZ_QUESTIONS = 10;
 
 /** O que fica em `payload_json`: a questão e os dados do app calculados na criação. */
 const StoredQuestionSchema = QuizQuestionDraftSchema.extend({
@@ -41,6 +42,7 @@ export interface QuizDeps {
   getProvider: () => LLMProvider | null;
   now: () => number;
   shuffle: Shuffle;
+  settings: Pick<SettingsService, 'get'>;
 }
 
 export class QuizService {
@@ -72,13 +74,15 @@ export class QuizService {
     repos.senses.byIds(due).forEach((sense) => senses.set(sense.id, sense));
     const dueNew = due.filter((id) => isNew(senses.get(id)));
 
-    const words = selectWords(selectable, dueNew, SUMMARY_WORDS).map((senseId, index) => {
+    const maxQuestions = this.maxQuestions();
+    const shown = Math.max(SUMMARY_WORDS, maxQuestions);
+    const words = selectWords(selectable, dueNew, shown).map((senseId, index) => {
       const sense = senses.get(senseId)!;
       return {
         senseId,
         word: sense.lemma,
         translation: sense.translation,
-        selected: index < QUIZ_QUESTIONS,
+        selected: index < maxQuestions,
       };
     });
 
@@ -88,6 +92,7 @@ export class QuizService {
       durationMs: session.endedAt === null ? 0 : session.endedAt - session.startedAt,
       newWords: sessionWords.filter((word) => isNew(senses.get(word.senseId))).length,
       savedWords: repos.saved.countForSession(sessionId),
+      maxQuestions,
       words,
     };
   }
@@ -238,19 +243,24 @@ export class QuizService {
     bySense: Map<string, WordSense>,
   ): Promise<QuizQuestionDraft[]> {
     const { getProvider, shuffle } = this.deps;
-    const fallback = () => buildFallbackQuiz(words, QUIZ_QUESTIONS, shuffle);
+    const maxQuestions = this.maxQuestions();
+    const fallback = () => buildFallbackQuiz(words, maxQuestions, shuffle);
     const provider = getProvider();
     if (!provider) return fallback();
 
     try {
-      const generated = await provider.generateQuiz(words);
-      const usable = sanitizeDrafts(generated, QUIZ_QUESTIONS, shuffle).filter((draft) =>
+      const generated = await provider.generateQuiz(words, maxQuestions);
+      const usable = sanitizeDrafts(generated, maxQuestions, shuffle).filter((draft) =>
         this.refersToKnownWords(draft, bySense),
       );
       return usable.length > 0 ? usable : fallback();
     } catch {
       return fallback();
     }
+  }
+
+  private maxQuestions() {
+    return this.deps.settings.get().quizQuestions;
   }
 
   private refersToKnownWords(draft: QuizQuestionDraft, bySense: Map<string, WordSense>) {
