@@ -1,20 +1,34 @@
-// Gera resources/lexicon/frequency.json a partir de uma lista "palavra contagem", da mais comum
-// para a menos comum. Uso: node scripts/build-lexicon.mjs caminho/en_50k.txt
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { tokenize } from '../../../packages/core/src/pipeline/tokenize.ts';
 
-const MAX_WORDS = 30_000;
-const LINE = /^([a-z][a-z'-]*) \d+$/;
+const MAX_LEMMAS = 30_000;
+const LINE = /^([a-z][a-z'-]*) (\d+)$/;
+const LEMMA = /^[a-z][a-z'-]*$/;
 
 const input = process.argv[2];
 if (!input) throw new Error('Informe o caminho da lista de frequência.');
 
-const words = readFileSync(input, 'utf8')
-  .split('\n')
-  .map((line) => LINE.exec(line)?.[1])
-  .filter(Boolean)
-  .slice(0, MAX_WORDS);
+function lemmaOf(word) {
+  const tokens = tokenize(word);
+  const lemma = tokens.length === 1 ? tokens[0].lemma : word;
+  return LEMMA.test(lemma) ? lemma : word;
+}
+
+const counts = new Map();
+for (const line of readFileSync(input, 'utf8').split('\n')) {
+  const match = LINE.exec(line.trim());
+  if (!match) continue;
+  const [, word, count] = match;
+  const lemma = lemmaOf(word);
+  counts.set(lemma, (counts.get(lemma) ?? 0) + Number(count));
+}
+
+const lemmas = [...counts]
+  .sort((a, b) => b[1] - a[1])
+  .slice(0, MAX_LEMMAS)
+  .map(([lemma]) => lemma);
 
 const output = join(import.meta.dirname, '../resources/lexicon/frequency.json');
-writeFileSync(output, `${JSON.stringify(words)}\n`);
-console.log(`${words.length} palavras em ${output}`);
+writeFileSync(output, `${JSON.stringify(lemmas)}\n`);
+console.log(`${lemmas.length} lemas em ${output}`);

@@ -148,7 +148,7 @@ test('captions become cards, and the session ends in a quiz and in the history',
   await expect.poll(overlayVisible).toBe(true);
 
   // A legenda gera um card, primeiro sem tradução.
-  sendCaption('JOHN: I reckon we should head out before it gets dark.');
+  sendCaption('JOHN: I presume we should head out before it gets dark.');
   const firstCard = overlay.getByTestId('card-head out');
   await expect(firstCard).toContainText('phrasal verb');
   await expect(overlay.getByTestId('status-bar')).toContainText('1 palavra nova');
@@ -156,7 +156,7 @@ test('captions become cards, and the session ends in a quiz and in the history',
     .poll(() => highlights)
     .toContainEqual({
       type: 'highlight',
-      text: 'JOHN: I reckon we should head out before it gets dark.',
+      text: 'JOHN: I presume we should head out before it gets dark.',
       surfaces: ['head out'],
     });
 
@@ -165,9 +165,9 @@ test('captions become cards, and the session ends in a quiz and in the history',
   await expect(firstCard).toContainText('Explicação curta de head out', { timeout: 2_000 });
 
   // A palavra que espera a vez já foi traduzida: o card dela aparece pronto.
-  const secondCard = overlay.getByTestId('card-reckon');
+  const secondCard = overlay.getByTestId('card-presume');
   await expect(secondCard).toBeVisible({ timeout: 20_000 });
-  await expect(secondCard).toContainText('tradução de reckon', { timeout: 200 });
+  await expect(secondCard).toContainText('tradução de presume', { timeout: 200 });
   await expect(overlay.getByTestId('status-bar')).toContainText('2 palavras novas');
 
   // O card anterior continua na pilha, resumido.
@@ -175,7 +175,7 @@ test('captions become cards, and the session ends in a quiz and in the history',
   await expect(firstCard).not.toContainText('Explicação curta');
 
   // Salvar pelo card.
-  await invoke(menu, 'vocab:save', { lemma: 'reckon' });
+  await invoke(menu, 'vocab:save', { lemma: 'presume' });
 
   // Encerrar abre o quiz pela triagem, sem a palavra salva. Enter pula para o resumo.
   const quizOpened = app.waitForEvent('window', (window) => window.url().includes('/quiz/'));
@@ -205,7 +205,7 @@ test('captions become cards, and the session ends in a quiz and in the history',
     const typed = quiz.getByLabel('Sua resposta');
     if (await quiz.getByText('Associar').isVisible()) {
       // Arrasta cada expressão até a tradução dela, como faria com o mouse.
-      for (const word of ['head out', 'reckon']) {
+      for (const word of ['head out', 'presume']) {
         const from = (await quiz.getByTestId(`match-word-${word}`).boundingBox())!;
         const to = (await quiz.locator(`[data-meaning="tradução de ${word}"]`).boundingBox())!;
         await quiz.mouse.move(from.x + 20, from.y + from.height / 2);
@@ -232,8 +232,8 @@ test('captions become cards, and the session ends in a quiz and in the history',
   await quiz.getByRole('button', { name: 'Ver histórico' }).click();
   const history = await historyOpened;
   await expect(history.getByRole('button', { name: new RegExp(TITLE) })).toBeVisible();
-  const row = history.getByTestId('history-row-reckon');
-  await expect(row).toContainText('tradução de reckon');
+  const row = history.getByTestId('history-row-presume');
+  await expect(row).toContainText('tradução de presume');
   await expect(row).toContainText('★');
   await expect(row).toContainText('B2');
 

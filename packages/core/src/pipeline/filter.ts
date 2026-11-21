@@ -2,7 +2,7 @@ import type { Level } from '@legendary/contracts';
 import type { Token } from './tokenize';
 
 /** Posição mínima na lista de frequência para uma palavra interessar a cada nível. */
-export const FREQUENCY_CUT: Record<Level, number> = { B1: 1500, B2: 3000, C1: 7000 };
+export const FREQUENCY_CUT: Record<Level, number> = { B1: 1350, B2: 2600, C1: 5800 };
 
 const CONTENT_POS = new Set(['VERB', 'NOUN', 'ADJ', 'ADV']);
 /** Ao traduzir tudo, também entram palavras como "despite". As mais básicas estão em STOPWORDS. */

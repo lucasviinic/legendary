@@ -11,6 +11,6 @@ export function scoreWord({ count, rank }: { count: number; rank: number | undef
 /** Nível provisório mostrado no card até a IA responder. */
 export function estimateCefr(rank: number | undefined): Cefr {
   if (rank === undefined) return 'B2';
-  if (rank <= 2000) return 'B1';
-  return rank <= 6000 ? 'B2' : 'C1';
+  if (rank <= 1750) return 'B1';
+  return rank <= 5000 ? 'B2' : 'C1';
 }
