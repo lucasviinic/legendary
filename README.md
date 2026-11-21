@@ -1,199 +1,236 @@
-# Legendary: imersão sem pausa
+# Legendary: immersion without pausing
 
-Assistir com áudio e legenda em inglês é uma das recomendações mais comuns de professores para quem
-quer ganhar fluência. O problema é a palavra que você não conhece: parar o vídeo para pesquisar quebra a
-imersão, e deixar passar faz você perder justamente o vocabulário novo.
+Watching with English audio and English subtitles is one of the most common tips teachers give to
+anyone who wants to become fluent. The problem is the word you don't know: pausing the video to look
+it up breaks the immersion, and letting it go means losing exactly the new vocabulary.
 
-O Legendary tira essa pausa do caminho. Ele lê a legenda da Netflix ou do YouTube enquanto você assiste
-e, quando aparece uma palavra do seu nível, a tradução surge no canto da tela, já no sentido da cena,
-sem você tocar em nada. O vídeo segue, e no fim da sessão um quiz revisa as palavras que apareceram.
+Legendary takes that pause out of the way. It reads the Netflix or YouTube subtitles while you watch
+and, when a word at your level shows up, the translation appears in the corner of the screen, already
+in the sense used in the scene, without you touching anything. The video keeps going, and at the end
+of the session a quiz reviews the words that came up.
 
-É um app para macOS com uma extensão para Brave ou Chrome. Tudo fica salvo no seu Mac, sem conta nem
-servidor.
+It is a macOS app with an extension for Brave or Chrome. Everything stays on your Mac, with no
+account and no server. The interface is in Brazilian Portuguese, because the app is made for
+Brazilian learners.
 
 <p align="center">
-  <img src="docs/screenshots/overlay.webp" width="100%" alt="Card com a palavra knack, traduzida como jeito, talento, com explicação e a frase da cena, ao lado de quatro palavras anteriores resumidas. Embaixo, a legenda com knack sublinhada e, em cima, a barra da sessão.">
+  <img src="docs/screenshots/overlay.webp" width="100%" alt="Card for the word knack, translated as jeito, talento, with an explanation and the sentence from the scene, next to four earlier words shown as summaries. Below, the subtitle with knack underlined and, on top, the session bar.">
 </p>
 
-> As capturas são do app real, com traduções de exemplo e uma cena ilustrativa no lugar do vídeo. O
-> quiz, o histórico e o menu da barra vêm da página de preview, que monta os mesmos componentes com os
-> dados do mockup.
+> The screenshots come from the real app, with sample translations and an illustrative scene in
+> place of the video. The quiz, the history and the menu bar come from the preview page, which mounts
+> the same components with the data from the mockup.
 
-## Como funciona
+## How it works
 
-1. Você liga as legendas em inglês na Netflix ou no YouTube e inicia uma sessão com ⌘⇧L.
-2. A extensão lê cada legenda que aparece e a envia ao app por um WebSocket local.
-3. O app escolhe as palavras do seu nível, pede a tradução à IA e mostra um card no canto da tela. A
-   palavra também ganha um sublinhado na própria legenda.
-4. Ao encerrar com ⌘⇧E, você escolhe as palavras e faz um quiz de 10 questões. As que você errar
-   voltam para revisão nos dias seguintes.
+1. You turn on English subtitles on Netflix or YouTube and start a session with ⌘⇧L.
+2. The extension reads each subtitle as it appears and sends it to the app over a local WebSocket.
+   On YouTube it also sends the whole subtitle track of the video, which the player has already
+   downloaded.
+3. The app picks the words at your level, asks the AI for the translation and shows a card in the
+   corner of the screen. The word is also underlined in the subtitle itself.
+4. When you end the session with ⌘⇧E, you choose the words and take a quiz. The ones you get wrong
+   come back for review in the following days.
 
 ```mermaid
 flowchart LR
-  subgraph browser["Brave ou Chrome"]
-    player["Netflix ou YouTube"] -->|legenda| ext["Extensão"]
+  subgraph browser["Brave or Chrome"]
+    player["Netflix or YouTube"] -->|subtitle and track| ext["Extension"]
   end
-  ext -->|WebSocket local| main["App Electron"]
-  main -.->|sublinhado e voltar 10 s| ext
-  main --> nlp["Pipeline local:<br/>wink-nlp e lista de frequência"]
-  nlp --> queue["Fila de tradução"]
-  queue -->|palavra e frase| ai[("Gemini, Claude<br/>ou DeepSeek")]
+  ext -->|local WebSocket| main["Electron app"]
+  main -.->|underline and rewind 10 s| ext
+  main --> nlp["Local pipeline:<br/>wink-nlp and frequency list"]
+  nlp --> queue["Translation queue"]
+  queue -->|word and sentence| ai[("Gemini, Claude<br/>or DeepSeek")]
   main <--> db[("SQLite")]
-  main -->|IPC| ui["Overlay, quiz e histórico"]
+  main -->|IPC| ui["Overlay, quiz and history"]
 ```
 
-Cada legenda passa por limpeza, tokenização e lematização, detecção de phrasal verbs e expressões, e
-um filtro pelo seu nível baseado numa lista de frequência. Tudo isso roda no Mac. Só as palavras
-escolhidas vão para a IA, junto com a frase em que apareceram, para que a tradução siga o sentido da
-cena. Uma palavra traduzida fica salva e não volta para a IA.
+Each subtitle goes through cleanup, tokenization and lemmatization, detection of phrasal verbs and
+expressions, and a filter for your level based on a frequency list grouped by lemma. All of this runs
+on the Mac. Only the chosen words go to the AI, together with the sentence where they appeared, so
+the translation follows the sense of the scene.
 
-## Recursos
+A translated word is saved and does not go back to the AI for a new translation. When the AI says
+the word has other common senses, like _bank_ or _pitch_, the saved card shows up right away and a
+short call checks whether that sense fits the new scene. If none of the saved senses fits, the AI
+writes a new one.
 
-### Cards sobre o vídeo
+## What makes the cards smart
 
-- O card novo mostra a tradução, uma explicação curta em português e a frase da cena. Os anteriores
-  encolhem para um resumo, e passar o mouse abre o card de novo, com outro exemplo.
-- A tradução chega em streaming, antes da explicação, e as próximas palavras são traduzidas enquanto
-  você lê o card atual.
-- Funciona com o vídeo em tela cheia, e a pilha pode ser arrastada para qualquer ponto da tela. Cada
-  monitor guarda a própria posição.
-- Botões para salvar a palavra ou marcá-la como conhecida, para que não apareça mais.
+- **Your level adapts to you.** The level you choose in Settings is only the starting point. Words
+  you mark as known move the cut up, and words you look up, save or get wrong in the quiz move it
+  down. Legendary looks for the point in the frequency list that best separates the two groups.
+- **Your history decides which words become cards.** A word you got right three times in a row no
+  longer becomes a card. A word whose review is due goes ahead of the others, because seeing it in a
+  real scene is the best review. Among words with the same score, the one already translated comes
+  first.
+- **On YouTube, the whole episode counts.** With the full track in hand, the app ranks each word by
+  how often it appears in the whole video, not only so far, and translates the best ones in advance,
+  in the order they show up. It only uses the track after a subtitle on the screen confirms that it
+  belongs to the video being watched.
+- **The cards follow the browser.** With more than one monitor, the cards appear on the screen where
+  the browser window is.
+
+## Features
+
+### Cards over the video
+
+- A new card shows the translation, a short explanation in Portuguese and the sentence from the
+  scene. Earlier cards shrink to a summary, and hovering over one opens it again, with another
+  example.
+- The translation streams in, before the explanation, and the next words are translated while you
+  read the current card.
+- It works with the video in full screen, and the stack can be dragged anywhere on the screen. Each
+  monitor keeps its own position.
+- Buttons to save the word or mark it as known, so it no longer shows up.
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/screenshots/youtube.webp" alt="Cena clara do YouTube com o card de head out e a barra da sessão quase transparente."></td>
-    <td width="50%"><img src="docs/screenshots/states.png" alt="Estados da barra da sessão e dos cards: ativa, pausada, sem legenda, erro da IA, card carregando e card aberto pelo mouse."></td>
+    <td width="50%"><img src="docs/screenshots/youtube.webp" alt="Bright YouTube scene with the card for head out and an almost transparent session bar."></td>
+    <td width="50%"><img src="docs/screenshots/states.png" alt="States of the session bar and the cards: active, paused, no subtitles, AI error, card loading and card opened by the mouse."></td>
   </tr>
   <tr>
-    <td>Numa cena clara. A barra da sessão some quase toda enquanto o mouse está longe do topo.</td>
-    <td>Os estados da barra e dos cards: pausa, falta de legenda, erro da IA, tradução a caminho e o card aberto pelo mouse.</td>
+    <td>In a bright scene. The session bar almost disappears while the mouse is away from the top.</td>
+    <td>The states of the bar and the cards: paused, missing subtitles, AI error, translation on the way and the card opened by the mouse.</td>
   </tr>
 </table>
 
-### Busca com ⌘⇧B
+### Search with ⌘⇧B
 
-Ouviu uma palavra que não virou card? ⌘⇧B abre uma barra por cima do vídeo, mesmo em tela cheia, sem
-tirar o navegador da frente. A palavra entra como um card normal, com a frase da legenda em que
-apareceu, e vai para o histórico e para o quiz. Uma opção volta o vídeo 10 segundos para você ouvir de
-novo.
+Heard a word that did not become a card? ⌘⇧B opens a bar over the video, even in full screen,
+without taking the browser out of focus. The word comes in as a regular card, with the subtitle
+sentence where it appeared, and goes to the history and the quiz. An option rewinds the video
+10 seconds so you can hear it again.
 
 <p align="center">
-  <img src="docs/screenshots/search.webp" width="100%" alt="Barra de busca com out of the blue digitado, no alto da cena, com a pilha de cards à direita.">
+  <img src="docs/screenshots/search.webp" width="100%" alt="Search bar with out of the blue typed, at the top of the scene, with the stack of cards on the right.">
 </p>
 
-### Todas as palavras e mais de um card por vez
+### All words and more than one card at a time
 
-O nível escolhe as palavras pela frequência, e às vezes deixa passar uma que você não sabia. O modo
-"Todas as palavras" ignora o nível. Uma palavra que volta aparece só em resumo, com o contador `2x`,
-`3x`, sem chamar a IA de novo, e passar o mouse mostra o resto.
+The level chooses the words by frequency, and sometimes lets through one you did not know. The "All
+words" mode ignores the level. A word that comes back appears only as a summary, with a `2x`, `3x`
+counter, without calling the AI again, and hovering shows the rest.
 
-Nas Configurações você também escolhe quanto tempo cada card fica aberto, de 3 a 30 segundos, quantos
-ficam abertos ao mesmo tempo, até 3, quantos cards por minuto e quantos resumos ficam na tela.
-
-<table>
-  <tr>
-    <td width="40%"><img src="docs/screenshots/all-words.png" alt="Dois cards abertos, calm e furious, e abaixo resumos com contador: shop 2x e coffee 3x."></td>
-    <td width="60%"><img src="docs/screenshots/settings.png" alt="Configurações: provedor de IA, chave, nível, todas as palavras, cards por minuto, tempo de cada card, cards por vez, resumos, posição, destaque na legenda, voltar o vídeo ao buscar e extensão."></td>
-  </tr>
-</table>
-
-### Quiz e revisão
-
-Ao encerrar a sessão, você vê o que aprendeu, escolhe as palavras e faz o quiz. São 7 tipos de
-questão: múltipla escolha nos dois sentidos, completar a frase, sentido no contexto, associar, verdadeiro
-ou falso e digitar a palavra. As teclas 1 a 4 respondem e Enter avança. As palavras entram numa revisão
-espaçada com SM-2, e o quiz é montado localmente se faltar a chave ou a internet.
+In Settings you also choose how long each card stays open, from 3 to 30 seconds, how many stay open
+at the same time, up to 3, how many cards per minute and how many summaries stay on the screen.
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/screenshots/quiz-summary.png" alt="Resumo da sessão com a duração, as palavras novas e a lista de palavras para o quiz."></td>
-    <td width="50%"><img src="docs/screenshots/quiz-question.png" alt="Questão de completar a frase, a terceira de dez."></td>
-  </tr>
-  <tr>
-    <td width="50%"><img src="docs/screenshots/quiz-match.png" alt="Questão de associar palavras e traduções, com uma palavra sendo arrastada."></td>
-    <td width="50%"><img src="docs/screenshots/quiz-result.png" alt="Resultado do quiz com a nota e as palavras para revisar."></td>
+    <td width="40%"><img src="docs/screenshots/all-words.png" alt="Two open cards, calm and furious, and below them summaries with counters: shop 2x and coffee 3x."></td>
+    <td width="60%"><img src="docs/screenshots/settings.png" alt="Settings: AI provider, key, level, all words, cards per minute, time of each card, cards at once, summaries, position, subtitle underline, rewind on search and extension."></td>
   </tr>
 </table>
 
-### Histórico
+### Quiz and review
 
-Todas as sessões e palavras, com quantas vezes cada uma apareceu, os acertos, o nível e a próxima
-revisão. Dá para buscar, filtrar e refazer o quiz de uma sessão.
+When the session ends, you see what you learned, choose the words and take the quiz: 10 questions
+by default, from 5 to 20 in Settings. There are 7 question types: multiple choice in both
+directions, fill in the sentence, sense in context, matching, true or false, and typing the word.
+Keys 1 to 4 answer and Enter moves on.
+
+- The first question appears as soon as the AI writes it, and the others arrive while you answer.
+  If the AI stops early, fails or there is no key or internet, the quiz is completed locally.
+- About a third of the questions are kept for words whose review is due, the most overdue first,
+  even after a long session.
+- The words go into spaced repetition with SM-2. The grade of each answer depends on the effort: a
+  word typed from memory counts more than a true or false.
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/quiz-summary.png" alt="Session summary with the duration, the new words and the list of words for the quiz."></td>
+    <td width="50%"><img src="docs/screenshots/quiz-question.png" alt="Fill in the sentence question, the third of ten."></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/quiz-match.png" alt="Matching question for words and translations, with a word being dragged."></td>
+    <td width="50%"><img src="docs/screenshots/quiz-result.png" alt="Quiz result with the score and the words to review."></td>
+  </tr>
+</table>
+
+### History
+
+Every session and word, with how many times each one appeared, the right answers, the level and the
+next review. You can search, filter and retake the quiz of a session.
 
 <p align="center">
-  <img src="docs/screenshots/history.png" width="100%" alt="Histórico com as sessões à esquerda e a tabela de palavras da sessão Northbound T1E3.">
+  <img src="docs/screenshots/history.png" width="100%" alt="History with the sessions on the left and the table of words of the session Northbound T1E3.">
 </p>
 
-### Barra de menus e extensão
+### Menu bar and extension
 
 <table>
   <tr>
-    <td width="62%"><img src="docs/screenshots/menu.png" alt="Menu da barra do macOS com a sessão ativa e as opções de pausar, encerrar, esconder os cards, histórico e configurações."></td>
-    <td width="38%"><img src="docs/screenshots/extension.png" alt="Popup da extensão conectada ao app, com o código de pareamento e a porta."></td>
+    <td width="62%"><img src="docs/screenshots/menu.png" alt="macOS menu bar menu with the active session and the options to pause, end, hide the cards, history and settings."></td>
+    <td width="38%"><img src="docs/screenshots/extension.png" alt="Extension popup connected to the app, with the pairing code and the port."></td>
   </tr>
   <tr>
-    <td>O menu da barra controla a sessão e abre o histórico e as Configurações.</td>
-    <td>O popup da extensão, onde você cola o código que conecta o navegador ao app.</td>
+    <td>The menu bar menu controls the session and opens the history and Settings.</td>
+    <td>The extension popup, where you paste the code that connects the browser to the app.</td>
   </tr>
 </table>
 
-## Atalhos
+## Shortcuts
 
-| Atalho | O que faz |
+| Shortcut | What it does |
 | --- | --- |
-| ⌘⇧L | Inicia a sessão, ou pausa e retoma |
-| ⌘⇧E | Encerra a sessão e abre o quiz |
-| ⌘⇧B | Abre a busca de palavra. Também funciona com o foco no player |
-| ⌘⇧K | Marca a palavra do card atual como conhecida |
-| ⌘⇧H | Esconde ou mostra os cards |
+| ⌘⇧L | Starts the session, or pauses and resumes it |
+| ⌘⇧E | Ends the session and opens the quiz |
+| ⌘⇧B | Opens the word search. Also works with the focus on the player |
+| ⌘⇧K | Marks the word of the current card as known |
+| ⌘⇧H | Hides or shows the cards |
 
-## Tecnologias
+## Technologies
 
-| Camada | Tecnologia |
+| Layer | Technology |
 | --- | --- |
-| Linguagem | TypeScript 6 em modo `strict`, num monorepo com pnpm 12 |
-| Desktop | Electron 45 e electron-vite 6 |
-| Interface | React 19, Tailwind CSS 4, Motion 14 e Zustand 5 |
-| Banco | SQLite com better-sqlite3 13 e Drizzle ORM 0.45 |
-| IA | AI SDK 7 com Gemini (`gemini-2.5-flash`), Claude (Haiku 5.5 traduz e Opus 5.5 monta o quiz) e DeepSeek (`deepseek-v4-flash`) |
-| Linguagem natural | wink-nlp 2, local: tokenização, lematização e classes gramaticais |
-| Contratos | Zod 4 nas mensagens IPC, no WebSocket e nas respostas da IA |
-| Extensão | WXT 0.21, Manifest V3 |
-| Comunicação | WebSocket local com `ws` 8 |
-| Testes | Vitest 5 e Playwright 1.65 no app Electron, na extensão e na comparação com o mockup |
-| Qualidade | ESLint 10, Prettier 3, Lefthook e commitlint |
-| Empacotamento | electron-builder 26 |
+| Language | TypeScript 6 in `strict` mode, in a pnpm 12 monorepo |
+| Desktop | Electron 45 and electron-vite 6 |
+| Interface | React 19, Tailwind CSS 4, Motion 14 and Zustand 5 |
+| Database | SQLite with better-sqlite3 13 and Drizzle ORM 0.45 |
+| AI | AI SDK 7 with Gemini (`gemini-2.5-flash`), Claude (Haiku 5.5 translates and Opus 5.5 builds the quiz) and DeepSeek (`deepseek-v4-flash`) |
+| Natural language | wink-nlp 2, local: tokenization, lemmatization and parts of speech |
+| Contracts | Zod 4 for IPC messages, the WebSocket and AI responses |
+| Extension | WXT 0.21, Manifest V3 |
+| Communication | Local WebSocket with `ws` 8 |
+| Tests | Vitest 5 and Playwright 1.65 for the Electron app, the extension and the comparison with the mockup |
+| Quality | ESLint 10, Prettier 3, Lefthook and commitlint |
+| Packaging | electron-builder 26 |
 
-## Estrutura
+## Structure
 
 ```
 apps/
-  desktop/     App Electron: processo main (serviços, IA, banco e janelas), preload e telas
-  extension/   Extensão: lê as legendas, sublinha a palavra e volta o vídeo
+  desktop/     Electron app: main process (services, AI, database and windows), preload and screens
+  extension/   Extension: reads the subtitles and the YouTube track, underlines words, rewinds
 packages/
-  contracts/   Schemas e tipos compartilhados: IPC, WebSocket, IA e domínio
-  core/        Lógica pura: pipeline das legendas, quiz e revisão espaçada
-  db/          Schema do banco e migrações
-design/        Cópia do mockup e os frames de referência dos testes visuais
-docs/          Capturas de tela
+  contracts/   Shared schemas and types: IPC, WebSocket, AI and domain
+  core/        Pure logic: subtitle pipeline, personal level, quiz and spaced repetition
+  db/          Database schema and migrations
+design/        Copy of the mockup and the reference frames of the visual tests
+docs/          Screenshots
 ```
 
-## Privacidade e segurança
+## Privacy and security
 
-- Sessões, palavras e quizzes ficam num SQLite em `~/Library/Application Support/Legendary`. Não há
-  conta nem servidor do Legendary.
-- Para a IA vão só as palavras escolhidas e a frase em que apareceram, direto para o provedor que você
-  escolheu, com a sua chave.
-- A chave da API é cifrada com o `safeStorage` do Electron, que guarda a chave de cifragem no Keychain.
-  Ela nunca sai do processo main: as janelas só recebem uma versão mascarada.
-- O WebSocket só escuta em `127.0.0.1`, exige o código de pareamento e recusa conexões vindas de sites.
-- As janelas rodam com sandbox e isolamento de contexto, sem acesso ao Node e com CSP restrita. Cada
-  mensagem IPC é validada.
+- Sessions, words and quizzes live in a SQLite database in `~/Library/Application Support/Legendary`.
+  There is no Legendary account or server.
+- Only the chosen words and the sentence where they appeared go to the AI, straight to the provider
+  you chose, with your key. To check the sense of a saved word, the call also carries the
+  translations already saved for it.
+- On YouTube, the extension reads the subtitle track the player has already downloaded, in English
+  only, and sends it only to the app on your Mac.
+- The API key is encrypted with Electron's `safeStorage`, which keeps the encryption key in the
+  Keychain. It never leaves the main process: the windows only receive a masked version.
+- The WebSocket only listens on `127.0.0.1`, requires the pairing code and refuses connections coming
+  from websites.
+- The windows run sandboxed with context isolation, without access to Node and with a strict CSP.
+  Every IPC message is validated.
 
-## Como rodar
+## Running it
 
-Requisitos: macOS 13 ou mais novo, Homebrew, Xcode Command Line Tools, Brave ou Chrome, e uma chave de
-API do Gemini, do Claude ou do DeepSeek.
+Requirements: macOS 13 or newer, Homebrew, Xcode Command Line Tools, Brave or Chrome, and an API key
+for Gemini, Claude or DeepSeek.
 
 ```bash
 brew install node@22 pnpm
@@ -201,41 +238,46 @@ make setup
 make dev
 ```
 
-O `Makefile` usa o Node 22 do Homebrew mesmo que ele não seja o padrão da máquina. Na primeira
-execução, o app pede a chave da API e o seu nível de inglês.
+The `Makefile` uses Homebrew's Node 22 even when it is not the machine's default. On the first run,
+the app asks for the API key and your English level.
 
-Para instalar a extensão:
+To install the extension:
 
-1. Rode `make build-ext`, que gera a pasta `apps/extension/.output/chrome-mv3`.
-2. Em `brave://extensions` ou `chrome://extensions`, ligue o modo do desenvolvedor, clique em "Carregar
-   sem compactação" e escolha essa pasta. Como `.output` começa com ponto, aperte ⌘⇧. no seletor para
-   ver as pastas ocultas.
-3. Copie o código em Configurações → Extensão e cole no popup da extensão.
+1. Run `make build-ext`, which generates the `apps/extension/.output/chrome-mv3` folder.
+2. In `brave://extensions` or `chrome://extensions`, turn on developer mode, click "Load unpacked" and
+   choose that folder. Since `.output` starts with a dot, press ⌘⇧. in the file picker to see hidden
+   folders.
+3. Copy the code in Settings → Extension and paste it in the extension popup.
 
-Depois de atualizar o código da extensão, recarregue-a na página de extensões.
+After updating the extension code, reload it on the extensions page.
 
-## Comandos
+## Commands
 
-| Comando | O que faz |
+| Command | What it does |
 | --- | --- |
-| `make dev` | Roda o app com hot reload |
-| `make build-ext` | Gera a extensão em `apps/extension/.output/chrome-mv3` |
-| `make ci` | Lint, tipos e testes de unidade e integração |
-| `make test-e2e` | Testes ponta a ponta no app real, inclusive com a extensão em um Chromium |
-| `make test-visual` | Compara cada tela com o frame do mockup, em `design/reference` |
-| `make package` | Gera o `.dmg` local, sem assinatura |
-| `make help` | Lista todos os alvos |
+| `make dev` | Runs the app with hot reload |
+| `make build-ext` | Generates the extension in `apps/extension/.output/chrome-mv3` |
+| `make ci` | Lint, types, and unit and integration tests |
+| `make test-e2e` | End-to-end tests on the real app, including the extension in Chromium |
+| `make test-visual` | Compares each screen with its frame from the mockup, in `design/reference` |
+| `make db-generate` | Generates a migration from the Drizzle schema |
+| `make package` | Builds the local `.dmg`, unsigned |
+| `make help` | Lists every target |
 
-Os testes ponta a ponta abrem janelas de verdade e registram os atalhos globais enquanto rodam, então é
-melhor não usar o computador ao mesmo tempo.
+The end-to-end tests open real windows and register the global shortcuts while they run, so it is
+better not to use the computer at the same time.
+
+To rebuild the frequency list from the FrequencyWords file, run
+`node apps/desktop/scripts/build-lexicon.mjs path/to/en_50k.txt` with Node 22.18 or newer. The script
+reduces each word to its lemma with the same tokenizer the app uses and adds up the counts.
 
 ## UI
 
-A referência visual é o mockup do Claude Design, com cópia local em `design/`. Toda mudança de UI
-precisa ser conferida contra ele. As telas são componentes sem acesso ao IPC, e a página
-`src/renderer/preview` os monta com os dados do mockup para o `make test-visual` comparar.
+The visual reference is the Claude Design mockup, with a local copy in `design/`. Every UI change
+must be checked against it. The screens are components without IPC access, and the
+`src/renderer/preview` page mounts them with the mockup data for `make test-visual` to compare.
 
-## Dados de terceiros
+## Third-party data
 
-A lista de frequência deriva do projeto FrequencyWords, sob CC BY-SA 4.0. Veja
-`apps/desktop/resources/NOTICE.md`.
+The frequency list derives from the FrequencyWords project, under CC BY-SA 4.0, grouped by lemma.
+See `apps/desktop/resources/NOTICE.md`.
