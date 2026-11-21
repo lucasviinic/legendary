@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { QuizQuestionDraft } from '@legendary/contracts';
-import { buildFallbackQuiz, gradeAnswer, levenshtein, sanitizeDrafts, selectWords } from './index';
+import { buildFallbackQuiz, gradeAnswer, levenshtein, sanitizeDraft, selectWords } from './index';
 
 const draft = (overrides: Partial<QuizQuestionDraft>): QuizQuestionDraft => ({
   word: 'reckon',
@@ -111,68 +111,84 @@ describe('selectWords', () => {
     count,
     wrongBefore,
   });
+  const size = (questions: number, limit = questions) => ({ questions, limit });
 
   it('prefers the most frequent words', () => {
-    const result = selectWords([word(1, 1), word(2, 5)], [], 1);
+    const result = selectWords([word(1, 1), word(2, 5)], [], size(1));
     expect(result).toEqual([2]);
   });
 
   it('prefers words the person got wrong before', () => {
-    const result = selectWords([word(1, 3), word(2, 1, 2)], [], 1);
+    const result = selectWords([word(1, 3), word(2, 1, 2)], [], size(1));
     expect(result).toEqual([2]);
   });
 
   it('keeps the earlier word when scores tie', () => {
-    expect(selectWords([word(7, 2), word(8, 2)], [], 1)).toEqual([7]);
+    expect(selectWords([word(7, 2), word(8, 2)], [], size(1))).toEqual([7]);
   });
 
   it('stops at the limit', () => {
     const words = Array.from({ length: 15 }, (_, i) => word(i, 1));
-    expect(selectWords(words, [], 10)).toHaveLength(10);
+    expect(selectWords(words, [], size(10))).toHaveLength(10);
   });
 
   it('completes with words due for review', () => {
-    expect(selectWords([word(1, 1)], [9, 8], 3)).toEqual([1, 9, 8]);
+    expect(selectWords([word(1, 1)], [9, 8], size(3))).toEqual([1, 9, 8]);
   });
 
   it('does not repeat a word that is also due', () => {
-    expect(selectWords([word(1, 1)], [1, 2], 3)).toEqual([1, 2]);
+    expect(selectWords([word(1, 1)], [1, 2], size(3))).toEqual([1, 2]);
+  });
+
+  it('keeps part of the questions for reviews even in a long session', () => {
+    const words = Array.from({ length: 20 }, (_, i) => word(i, 1));
+    const result = selectWords(words, [100, 101, 102, 103, 104], size(10, 12));
+    expect(result.slice(0, 10)).toEqual([0, 1, 2, 3, 4, 5, 6, 100, 101, 102]);
+    expect(result.slice(10)).toEqual([7, 8]);
+  });
+
+  it('takes the most overdue reviews first, in the order given', () => {
+    const words = Array.from({ length: 20 }, (_, i) => word(i, 1));
+    expect(selectWords(words, [50, 40, 30, 20], size(10))).toEqual(
+      expect.arrayContaining([50, 40, 30]),
+    );
+    expect(selectWords(words, [50, 40, 30, 20], size(10))).not.toContain(20);
+  });
+
+  it('gives the free questions to reviews when the session has few words', () => {
+    expect(selectWords([word(1, 1)], [7, 8, 9, 10], size(4))).toEqual([1, 7, 8, 9]);
   });
 });
 
-describe('sanitizeDrafts', () => {
+describe('sanitizeDraft', () => {
   const noShuffle = <T>(items: T[]) => items;
 
   it('keeps a valid question', () => {
-    expect(sanitizeDrafts([draft({})], 10, noShuffle)).toHaveLength(1);
+    expect(sanitizeDraft(draft({}), noShuffle)).toEqual(draft({}));
   });
 
   it('drops a choice question whose answer is not among the options', () => {
-    expect(sanitizeDrafts([draft({ answer: 'nada' })], 10, noShuffle)).toEqual([]);
+    expect(sanitizeDraft(draft({ answer: 'nada' }), noShuffle)).toBeNull();
   });
 
   it('drops a match question with fewer than two pairs', () => {
     const question = draft({ type: 'match', pairs: [{ word: 'a', meaning: 'b' }] });
-    expect(sanitizeDrafts([question], 10, noShuffle)).toEqual([]);
+    expect(sanitizeDraft(question, noShuffle)).toBeNull();
   });
 
   it('drops a typed question without an answer', () => {
     const question = draft({ type: 'type_word', options: null, answer: ' ' });
-    expect(sanitizeDrafts([question], 10, noShuffle)).toEqual([]);
+    expect(sanitizeDraft(question, noShuffle)).toBeNull();
   });
 
   it('drops a true or false question with another answer', () => {
     const question = draft({ type: 'true_false', options: null, answer: 'maybe' });
-    expect(sanitizeDrafts([question], 10, noShuffle)).toEqual([]);
-  });
-
-  it('caps the number of questions', () => {
-    expect(sanitizeDrafts([draft({}), draft({}), draft({})], 2, noShuffle)).toHaveLength(2);
+    expect(sanitizeDraft(question, noShuffle)).toBeNull();
   });
 
   it('shuffles the options', () => {
     const reverse = <T>(items: T[]) => [...items].reverse();
-    const [question] = sanitizeDrafts([draft({})], 10, reverse);
+    const question = sanitizeDraft(draft({}), reverse);
     expect(question?.options).toEqual(['comer', 'dormir', 'correr', 'achar']);
   });
 });
@@ -189,7 +205,7 @@ describe('buildFallbackQuiz', () => {
 
   it('produces valid questions for every word', () => {
     const quiz = buildFallbackQuiz(words, 10, keepOrder);
-    expect(sanitizeDrafts(quiz, 10, keepOrder)).toHaveLength(quiz.length);
+    expect(quiz.every((question) => sanitizeDraft(question, keepOrder) !== null)).toBe(true);
     expect(new Set(quiz.map((question) => question.word)).size).toBe(words.length);
   });
 
@@ -221,7 +237,7 @@ describe('buildFallbackQuiz', () => {
 
   it('works with a single word', () => {
     const quiz = buildFallbackQuiz(words.slice(0, 1), 10, keepOrder);
-    expect(sanitizeDrafts(quiz, 10, keepOrder)).toHaveLength(1);
+    expect(quiz.filter((question) => sanitizeDraft(question, keepOrder))).toHaveLength(1);
   });
 
   it('skips cloze when the word is not in the sentence', () => {

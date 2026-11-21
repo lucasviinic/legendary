@@ -3,18 +3,22 @@ import { createDeepSeek } from '@ai-sdk/deepseek';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import {
   EnrichResponseSchema,
-  QuizResponseSchema,
+  QuizQuestionDraftSchema,
+  SenseMatchSchema,
   type EnrichRequestWord,
   type Provider,
 } from '@legendary/contracts';
-import { generateObject, generateText, Output, streamText, type LanguageModel } from 'ai';
+import { generateText, Output, streamText, type LanguageModel } from 'ai';
 import { buildEnrichPrompt } from './prompts/enrich';
+import { buildMatchPrompt } from './prompts/match';
 import { buildQuizPrompt } from './prompts/quiz';
 import type { LLMProvider, OnTranslation } from './types';
 
 const ENRICH_TIMEOUT_MS = 60_000;
+const MATCH_TIMEOUT_MS = 15_000;
 const QUIZ_TIMEOUT_MS = 120_000;
 const MAX_OUTPUT_TOKENS = 16_000;
+const MATCH_OUTPUT_TOKENS = 200;
 
 type Task = 'enrich' | 'quiz';
 
@@ -83,13 +87,13 @@ export function createProvider(provider: Provider, apiKey: string): LLMProvider 
   return {
     name: provider,
 
-    async enrichWords(batch, onTranslation) {
+    async enrichWords(batch, { level, onTranslation }) {
       // Um erro no streaming não é lançado: ele só chega por aqui, e sem isto a fila ficaria parada.
       let failure: unknown;
       const result = streamText({
         model: enrichModel,
         output: Output.object({ schema: EnrichResponseSchema }),
-        ...buildEnrichPrompt(batch),
+        ...buildEnrichPrompt(batch, level),
         maxOutputTokens: MAX_OUTPUT_TOKENS,
         // As novas tentativas ficam com a fila.
         maxRetries: 0,
@@ -110,17 +114,38 @@ export function createProvider(provider: Provider, apiKey: string): LLMProvider 
       return words;
     },
 
-    async generateQuiz(words, maxQuestions) {
-      const { object } = await generateObject({
+    async matchSense(word, senses) {
+      const { output } = await generateText({
+        model: enrichModel,
+        output: Output.object({ schema: SenseMatchSchema }),
+        ...buildMatchPrompt(word, senses),
+        maxOutputTokens: MATCH_OUTPUT_TOKENS,
+        maxRetries: 0,
+        abortSignal: AbortSignal.timeout(MATCH_TIMEOUT_MS),
+        providerOptions: ENRICH_OPTIONS[provider],
+      });
+      const { match } = output;
+      return match !== null && match >= 0 && match < senses.length ? match : null;
+    },
+
+    async generateQuiz(words, count, onQuestion) {
+      let failure: unknown;
+      const result = streamText({
         model: quizModel,
-        schema: QuizResponseSchema,
-        ...buildQuizPrompt(words, maxQuestions),
+        output: Output.array({ element: QuizQuestionDraftSchema }),
+        ...buildQuizPrompt(words, count),
         maxOutputTokens: MAX_OUTPUT_TOKENS,
-        maxRetries: 1,
+        maxRetries: 0,
         abortSignal: AbortSignal.timeout(QUIZ_TIMEOUT_MS),
         providerOptions: quizOptions(provider),
+        onError: ({ error }) => {
+          failure = error;
+        },
       });
-      return object.questions;
+
+      for await (const question of result.elementStream) onQuestion?.(question);
+      if (failure) throw failure;
+      return result.output;
     },
 
     async check() {

@@ -2,7 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { appendFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { app, BrowserWindow, nativeTheme } from 'electron';
-import type { CaptionEvent, Provider, SettingsView } from '@legendary/contracts';
+import type { CaptionEvent, CaptionTrack, Provider, SettingsView } from '@legendary/contracts';
 import { createPipeline, createWordLookup } from '@legendary/core/pipeline';
 import { fakeProvider } from './ai/fake-provider';
 import { createProvider } from './ai/provider-factory';
@@ -95,6 +95,7 @@ async function bootstrap() {
     repos,
     pipeline: createPipeline(lexicon),
     lookup: createWordLookup(lexicon),
+    ranks: lexicon.ranks,
     settings,
     getProvider,
     now,
@@ -123,7 +124,17 @@ async function bootstrap() {
       if (status.state === 'idle') searchBar.hide();
     },
   });
-  const quiz = new QuizService({ repos, getProvider, now, shuffle, settings });
+  const quiz = new QuizService({
+    repos,
+    getProvider,
+    now,
+    shuffle,
+    settings,
+    emit: {
+      question: (quizId, question) => broadcast('quiz:question', { quizId, question }),
+      complete: (quizId, total) => broadcast('quiz:complete', { quizId, total }),
+    },
+  });
   const history = new HistoryService({ repos, now });
 
   const settingsView = (): SettingsView => ({
@@ -137,7 +148,11 @@ async function bootstrap() {
   settings.onChange(publishSettings);
   settings.onChange(publishLayout);
   source.on('connection-change', publishSettings);
-  source.on('caption', (caption: CaptionEvent) => session.handleCaption(caption));
+  source.on('caption', (caption: CaptionEvent) => {
+    if (caption.bounds) overlay.follow(caption.bounds);
+    session.handleCaption(caption);
+  });
+  source.on('track', (track: CaptionTrack) => session.handleTrack(track));
 
   const checkKey = async (provider: Provider) => {
     const key = settings.apiKey(provider);

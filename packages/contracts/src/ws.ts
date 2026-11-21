@@ -1,11 +1,12 @@
 import { z } from 'zod';
-import { CaptionEventSchema } from './caption';
+import { CaptionEventSchema, CaptionTrackSchema } from './caption';
 
 export const DEFAULT_WS_PORT = 47615;
 
 /** Mensagens da extensão para o app. */
 export const ClientMessageSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('caption'), caption: CaptionEventSchema }),
+  z.object({ type: z.literal('track'), track: CaptionTrackSchema }),
   z.object({ type: z.literal('ping') }),
   /** O atalho da busca foi apertado dentro do player. */
   z.object({ type: z.literal('open-search') }),

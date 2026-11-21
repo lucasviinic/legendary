@@ -1,44 +1,67 @@
-import type { EnrichRequestWord, EnrichedWord, WordCard } from '@legendary/contracts';
-import { wordKey, type WordCandidate } from '@legendary/core/pipeline';
-import type { createPipeline, createWordLookup } from '@legendary/core/pipeline';
+import type { EnrichRequestWord, EnrichedWord, Level, WordCard } from '@legendary/contracts';
+import { isDue, isMastered } from '@legendary/core';
+import {
+  personalCut,
+  scoreWord,
+  wordKey,
+  type createPipeline,
+  type createWordLookup,
+  type WordCandidate,
+} from '@legendary/core/pipeline';
 import { EnrichQueue } from '../ai/queue';
 import type { LLMProvider } from '../ai/types';
 import type { Repositories } from '../db/repositories';
 import type { WordSense } from '../db/repositories/senses';
 import type { SettingsService } from './settings';
 
-/** Depois disso a palavra já saiu de cena, então não vale mostrar o card. */
 const WAITING_TTL_MS = 30_000;
-/** Traduzindo tudo, a palavra não se perde: vira resumo enquanto a cena ainda é a mesma. */
 const ALL_WORDS_WAITING_MS = 10_000;
 const MINUTE_MS = 60_000;
-/** Quantas das palavras que esperam a vez já têm a tradução adiantada, com um card por vez. */
 const AHEAD_WORDS = 3;
-/** O limite de cards por vez nas configurações: mais que isso nunca é consultado. */
 const MAX_RECENT_CARDS = 3;
-/** Onde procurar a frase de uma palavra buscada: um pouco mais de um minuto de diálogo. */
 const RECENT_CAPTIONS = 30;
+const REVIEW_BOOST = 2;
+const PREFETCH_WORDS = 40;
+const TRACK_ATTEMPTS = 5;
+const MIN_TRACK_PROBE = 8;
 
 interface Entry extends WordCandidate {
   senseId: number | null;
   sense: WordSense | null;
-  /** A tradução que já chegou, enquanto o resto da resposta da IA não termina. */
+  provisional: WordSense | null;
   earlyTranslation: string | null;
   firstSeenAt: number;
   firstSentence: string;
   queuedAt: number;
   shownAt: number | null;
-  /** Cada palavra só é adiantada uma vez, mesmo que o pedido falhe. */
   askedAhead: boolean;
-  /** A pessoa buscou esta palavra, então os filtros das legendas não valem mais para ela. */
   searched: boolean;
   saved: boolean;
 }
+
+interface ReviewMark {
+  due: boolean;
+  mastered: boolean;
+}
+
+interface Track {
+  cues: readonly string[];
+  text: string;
+  confirmed: boolean;
+  misses: number;
+}
+
+const comparable = (text: string) =>
+  text
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}']+/gu, ' ')
+    .trim();
 
 const newEntry = (candidate: WordCandidate, now: number): Entry => ({
   ...candidate,
   senseId: null,
   sense: null,
+  provisional: null,
   earlyTranslation: null,
   firstSeenAt: now,
   firstSentence: candidate.sentence,
@@ -49,7 +72,7 @@ const newEntry = (candidate: WordCandidate, now: number): Entry => ({
   saved: false,
 });
 
-const toRequest = ({ lemma, pos, surface, sentence }: Entry): EnrichRequestWord => ({
+const toRequest = ({ lemma, pos, surface, sentence }: EnrichRequestWord): EnrichRequestWord => ({
   lemma,
   pos,
   surface,
@@ -68,23 +91,28 @@ export interface VocabularyDeps {
   repos: Repositories;
   pipeline: ReturnType<typeof createPipeline>;
   lookup: ReturnType<typeof createWordLookup>;
+  ranks: ReadonlyMap<string, number>;
   settings: SettingsService;
   getProvider: () => LLMProvider | null;
   now: () => number;
   emit: VocabularyEmitter;
 }
 
-/** Transforma legendas em cards: decide o que mostrar, quando e pede a tradução à IA. */
 export class VocabularyService {
   private readonly queue: EnrichQueue;
+  private epoch = 0;
   private sessionId: number | null = null;
   private entries = new Map<string, Entry>();
   private counts = new Map<string, number>();
   private known = new Set<string>();
+  private studied = new Set<string>();
+  private cuts = new Map<Level, number>();
+  private reviews = new Map<string, ReviewMark>();
+  private createdSenses = new Set<number>();
+  private track: Track | null = null;
+  private mediaCounts = new Map<string, number>();
   private recentCaptions: string[] = [];
-  /** Quando entraram os últimos cards, do mais antigo para o mais novo. */
   private recentCards: number[] = [];
-  /** Até quando cada card aberto ocupa o lugar dele, pela chave da palavra. */
   private places = new Map<string, number>();
   private shownOrder: string[] = [];
   private failing = false;
@@ -114,17 +142,23 @@ export class VocabularyService {
   }
 
   get newWords(): number {
-    // Uma palavra conhecida só aparece porque foi buscada, então não é nova.
     return [...this.entries.values()].filter(
       (entry) => entry.shownAt != null && !this.known.has(entry.lemma),
     ).length;
   }
 
   begin(): void {
+    this.epoch += 1;
     this.sessionId = null;
     this.entries = new Map();
     this.counts = new Map();
     this.known = this.deps.repos.known.all();
+    this.studied = this.deps.repos.senses.studiedLemmas();
+    this.cuts = new Map();
+    this.reviews = this.loadReviews();
+    this.createdSenses = new Set();
+    this.track = null;
+    this.mediaCounts = new Map();
     this.recentCaptions = [];
     this.recentCards = [];
     this.places = new Map();
@@ -144,20 +178,47 @@ export class VocabularyService {
     this.queued = 0;
   }
 
+  useTrack(cues: readonly string[]): void {
+    this.track = { cues, text: comparable(cues.join(' ')), confirmed: false, misses: 0 };
+    this.mediaCounts = new Map();
+  }
+
+  private cutFor(level: Level): number {
+    const cached = this.cuts.get(level);
+    if (cached !== undefined) return cached;
+    const ranks = (lemmas: Iterable<string>) =>
+      [...lemmas].flatMap((lemma) => {
+        const rank = this.deps.ranks.get(lemma);
+        return rank === undefined ? [] : [rank];
+      });
+    const cut = personalCut(level, {
+      known: ranks(this.known),
+      unknown: ranks([...this.studied].filter((lemma) => !this.known.has(lemma))),
+    });
+    this.cuts.set(level, cut);
+    return cut;
+  }
+
   handleCaption(sessionId: number, text: string): void {
     this.enterSession(sessionId);
     this.recentCaptions = [...this.recentCaptions, text].slice(-RECENT_CAPTIONS);
+    this.confirmTrack(text);
     const { level, translateAllWords } = this.deps.settings.get();
     const now = this.deps.now();
     const candidates = this.deps.pipeline(text, {
-      level,
+      cut: this.cutFor(level),
       known: this.known,
       sessionCounts: this.counts,
+      mediaCounts: this.mediaCounts,
       allWords: translateAllWords,
     });
 
     for (const found of this.countSearched(text, candidates)) {
-      const candidate = translateAllWords ? this.withKnownClass(found) : found;
+      const candidate = this.withReview(
+        translateAllWords ? this.withKnownClass(found) : found,
+        translateAllWords,
+      );
+      if (!candidate) continue;
       const key = wordKey(candidate.lemma, candidate.pos);
       this.counts.set(key, candidate.count);
       const entry = this.entries.get(key);
@@ -170,7 +231,6 @@ export class VocabularyService {
       } else {
         const fresh = newEntry(candidate, now);
         this.entries.set(key, fresh);
-        // Já traduzida em outra sessão: não precisa de um card, nem da IA.
         if (translateAllWords && this.deps.repos.senses.findByLemmaPos(fresh.lemma, fresh.pos)) {
           this.showAsSummary(fresh, now);
         }
@@ -183,7 +243,6 @@ export class VocabularyService {
     this.drain(this.deps.now(), null);
   }
 
-  /** Mostra na hora o card de uma palavra digitada. Devolve falso se o texto não tiver palavra. */
   search(query: string): boolean {
     const candidate = this.deps.lookup(query, {
       sentences: this.recentCaptions,
@@ -192,19 +251,21 @@ export class VocabularyService {
     if (!candidate) return false;
 
     const now = this.deps.now();
-    // A classe da palavra digitada é um palpite, então a mesma palavra é reconhecida só pelo lema.
     const existing = [...this.entries.values()].find((item) => item.lemma === candidate.lemma);
     const entry = existing ?? newEntry(candidate, now);
     const key = wordKey(entry.lemma, entry.pos);
     entry.searched = true;
     this.entries.set(key, entry);
     this.counts.set(key, entry.count);
+    this.studied.add(entry.lemma);
+    this.cuts.clear();
 
     if (entry.shownAt == null) {
       this.show(entry, now);
     } else {
       this.takePlace(key, now);
       this.shownOrder = [...this.shownOrder.filter((item) => item !== key), key];
+      this.persistCount(entry);
       this.deps.emit.card(this.toCard(entry));
     }
     return true;
@@ -214,6 +275,7 @@ export class VocabularyService {
     const now = this.deps.now();
     this.deps.repos.known.add(lemma, now);
     this.known.add(lemma);
+    this.cuts.clear();
     for (const [key, entry] of this.entries) {
       if (entry.lemma === lemma) {
         this.entries.delete(key);
@@ -224,22 +286,20 @@ export class VocabularyService {
     this.deps.emit.cardRemove(lemma);
   }
 
-  /** Desfaz o "já sei": o card continua aberto, e a palavra volta a poder entrar na fila. */
   unmarkKnown(lemma: string): void {
     this.deps.repos.known.remove(lemma);
     this.known.delete(lemma);
+    this.cuts.clear();
     const entry = [...this.entries.values()].find((item) => item.lemma === lemma);
     if (entry) this.deps.emit.cardUpdate(this.toCard(entry));
   }
 
-  /** O atalho só marca: num card já marcado, um toque sem querer não muda nada. */
   markCurrentKnown(): void {
     const key = this.shownOrder.at(-1);
     const entry = key ? this.entries.get(key) : undefined;
     if (entry && !this.known.has(entry.lemma)) this.markKnown(entry.lemma);
   }
 
-  /** Inverte o estado de salva. Antes da tradução chegar, a escolha fica guardada na memória. */
   toggleSaved(lemma: string): boolean {
     const entry = [...this.entries.values()].find((item) => item.lemma === lemma);
     if (!entry) return false;
@@ -251,18 +311,84 @@ export class VocabularyService {
     return entry.saved;
   }
 
-  /** A sessão só existe depois da primeira legenda, e uma palavra pode ter sido buscada antes. */
+  private loadReviews(): Map<string, ReviewMark> {
+    const now = this.deps.now();
+    const marks = new Map<string, ReviewMark>();
+    for (const row of this.deps.repos.reviews.byWord()) {
+      const key = wordKey(row.lemma, row.pos);
+      const mark = marks.get(key) ?? { due: false, mastered: false };
+      marks.set(key, {
+        due: mark.due || isDue(row, now),
+        mastered: mark.mastered || isMastered(row, now),
+      });
+    }
+    marks.forEach((mark) => {
+      if (mark.due) mark.mastered = false;
+    });
+    return marks;
+  }
+
+  private withReview(candidate: WordCandidate, allWords: boolean): WordCandidate | null {
+    const mark = this.reviews.get(wordKey(candidate.lemma, candidate.pos));
+    if (mark?.mastered && !allWords) return null;
+    return mark?.due ? { ...candidate, score: candidate.score * REVIEW_BOOST } : candidate;
+  }
+
+  private confirmTrack(text: string) {
+    const track = this.track;
+    if (!track || track.confirmed) return;
+    const probe = comparable(text);
+    if (probe.length < MIN_TRACK_PROBE) return;
+    if (track.text.includes(probe)) {
+      track.confirmed = true;
+      this.prepareTrack(track.cues);
+      return;
+    }
+    track.misses += 1;
+    if (track.misses >= TRACK_ATTEMPTS) this.track = null;
+  }
+
+  private prepareTrack(cues: readonly string[]) {
+    const { level, translateAllWords } = this.deps.settings.get();
+    const context = {
+      cut: this.cutFor(level),
+      known: this.known,
+      sessionCounts: new Map<string, number>(),
+      allWords: translateAllWords,
+    };
+    const counts = new Map<string, number>();
+    const firsts = new Map<string, WordCandidate>();
+    for (const cue of cues) {
+      for (const candidate of this.deps.pipeline(cue, context)) {
+        const key = wordKey(candidate.lemma, candidate.pos);
+        counts.set(key, (counts.get(key) ?? 0) + 1);
+        if (!firsts.has(key)) firsts.set(key, candidate);
+      }
+    }
+    this.mediaCounts = counts;
+
+    const worth = ([key, candidate]: [string, WordCandidate]) =>
+      scoreWord({ count: counts.get(key) ?? 1, rank: candidate.rank });
+    const picked = new Set(
+      [...firsts]
+        .filter(
+          ([, candidate]) => !this.deps.repos.senses.findByLemmaPos(candidate.lemma, candidate.pos),
+        )
+        .sort((a, b) => worth(b) - worth(a))
+        .slice(0, PREFETCH_WORDS)
+        .map(([key]) => key),
+    );
+    for (const [key, candidate] of firsts) {
+      if (picked.has(key)) this.queue.addAhead(toRequest(candidate));
+    }
+  }
+
   private enterSession(sessionId: number) {
     const first = this.sessionId === null;
     this.sessionId = sessionId;
     if (first) this.entries.forEach((entry) => this.persistCount(entry));
   }
 
-  /**
-   * Conta as palavras buscadas que aparecem na legenda, mesmo as que os filtros dispensariam. Elas
-   * nunca viram outro card nem voltam para a IA, mesmo que a legenda dê outra classe à palavra.
-   * Devolve os candidatos que sobram.
-   */
   private countSearched(text: string, candidates: WordCandidate[]): WordCandidate[] {
     const searched = [...this.entries.values()].filter((entry) => entry.searched);
     for (const entry of searched) {
@@ -271,7 +397,6 @@ export class VocabularyService {
         sessionCounts: this.counts,
       });
       if (!found?.sentence) continue;
-      // Sem frase, a palavra ainda não tinha aparecido: esta é a primeira vez, e o card já conta 1.
       if (entry.sentence) entry.count += 1;
       else {
         entry.sentence = found.sentence;
@@ -285,10 +410,6 @@ export class VocabularyService {
     return candidates.filter(({ lemma }) => !searched.some((entry) => entry.lemma === lemma));
   }
 
-  /**
-   * Traduzindo tudo, a palavra aparece muitas vezes e o analisador pode dar outra classe a ela, como
-   * "hunch" verbo depois de "hunch" substantivo. Sem isto, ela voltaria para a IA e abriria outro card.
-   */
   private withKnownClass(candidate: WordCandidate): WordCandidate {
     const entry = [...this.entries.values()].find((item) => item.lemma === candidate.lemma);
     const pos = entry?.pos ?? this.deps.repos.senses.findByLemma(candidate.lemma)?.pos;
@@ -300,10 +421,6 @@ export class VocabularyService {
     };
   }
 
-  /**
-   * Traduzindo tudo, a palavra que voltou sobe na pilha. Senão, só o contador do card muda. A palavra
-   * conhecida também só muda o contador: ela entra na pilha pela busca, nunca por aparecer de novo.
-   */
   private announceReturn(entry: Entry) {
     const { translateAllWords } = this.deps.settings.get();
     const climbs = translateAllWords && !this.known.has(entry.lemma);
@@ -311,7 +428,6 @@ export class VocabularyService {
     emit(this.toCard(entry));
   }
 
-  /** `captionText` é a legenda que acabou de chegar, ou nulo quando quem chama é o relógio. */
   private drain(now: number, captionText: string | null) {
     const { cardsAtOnce, highlightSubtitles, translateAllWords } = this.deps.settings.get();
     const patience = translateAllWords ? ALL_WORDS_WAITING_MS : WAITING_TTL_MS;
@@ -323,12 +439,14 @@ export class VocabularyService {
       else this.entries.delete(key);
     }
 
-    waiting.sort((a, b) => b.score - a.score);
+    const translated = new Set(waiting.filter((entry) => this.isTranslated(entry)));
+    waiting.sort(
+      (a, b) => b.score - a.score || Number(translated.has(b)) - Number(translated.has(a)),
+    );
 
     const surfaces: string[] = [];
     while (waiting.length > 0 && this.hasRoomForCard(now)) {
-      const next = waiting.find((entry) => this.isTranslated(entry)) ?? waiting[0]!;
-      waiting.splice(waiting.indexOf(next), 1);
+      const next = waiting.shift()!;
       this.show(next, now);
       if (next.queuedAt === now) surfaces.push(next.surface);
     }
@@ -340,14 +458,12 @@ export class VocabularyService {
     );
   }
 
-  /** O próximo card entra quando há um lugar livre e o limite de cards por minuto permite. */
   private hasRoomForCard(now: number): boolean {
     const { cardsPerMinute, cardsAtOnce } = this.deps.settings.get();
     for (const [key, until] of this.places) {
       if (until <= now) this.places.delete(key);
     }
     if (this.places.size >= cardsAtOnce) return false;
-    // Vários cards podem entrar juntos, e a média continua sendo a dos cards por minuto.
     const oldest = this.recentCards.at(-cardsAtOnce);
     return oldest === undefined || now - oldest >= (cardsAtOnce * MINUTE_MS) / cardsPerMinute;
   }
@@ -364,6 +480,7 @@ export class VocabularyService {
   private isTranslated(entry: Entry): boolean {
     return (
       entry.earlyTranslation !== null ||
+      entry.provisional !== null ||
       this.deps.repos.senses.findByLemmaPos(entry.lemma, entry.pos) !== undefined
     );
   }
@@ -383,27 +500,56 @@ export class VocabularyService {
     const key = wordKey(entry.lemma, entry.pos);
     this.takePlace(key, now);
     this.shownOrder.push(key);
-    this.loadTranslation(entry);
+    this.loadTranslation(entry, true);
     this.deps.emit.card(this.toCard(entry));
   }
 
   private showAsSummary(entry: Entry, now: number) {
     entry.shownAt = now;
-    // No começo da lista, porque o atalho de "já sei" vale para o último card aberto.
     this.shownOrder.unshift(wordKey(entry.lemma, entry.pos));
-    this.loadTranslation(entry);
+    this.loadTranslation(entry, false);
     this.deps.emit.cardSeen(this.toCard(entry));
   }
 
-  private loadTranslation(entry: Entry) {
-    const sense = this.deps.repos.senses.findByLemmaPos(entry.lemma, entry.pos);
+  private loadTranslation(entry: Entry, matchScene: boolean) {
+    const senses = this.deps.repos.senses.findAllByLemmaPos(entry.lemma, entry.pos);
+    const [first] = senses;
+    if (!first) {
+      this.queue.add(toRequest(entry));
+      return;
+    }
+    const created = senses.find((sense) => this.createdSenses.has(sense.id));
+    const provider = this.deps.getProvider();
+    const ambiguous = senses.some((sense) => sense.polysemous);
+    if (created || !matchScene || !provider || !entry.sentence || !ambiguous) {
+      this.attachSense(entry, created ?? first);
+      return;
+    }
+    entry.provisional = first;
+    void this.matchSense(provider, entry, senses);
+  }
+
+  private async matchSense(provider: LLMProvider, entry: Entry, senses: WordSense[]) {
+    const epoch = this.epoch;
+    const key = wordKey(entry.lemma, entry.pos);
+    let index: number | null;
+    try {
+      index = await provider.matchSense(toRequest(entry), senses);
+    } catch {
+      index = 0;
+    }
+    if (epoch !== this.epoch || this.entries.get(key) !== entry || entry.sense) return;
+    entry.provisional = null;
+    const sense = index === null ? undefined : senses[index];
     if (sense) this.attachSense(entry, sense);
     else this.queue.add(toRequest(entry));
+    this.deps.emit.cardUpdate(this.toCard(entry));
   }
 
   private attachSense(entry: Entry, sense: WordSense) {
     entry.sense = sense;
     entry.senseId = sense.id;
+    entry.provisional = null;
     if (entry.saved && !this.deps.repos.saved.isSaved(sense.id)) {
       this.deps.repos.saved.toggle(sense.id, this.deps.now());
     } else {
@@ -420,15 +566,17 @@ export class VocabularyService {
       count: entry.count,
       contextSentence: entry.firstSentence || (entry.sense?.exampleEn ?? ''),
       firstSeenAt: entry.firstSeenAt,
+      searched: entry.searched,
     });
   }
 
   private enrich(batch: EnrichRequestWord[]): Promise<EnrichedWord[]> {
     const provider = this.deps.getProvider();
     if (!provider) return Promise.reject(new Error('Sem API key configurada.'));
-    return provider.enrichWords(batch, (word, translation) =>
-      this.handleEarlyTranslation(word, translation),
-    );
+    return provider.enrichWords(batch, {
+      level: this.deps.settings.get().level,
+      onTranslation: (word, translation) => this.handleEarlyTranslation(word, translation),
+    });
   }
 
   private handleEarlyTranslation(request: EnrichRequestWord, translation: string) {
@@ -447,20 +595,20 @@ export class VocabularyService {
       exampleEn: result.exampleEn,
       examplePt: result.examplePt,
       cefr: result.cefr,
+      polysemous: result.polysemous,
       provider: this.deps.getProvider()?.name ?? 'unknown',
     });
-    // Palavra adiantada fica só no cache: ela entra na sessão quando o card aparecer.
+    this.createdSenses.add(sense.id);
     const key = wordKey(request.lemma, request.pos);
     const entry = this.entries.get(key);
     if (entry?.shownAt == null) return;
     this.attachSense(entry, sense);
-    // O overlay recomeça o tempo do card quando a explicação chega, para dar tempo de ler.
     if (this.places.has(key)) this.places.set(key, this.placeEnd(this.deps.now()));
     this.deps.emit.cardUpdate(this.toCard(entry));
   }
 
   private toCard(entry: Entry): WordCard {
-    const { sense } = entry;
+    const sense = entry.sense ?? entry.provisional;
     return {
       lemma: entry.lemma,
       surface: entry.surface,
@@ -468,7 +616,6 @@ export class VocabularyService {
       cefr: (sense?.cefr as WordCard['cefr']) ?? entry.estimatedCefr,
       translation: sense?.translation ?? entry.earlyTranslation,
       explanation: sense?.explanation ?? null,
-      // Uma palavra buscada pode não ter aparecido em nenhuma legenda: a frase vem da IA.
       sentence: entry.sentence || (sense?.exampleEn ?? ''),
       extraExample: entry.sentence ? (sense?.exampleEn ?? null) : null,
       count: entry.count,

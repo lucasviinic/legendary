@@ -1,6 +1,6 @@
 import { asc, eq, lte } from 'drizzle-orm';
 import type { ReviewState } from '@legendary/core';
-import { reviews } from '@legendary/db';
+import { reviews, wordSenses } from '@legendary/db';
 import type { Db } from '../client';
 
 export function reviewsRepository(db: Db) {
@@ -17,6 +17,17 @@ export function reviewsRepository(db: Db) {
         .onConflictDoUpdate({ target: reviews.senseId, set: state })
         .run();
     },
+    byWord: () =>
+      db
+        .select({
+          lemma: wordSenses.lemma,
+          pos: wordSenses.pos,
+          repetitions: reviews.repetitions,
+          dueAt: reviews.dueAt,
+        })
+        .from(reviews)
+        .innerJoin(wordSenses, eq(wordSenses.id, reviews.senseId))
+        .all(),
     dueSenseIds: (until: number): number[] =>
       db
         .select({ senseId: reviews.senseId })

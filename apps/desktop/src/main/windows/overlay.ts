@@ -1,4 +1,4 @@
-import { BrowserWindow, screen, type Display } from 'electron';
+import { BrowserWindow, screen, type Display, type Rectangle } from 'electron';
 import { loadPage, secureWebPreferences } from './common';
 
 /**
@@ -13,16 +13,30 @@ export class OverlayWindow {
   private window: BrowserWindow | null = null;
   private userHidden = false;
   private sessionActive = false;
+  private displayId: number | null = null;
+  private onDisplayChange: () => void = () => undefined;
 
   get current(): BrowserWindow | null {
     return this.window;
   }
 
   get display(): Display {
-    return screen.getPrimaryDisplay();
+    return (
+      screen.getAllDisplays().find((display) => display.id === this.displayId) ??
+      screen.getPrimaryDisplay()
+    );
+  }
+
+  follow(bounds: Rectangle): void {
+    const target = screen.getDisplayMatching(bounds);
+    if (target.id === this.display.id) return;
+    this.displayId = target.id;
+    this.window?.setBounds(target.bounds);
+    this.onDisplayChange();
   }
 
   create(onDisplayChange: () => void): void {
+    this.onDisplayChange = onDisplayChange;
     const window = new BrowserWindow({
       ...this.display.bounds,
       enableLargerThanScreen: true,
@@ -56,7 +70,7 @@ export class OverlayWindow {
 
     const followDisplay = () => {
       this.window?.setBounds(this.display.bounds);
-      onDisplayChange();
+      this.onDisplayChange();
     };
     screen.on('display-metrics-changed', followDisplay);
     screen.on('display-added', followDisplay);

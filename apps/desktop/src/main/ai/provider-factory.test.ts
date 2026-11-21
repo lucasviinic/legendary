@@ -23,7 +23,10 @@ const answerOf = (word: EnrichRequestWord, translation: string): EnrichedWord =>
   exampleEn: 'An example.',
   examplePt: 'Um exemplo.',
   cefr: 'B2',
+  polysemous: false,
 });
+
+const LEVEL = { level: 'B2' } as const;
 
 const FULL_ANSWER = JSON.stringify({
   words: [answerOf(reckon, 'achar, supor'), answerOf(grumpy, 'mal-humorado')],
@@ -155,7 +158,7 @@ const PROVIDERS: Provider[] = ['claude', 'deepseek', 'gemini'];
 describe.each(PROVIDERS)('translating words with %s', (provider) => {
   it('returns the complete answer', async () => {
     respondWith(answeredStream(provider).response);
-    const words = await createProvider(provider, 'key').enrichWords([reckon, grumpy]);
+    const words = await createProvider(provider, 'key').enrichWords([reckon, grumpy], LEVEL);
     expect(words).toEqual([answerOf(reckon, 'achar, supor'), answerOf(grumpy, 'mal-humorado')]);
   });
 
@@ -165,7 +168,10 @@ describe.each(PROVIDERS)('translating words with %s', (provider) => {
     stream.write(SSE[provider].start);
 
     const onTranslation = vi.fn();
-    const answer = createProvider(provider, 'key').enrichWords([reckon, grumpy], onTranslation);
+    const answer = createProvider(provider, 'key').enrichWords([reckon, grumpy], {
+      level: 'B2',
+      onTranslation,
+    });
     await vi.waitFor(() => expect(vi.mocked(fetch)).toHaveBeenCalled());
 
     const [first, second, rest] = pieces(FULL_ANSWER);
@@ -191,14 +197,14 @@ describe.each(PROVIDERS)('translating words with %s', (provider) => {
         headers: { 'content-type': 'application/json' },
       }),
     );
-    await expect(createProvider(provider, 'key').enrichWords([reckon])).rejects.toThrow();
+    await expect(createProvider(provider, 'key').enrichWords([reckon], LEVEL)).rejects.toThrow();
   });
 
   it('fails instead of hanging when the connection drops midway', async () => {
     const stream = streamedResponse();
     respondWith(stream.response);
     stream.write(SSE[provider].start);
-    const answer = createProvider(provider, 'key').enrichWords([reckon]);
+    const answer = createProvider(provider, 'key').enrichWords([reckon], LEVEL);
     await vi.waitFor(() => expect(vi.mocked(fetch)).toHaveBeenCalled());
     stream.write(SSE[provider].text(pieces(FULL_ANSWER)[0]!));
     stream.fail(new Error('connection lost'));
@@ -207,14 +213,14 @@ describe.each(PROVIDERS)('translating words with %s', (provider) => {
 
   it('fails when the answer is not the expected JSON', async () => {
     respondWith(answeredStream(provider, 'Desculpe, não posso ajudar.').response);
-    await expect(createProvider(provider, 'key').enrichWords([reckon])).rejects.toThrow();
+    await expect(createProvider(provider, 'key').enrichWords([reckon], LEVEL)).rejects.toThrow();
   });
 });
 
 describe('what is sent to translate words', () => {
   it('uses Haiku on Claude, without thinking and without the fallback it does not have', async () => {
     const { lastRequest } = respondWith(answeredStream('claude').response);
-    await createProvider('claude', 'key').enrichWords([reckon]);
+    await createProvider('claude', 'key').enrichWords([reckon], LEVEL);
     const { url, body } = lastRequest();
     expect(url).toContain('/messages');
     expect(body).toMatchObject({
@@ -229,7 +235,7 @@ describe('what is sent to translate words', () => {
 
   it('turns off the thinking mode of DeepSeek, which is on by default', async () => {
     const { lastRequest } = respondWith(answeredStream('deepseek').response);
-    await createProvider('deepseek', 'key').enrichWords([reckon]);
+    await createProvider('deepseek', 'key').enrichWords([reckon], LEVEL);
     expect(lastRequest().body).toMatchObject({
       model: 'deepseek-v4-flash',
       stream: true,
@@ -239,14 +245,14 @@ describe('what is sent to translate words', () => {
 
   it('turns off the thinking of Gemini', async () => {
     const { lastRequest } = respondWith(answeredStream('gemini').response);
-    await createProvider('gemini', 'key').enrichWords([reckon]);
+    await createProvider('gemini', 'key').enrichWords([reckon], LEVEL);
     const { url, body } = lastRequest();
     expect(url).toContain('gemini-2.5-flash:streamGenerateContent');
     expect(body).toMatchObject({ generationConfig: { thinkingConfig: { thinkingBudget: 0 } } });
   });
 });
 
-describe('what is sent to build the quiz', () => {
+describe('building the quiz', () => {
   const word = {
     word: 'reckon',
     translation: 'achar',
@@ -254,28 +260,99 @@ describe('what is sent to build the quiz', () => {
     sentence: 'I reckon so.',
     surface: 'reckon',
   };
+  const question = (prompt: string) => ({
+    word: 'reckon',
+    type: 'mc_en_pt',
+    prompt,
+    options: ['achar', 'correr'],
+    answer: 'achar',
+    explanation: 'e',
+    pairs: null,
+  });
+  const QUIZ = JSON.stringify({ elements: [question('primeira'), question('segunda')] });
 
   it('keeps Opus on Claude, with the server-side fallback', async () => {
-    const { lastRequest } = respondWith(
-      new Response(
-        JSON.stringify({
-          id: 'm',
-          type: 'message',
-          role: 'assistant',
-          model: 'claude-opus-5-5',
-          content: [{ type: 'text', text: JSON.stringify({ questions: [] }) }],
-          stop_reason: 'end_turn',
-          usage: { input_tokens: 1, output_tokens: 1 },
-        }),
-        { status: 200, headers: { 'content-type': 'application/json' } },
-      ),
-    );
-    await createProvider('claude', 'key').generateQuiz([word], 10);
+    const { lastRequest } = respondWith(answeredStream('claude', QUIZ).response);
+    await createProvider('claude', 'key').generateQuiz([word], 2);
     expect(lastRequest().body).toMatchObject({
       model: 'claude-opus-5-5',
+      stream: true,
       fallbacks: 'default',
       output_config: { effort: 'low' },
     });
+  });
+
+  it.each(PROVIDERS)(
+    'hands over each question of %s as soon as it is complete',
+    async (provider) => {
+      const stream = streamedResponse();
+      respondWith(stream.response);
+      stream.write(SSE[provider].start);
+
+      const onQuestion = vi.fn();
+      const answer = createProvider(provider, 'key').generateQuiz([word], 2, onQuestion);
+      await vi.waitFor(() => expect(vi.mocked(fetch)).toHaveBeenCalled());
+
+      const [first, rest] = QUIZ.split(/(?<=\}),(?=\{"word")/);
+      stream.write(SSE[provider].text(`${first!},`));
+      stream.write(SSE[provider].text('{"word":"reck'));
+      await vi.waitFor(() => expect(onQuestion).toHaveBeenCalledTimes(1));
+      expect(onQuestion).toHaveBeenCalledWith(question('primeira'));
+
+      stream.write(SSE[provider].text(rest!.slice('{"word":"reck'.length)));
+      stream.write(SSE[provider].finish);
+      stream.close();
+      await expect(answer).resolves.toEqual([question('primeira'), question('segunda')]);
+      expect(onQuestion).toHaveBeenCalledTimes(2);
+    },
+  );
+
+  it('fails when the connection drops before the quiz ends', async () => {
+    const stream = streamedResponse();
+    respondWith(stream.response);
+    stream.write(SSE.gemini.start);
+    const answer = createProvider('gemini', 'key').generateQuiz([word], 2);
+    await vi.waitFor(() => expect(vi.mocked(fetch)).toHaveBeenCalled());
+    stream.fail(new Error('connection lost'));
+    await expect(answer).rejects.toThrow();
+  });
+});
+
+describe('choosing the sense of a scene', () => {
+  const bank: EnrichRequestWord = {
+    lemma: 'bank',
+    pos: 'noun',
+    surface: 'bank',
+    sentence: 'They sat on the river bank.',
+  };
+  const senses = [
+    { translation: 'banco', explanation: 'Instituição financeira.' },
+    { translation: 'margem', explanation: 'A beira de um rio.' },
+  ];
+  const geminiAnswer = (text: string) =>
+    new Response(
+      JSON.stringify({
+        candidates: [{ content: { role: 'model', parts: [{ text }] }, finishReason: 'STOP' }],
+        usageMetadata: { promptTokenCount: 1, candidatesTokenCount: 1, totalTokenCount: 2 },
+      }),
+      { status: 200, headers: { 'content-type': 'application/json' } },
+    );
+
+  it('returns the sense that fits the sentence, with the fast model', async () => {
+    const { lastRequest } = respondWith(geminiAnswer('{"match":1}'));
+    await expect(createProvider('gemini', 'key').matchSense(bank, senses)).resolves.toBe(1);
+    expect(lastRequest().url).toContain('gemini-2.5-flash:generateContent');
+    expect(JSON.stringify(lastRequest().body)).toContain('river bank');
+  });
+
+  it('says when no known sense fits', async () => {
+    respondWith(geminiAnswer('{"match":null}'));
+    await expect(createProvider('gemini', 'key').matchSense(bank, senses)).resolves.toBeNull();
+  });
+
+  it('ignores a number outside the list', async () => {
+    respondWith(geminiAnswer('{"match":7}'));
+    await expect(createProvider('gemini', 'key').matchSense(bank, senses)).resolves.toBeNull();
   });
 });
 

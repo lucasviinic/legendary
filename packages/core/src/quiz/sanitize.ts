@@ -22,16 +22,10 @@ function isValid(question: QuizQuestionDraft): boolean {
   return options.length >= 2 && options.some((option) => clean(option) === clean(question.answer));
 }
 
-/** A resposta da IA já vem validada no formato, mas não no sentido: aqui ficam só as jogáveis. */
-export function sanitizeDrafts(
-  drafts: readonly QuizQuestionDraft[],
-  limit: number,
+export function sanitizeDraft(
+  question: QuizQuestionDraft,
   shuffle: Shuffle,
-): QuizQuestionDraft[] {
-  return drafts
-    .filter(isValid)
-    .slice(0, limit)
-    .map((question) =>
-      question.options ? { ...question, options: shuffle(question.options) } : question,
-    );
+): QuizQuestionDraft | null {
+  if (!isValid(question)) return null;
+  return question.options ? { ...question, options: shuffle(question.options) } : question;
 }

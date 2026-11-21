@@ -3,7 +3,8 @@ import {
   CaptionEventSchema,
   ClientMessageSchema,
   EnrichResponseSchema,
-  QuizResponseSchema,
+  QuizQuestionDraftSchema,
+  SenseMatchSchema,
   SettingsSchema,
   defaultSettings,
   eventChannels,
@@ -39,6 +40,27 @@ describe('WebSocket messages', () => {
     expect(msg.type).toBe('caption');
   });
 
+  it('accepts the whole caption track of a video', () => {
+    const track = { source: 'youtube', cues: ['I reckon so.', 'We headed out.'] };
+    expect(ClientMessageSchema.parse({ type: 'track', track })).toEqual({ type: 'track', track });
+  });
+
+  it('accepts the bounds of the browser window with a caption', () => {
+    const caption = {
+      text: 'I reckon so.',
+      startedAt: 1,
+      source: 'youtube',
+      bounds: { x: -1920, y: 0, width: 1920, height: 1080 },
+    };
+    expect(ClientMessageSchema.parse({ type: 'caption', caption })).toMatchObject({ caption });
+  });
+
+  it('rejects an empty caption track', () => {
+    expect(() =>
+      ClientMessageSchema.parse({ type: 'track', track: { source: 'youtube', cues: [] } }),
+    ).toThrow();
+  });
+
   it('rejects an unknown message type', () => {
     expect(() => ClientMessageSchema.parse({ type: 'eval', code: 'x' })).toThrow();
   });
@@ -56,10 +78,16 @@ describe('AI responses', () => {
           exampleEn: 'I reckon it will rain.',
           examplePt: 'Acho que vai chover.',
           cefr: 'B2',
+          polysemous: false,
         },
       ],
     });
     expect(parsed.words[0]?.cefr).toBe('B2');
+  });
+
+  it('accepts the choice among known senses, or none', () => {
+    expect(SenseMatchSchema.parse({ match: 1 }).match).toBe(1);
+    expect(SenseMatchSchema.parse({ match: null }).match).toBeNull();
   });
 
   it('accepts every quiz question type in the closed format', () => {
@@ -81,23 +109,21 @@ describe('AI responses', () => {
       explanation: 'porque sim',
       pairs: type === 'match' ? [{ word: 'reckon', meaning: 'achar' }] : null,
     }));
-    expect(QuizResponseSchema.parse({ questions }).questions).toHaveLength(types.length);
+    expect(questions.map((question) => QuizQuestionDraftSchema.parse(question))).toHaveLength(
+      types.length,
+    );
   });
 
   it('rejects a question type outside the closed format', () => {
     expect(() =>
-      QuizResponseSchema.parse({
-        questions: [
-          {
-            word: 'x',
-            type: 'essay',
-            prompt: 'p',
-            options: null,
-            answer: 'a',
-            explanation: 'e',
-            pairs: null,
-          },
-        ],
+      QuizQuestionDraftSchema.parse({
+        word: 'x',
+        type: 'essay',
+        prompt: 'p',
+        options: null,
+        answer: 'a',
+        explanation: 'e',
+        pairs: null,
       }),
     ).toThrow();
   });

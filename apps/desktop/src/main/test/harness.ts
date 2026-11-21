@@ -4,6 +4,7 @@ import type {
   EnrichRequestWord,
   EnrichedWord,
   QuizQuestionDraft,
+  QuizQuestionView,
   Settings,
 } from '@legendary/contracts';
 import type { Lexicon } from '@legendary/core/pipeline';
@@ -26,6 +27,7 @@ export const lexicon: Lexicon = {
     ['wary', 11000],
     ['hunch', 12000],
     ['knack', 13000],
+    ['bank', 5000],
   ]),
   phrases: [{ text: 'head out', kind: 'phrasal verb' }],
 };
@@ -38,12 +40,14 @@ export const enriched = (word: EnrichRequestWord): EnrichedWord => ({
   exampleEn: `Example of ${word.lemma}.`,
   examplePt: `Exemplo de ${word.lemma}.`,
   cefr: 'B2',
+  polysemous: false,
 });
 
 export function fakeProvider(overrides: Partial<LLMProvider> = {}): LLMProvider {
   return {
     name: 'gemini',
     enrichWords: vi.fn(async (batch: EnrichRequestWord[]) => batch.map(enriched)),
+    matchSense: vi.fn(async () => 0),
     generateQuiz: vi.fn(async (): Promise<QuizQuestionDraft[]> => {
       throw new Error('sem quiz da IA neste teste');
     }),
@@ -64,6 +68,7 @@ export function createHarness(
   options: {
     provider?: LLMProvider | null;
     settings?: Partial<Settings>;
+    lexicon?: Lexicon;
   } = {},
 ) {
   const { db, close } = openDatabase(
@@ -86,12 +91,15 @@ export function createHarness(
     removed: [] as string[],
     highlights: [] as { text: string; surfaces: string[] }[],
     statuses: [] as import('@legendary/contracts').SessionStatus[],
+    quizQuestions: [] as { quizId: number; question: QuizQuestionView }[],
+    quizComplete: [] as { quizId: number; total: number }[],
   };
 
   const vocabulary = new VocabularyService({
     repos,
-    pipeline: createPipeline(lexicon),
-    lookup: createWordLookup(lexicon),
+    pipeline: createPipeline(options.lexicon ?? lexicon),
+    lookup: createWordLookup(options.lexicon ?? lexicon),
+    ranks: (options.lexicon ?? lexicon).ranks,
     settings,
     getProvider: () => provider,
     now,
@@ -117,6 +125,10 @@ export function createHarness(
     now,
     shuffle: <T>(items: T[]) => items,
     settings,
+    emit: {
+      question: (quizId, question) => events.quizQuestions.push({ quizId, question }),
+      complete: (quizId, total) => events.quizComplete.push({ quizId, total }),
+    },
   });
   const history = new HistoryService({ repos, now });
 

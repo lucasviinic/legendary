@@ -22,7 +22,7 @@ const STOPWORDS = new Set(
 const WORD = /^[a-z][a-z'-]+$/;
 
 export interface FilterOptions {
-  level: Level;
+  cut: number;
   known: ReadonlySet<string>;
   ranks: ReadonlyMap<string, number>;
   /** Não corta pela frequência, então vale até para palavras fora da lista. */
@@ -36,8 +36,6 @@ function startsSentence(tokens: readonly Token[], index: number): boolean {
 }
 
 export function filterTokens(tokens: readonly Token[], options: FilterOptions): Token[] {
-  const cut = FREQUENCY_CUT[options.level];
-
   return tokens.filter((token, index) => {
     if (options.known.has(token.lemma)) return false;
     if (token.pos === 'PHRASE') return true;
@@ -46,6 +44,41 @@ export function filterTokens(tokens: readonly Token[], options: FilterOptions): 
     if (/^[A-Z]/.test(token.surface) && !startsSentence(tokens, index)) return false;
     if (options.allWords) return true;
     const rank = options.ranks.get(token.lemma);
-    return rank !== undefined && rank >= cut;
+    return rank !== undefined && rank >= options.cut;
   });
+}
+
+export interface LevelEvidence {
+  known: readonly number[];
+  unknown: readonly number[];
+}
+
+const MIN_CUT = 500;
+const MAX_CUT = 20_000;
+const PRIOR_WEIGHT = 3;
+
+function countBelow(sorted: readonly number[], value: number): number {
+  let low = 0;
+  let high = sorted.length;
+  while (low < high) {
+    const middle = (low + high) >> 1;
+    if (sorted[middle]! < value) low = middle + 1;
+    else high = middle;
+  }
+  return low;
+}
+
+export function personalCut(level: Level, evidence: LevelEvidence): number {
+  const base = FREQUENCY_CUT[level];
+  const known = [...evidence.known].sort((a, b) => a - b);
+  const unknown = [...evidence.unknown].sort((a, b) => a - b);
+  const clamp = (cut: number) => Math.min(MAX_CUT, Math.max(MIN_CUT, cut));
+  const cost = (cut: number) =>
+    known.length -
+    countBelow(known, cut) +
+    countBelow(unknown, cut) +
+    PRIOR_WEIGHT * Math.abs(Math.log(cut / base));
+
+  const candidates = [...known.map((rank) => rank + 1), ...unknown].map(clamp);
+  return candidates.reduce((best, cut) => (cost(cut) < cost(best) ? cut : best), base);
 }

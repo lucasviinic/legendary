@@ -22,6 +22,7 @@ export const wordSenses = sqliteTable(
     exampleEn: text('example_en').notNull(),
     examplePt: text('example_pt').notNull(),
     cefr: text('cefr'),
+    polysemous: integer('polysemous', { mode: 'boolean' }).notNull().default(true),
     provider: text('provider').notNull(),
     createdAt: integer('created_at').notNull(),
   },
@@ -51,6 +52,7 @@ export const sessionWords = sqliteTable(
     count: integer('count').notNull(),
     contextSentence: text('context_sentence').notNull(),
     firstSeenAt: integer('first_seen_at').notNull(),
+    searched: integer('searched', { mode: 'boolean' }).notNull().default(false),
   },
   (table) => [primaryKey({ columns: [table.sessionId, table.senseId] })],
 );

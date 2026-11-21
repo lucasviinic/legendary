@@ -17,10 +17,19 @@ export const EnrichedWordSchema = z.object({
   exampleEn: z.string().min(1),
   examplePt: z.string().min(1),
   cefr: CefrSchema,
+  polysemous: z.boolean(),
 });
 export type EnrichedWord = z.infer<typeof EnrichedWordSchema>;
 
 export const EnrichResponseSchema = z.object({ words: z.array(EnrichedWordSchema) });
+
+export const SenseOptionSchema = z.object({
+  translation: z.string(),
+  explanation: z.string(),
+});
+export type SenseOption = z.infer<typeof SenseOptionSchema>;
+
+export const SenseMatchSchema = z.object({ match: z.number().int().nullable() });
 
 export const QuestionTypeSchema = z.enum([
   'mc_en_pt',
@@ -50,5 +59,3 @@ export const QuizQuestionDraftSchema = z.object({
   pairs: z.array(MatchPairSchema).nullable(),
 });
 export type QuizQuestionDraft = z.infer<typeof QuizQuestionDraftSchema>;
-
-export const QuizResponseSchema = z.object({ questions: z.array(QuizQuestionDraftSchema) });

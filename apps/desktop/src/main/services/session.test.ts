@@ -1,6 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { CaptionEvent, EnrichRequestWord, EnrichedWord } from '@legendary/contracts';
-import type { OnTranslation } from '../ai/types';
+import type {
+  CaptionEvent,
+  CaptionTrack,
+  EnrichRequestWord,
+  EnrichedWord,
+} from '@legendary/contracts';
+import { DAY_MS } from '@legendary/core';
+import type { EnrichOptions, LLMProvider } from '../ai/types';
 import { createHarness, enriched, fakeProvider } from '../test/harness';
 
 type Harness = ReturnType<typeof createHarness>;
@@ -814,19 +820,11 @@ describe('translating ahead', () => {
     expect(senseIds()).toContain(reckon.id);
   });
 
-  it('picks a word already translated for the next card, ahead of a better one that is not', async () => {
+  it('shows the better word next even when a weaker one is already translated', async () => {
     h.session.handleCaption(caption('I reckon he is wary.'));
     await vi.advanceTimersByTimeAsync(2_000);
     h.clock.now += 15_000;
-    // "knack" tem pontuação maior que "reckon", mas ainda não foi traduzida.
     h.session.handleCaption(caption('She has a knack for it.'));
-    expect(h.events.cards.at(-1)).toMatchObject({
-      lemma: 'reckon',
-      translation: 'tradução de reckon',
-    });
-
-    h.clock.now += 15_000;
-    h.session.tick();
     expect(h.events.cards.at(-1)?.lemma).toBe('knack');
   });
 
@@ -910,7 +908,7 @@ describe('translation arriving first', () => {
     const finish: (() => void)[] = [];
     const provider = fakeProvider({
       enrichWords: vi.fn(
-        (batch: EnrichRequestWord[], onTranslation?: OnTranslation) =>
+        (batch: EnrichRequestWord[], { onTranslation }: EnrichOptions) =>
           new Promise<EnrichedWord[]>((resolve) => {
             batch.forEach((word) => onTranslation?.(word, `primeiro ${word.lemma}`));
             finish.push(() => resolve(batch.map(enriched)));
@@ -1162,5 +1160,269 @@ describe('AI failures', () => {
     h.session.start('browser');
     h.session.handleCaption(caption('I reckon so.'));
     await expect(h.session.stop()).resolves.toEqual(expect.any(Number));
+  });
+});
+
+describe('learning history', () => {
+  const seedReview = (
+    lemma: string,
+    pos: string,
+    review: { repetitions: number; dueAt: number },
+  ) => {
+    const sense = h.repos.senses.insert({
+      lemma,
+      pos,
+      translation: `cache de ${lemma}`,
+      explanation: 'e',
+      exampleEn: 'x',
+      examplePt: 'y',
+      cefr: 'B2',
+      polysemous: false,
+      provider: 'gemini',
+    });
+    h.repos.reviews.upsert(sense.id, { ease: 2.5, intervalDays: 15, ...review });
+  };
+
+  it('shows no card for a word the person got right in a row many times', () => {
+    seedReview('reckon', 'verb', { repetitions: 3, dueAt: h.clock.now + DAY_MS });
+    h.session.start('browser');
+    h.session.handleCaption(caption('I reckon so.'));
+    expect(h.events.cards).toEqual([]);
+    expect(h.session.status().newWords).toBe(0);
+  });
+
+  it('shows the card again once the review of that word is due', () => {
+    seedReview('reckon', 'verb', { repetitions: 3, dueAt: h.clock.now });
+    h.session.start('browser');
+    h.session.handleCaption(caption('I reckon so.'));
+    expect(h.events.cards.at(-1)).toMatchObject({
+      lemma: 'reckon',
+      translation: 'cache de reckon',
+    });
+  });
+
+  it('puts a word due for review ahead of a rarer new word', () => {
+    seedReview('reckon', 'verb', { repetitions: 1, dueAt: h.clock.now - DAY_MS });
+    h.session.start('browser');
+    h.session.handleCaption(caption('I reckon she has a knack for it.'));
+    expect(h.events.cards[0]?.lemma).toBe('reckon');
+  });
+
+  it('keeps a mastered word as a summary when translating every word', () => {
+    h.settings.update({ translateAllWords: true });
+    seedReview('reckon', 'verb', { repetitions: 4, dueAt: h.clock.now + DAY_MS });
+    h.session.start('browser');
+    h.session.handleCaption(caption('I reckon so.'));
+    expect(h.events.seen.at(-1)).toMatchObject({ lemma: 'reckon', translation: 'cache de reckon' });
+  });
+});
+
+describe('personal level', () => {
+  const ranks = (entries: [string, number][]) => ({
+    ranks: new Map(entries),
+    phrases: [],
+  });
+
+  it('skips easier words once the person shows to know words around the cut', () => {
+    h.close();
+    h = createHarness({
+      lexicon: ranks([
+        ['dwell', 3100],
+        ['linger', 3200],
+        ['ponder', 3300],
+        ['wander', 3400],
+        ['reckon', 3450],
+        ['gaze', 3500],
+      ]),
+    });
+    ['dwell', 'linger', 'ponder', 'wander', 'gaze'].forEach((lemma) => h.repos.known.add(lemma, 1));
+    h.session.start('browser');
+    h.session.handleCaption(caption('I reckon so.'));
+    expect(h.events.cards).toEqual([]);
+  });
+
+  it('shows more common words once the person had to look up words below the cut', () => {
+    h.close();
+    h = createHarness({
+      lexicon: ranks([
+        ['dwell', 2100],
+        ['linger', 2200],
+        ['ponder', 2300],
+        ['wander', 2400],
+        ['reckon', 2500],
+        ['gaze', 2600],
+      ]),
+    });
+    h.session.start('browser');
+    h.session.handleCaption(caption('I reckon so.'));
+    expect(h.events.cards).toEqual([]);
+
+    for (const lemma of ['dwell', 'linger', 'ponder', 'wander', 'gaze']) h.session.search(lemma);
+    h.clock.now += 60_000;
+    h.session.handleCaption(caption('I reckon so.'));
+    expect(h.events.cards.at(-1)?.lemma).toBe('reckon');
+  });
+
+  it('remembers that a word was looked up', async () => {
+    h.session.start('browser');
+    h.session.handleCaption(caption('I reckon so.'));
+    h.session.search('wary');
+    await settle();
+    const sense = h.repos.senses.findByLemmaPos('wary', 'adj')!;
+    expect(h.repos.sessionWords.latestForSense(sense.id)?.searched).toBe(true);
+    expect(h.repos.senses.studiedLemmas()).toContain('wary');
+  });
+});
+
+describe('sense of the scene', () => {
+  const cache = (translation: string, polysemous = true) =>
+    h.repos.senses.insert({
+      lemma: 'bank',
+      pos: 'noun',
+      translation,
+      explanation: `explicação de ${translation}`,
+      exampleEn: 'x',
+      examplePt: 'y',
+      cefr: 'B1',
+      polysemous,
+      provider: 'gemini',
+    });
+  const withMatch = (matchSense: LLMProvider['matchSense']) => {
+    h.close();
+    h = createHarness({ provider: fakeProvider({ matchSense: vi.fn(matchSense) }) });
+  };
+  const RIVER = 'They sat on the river bank.';
+
+  it('shows a cached meaning at once and keeps it when it fits the scene', async () => {
+    withMatch(async () => 0);
+    const sense = cache('banco');
+    h.session.start('browser');
+    h.session.handleCaption(caption(RIVER));
+    expect(h.events.cards.at(-1)).toMatchObject({ lemma: 'bank', translation: 'banco' });
+    await settle();
+    expect(h.provider?.matchSense).toHaveBeenCalledWith(
+      expect.objectContaining({ lemma: 'bank', sentence: RIVER }),
+      [expect.objectContaining({ translation: 'banco' })],
+    );
+    expect(h.repos.sessionWords.latestForSense(sense.id)).toBeDefined();
+    expect(h.provider?.enrichWords).not.toHaveBeenCalled();
+  });
+
+  it('switches to another known meaning that fits the scene', async () => {
+    withMatch(async () => 1);
+    cache('banco');
+    cache('margem');
+    h.session.start('browser');
+    h.session.handleCaption(caption(RIVER));
+    await settle();
+    expect(h.events.updates.at(-1)).toMatchObject({ lemma: 'bank', translation: 'margem' });
+  });
+
+  it('asks the AI for a new meaning when none of the known ones fits', async () => {
+    withMatch(async () => null);
+    cache('banco');
+    h.session.start('browser');
+    h.session.handleCaption(caption(RIVER));
+    await settle();
+    await settle();
+    expect(h.provider?.enrichWords).toHaveBeenCalledTimes(1);
+    expect(h.events.updates.at(-1)).toMatchObject({ translation: 'tradução de bank' });
+    expect(h.repos.senses.findAllByLemmaPos('bank', 'noun')).toHaveLength(2);
+  });
+
+  it('keeps the cached meaning when the check fails', async () => {
+    withMatch(async () => {
+      throw new Error('offline');
+    });
+    const sense = cache('banco');
+    h.session.start('browser');
+    h.session.handleCaption(caption(RIVER));
+    await settle();
+    expect(h.events.updates.at(-1)).toMatchObject({ translation: 'banco' });
+    expect(h.repos.sessionWords.latestForSense(sense.id)).toBeDefined();
+  });
+
+  it('does not check a word with a single common meaning', async () => {
+    withMatch(async () => 0);
+    cache('banco', false);
+    h.session.start('browser');
+    h.session.handleCaption(caption(RIVER));
+    await settle();
+    expect(h.provider?.matchSense).not.toHaveBeenCalled();
+  });
+
+  it('does not check a meaning translated ahead in this same session', async () => {
+    h.close();
+    h = createHarness({
+      provider: fakeProvider({
+        matchSense: vi.fn(async () => 0),
+        enrichWords: vi.fn(async (batch: EnrichRequestWord[]) =>
+          batch.map((word) => ({ ...enriched(word), polysemous: true })),
+        ),
+      }),
+    });
+    h.session.start('browser');
+    h.session.handleCaption(caption('They sat on the river bank, wary of the water.'));
+    expect(h.events.cards.at(-1)?.lemma).toBe('wary');
+    await vi.advanceTimersByTimeAsync(2_000);
+    h.clock.now += 15_000;
+    h.session.tick();
+    expect(h.events.cards.at(-1)).toMatchObject({ lemma: 'bank', translation: 'tradução de bank' });
+    expect(h.provider?.matchSense).not.toHaveBeenCalled();
+  });
+});
+
+describe('caption track of the episode', () => {
+  const track = (cues: string[]): CaptionTrack => ({ source: 'youtube', cues });
+  const askedLemmas = () =>
+    vi
+      .mocked(h.provider!.enrichWords)
+      .mock.calls.flatMap(([batch]) => batch.map((word) => word.lemma));
+
+  beforeEach(() => h.session.start('browser'));
+
+  it('translates ahead the best words of the episode once a caption confirms the track', async () => {
+    h.session.handleTrack(
+      track(['I reckon so.', 'She has a knack for it.', 'He is wary of them.', 'He is grumpy.']),
+    );
+    await vi.advanceTimersByTimeAsync(2_000);
+    expect(askedLemmas()).toEqual([]);
+
+    h.session.handleCaption(caption('I reckon so.'));
+    await vi.advanceTimersByTimeAsync(2_000);
+    expect(askedLemmas()).toEqual(expect.arrayContaining(['reckon', 'knack', 'wary', 'grumpy']));
+  });
+
+  it('ignores a track from another video', async () => {
+    h.session.handleTrack(track(['Completely different words here.', 'She has a knack.']));
+    for (let i = 0; i < 5; i++) {
+      h.clock.now += 20_000;
+      h.session.handleCaption(caption(`I reckon so, take ${i}.`));
+    }
+    await vi.advanceTimersByTimeAsync(2_000);
+    expect(askedLemmas()).not.toContain('knack');
+  });
+
+  it('ranks a word by how often it comes up in the whole episode', () => {
+    h.session.handleTrack(
+      track([
+        'I reckon she has a knack for it.',
+        'I reckon so.',
+        'You reckon?',
+        'We reckon it works.',
+        'They reckon not.',
+      ]),
+    );
+    h.session.handleCaption(caption('I reckon she has a knack for it.'));
+    expect(h.events.cards[0]?.lemma).toBe('reckon');
+  });
+
+  it('uses the track received before the session started', async () => {
+    await h.session.stop();
+    h.session.handleTrack(track(['I reckon so.', 'She has a knack for it.']));
+    h.session.start('browser');
+    h.session.handleCaption(caption('I reckon so.'));
+    await vi.advanceTimersByTimeAsync(2_000);
+    expect(askedLemmas()).toContain('knack');
   });
 });

@@ -6,7 +6,7 @@ import { ClientMessageSchema, type ServerMessage } from '@legendary/contracts';
 import type { CaptionSource } from './caption-source';
 
 const LOOPBACK = '127.0.0.1';
-const MAX_PAYLOAD_BYTES = 64 * 1024;
+const MAX_PAYLOAD_BYTES = 4 * 1024 * 1024;
 
 function sameToken(given: string | null, expected: string): boolean {
   if (!given) return false;
@@ -95,6 +95,8 @@ export class ExtensionSource extends EventEmitter implements CaptionSource {
       socket.send(JSON.stringify(reply));
     } else if (message.data.type === 'open-search') {
       this.emit('open-search');
+    } else if (message.data.type === 'track') {
+      this.emit('track', message.data.track);
     } else {
       this.emit('caption', message.data.caption);
     }

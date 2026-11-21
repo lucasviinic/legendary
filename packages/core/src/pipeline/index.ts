@@ -1,11 +1,11 @@
-import type { Cefr, Level } from '@legendary/contracts';
+import type { Cefr } from '@legendary/contracts';
 import { filterTokens } from './filter';
 import { normalize } from './normalize';
 import { detectPhrases, type Phrase } from './phrases';
 import { estimateCefr, scoreWord } from './score';
 import { tokenize, type Token } from './tokenize';
 
-export { filterTokens, FREQUENCY_CUT } from './filter';
+export { filterTokens, FREQUENCY_CUT, personalCut, type LevelEvidence } from './filter';
 export { normalize } from './normalize';
 export { detectPhrases, type Phrase } from './phrases';
 export { estimateCefr, scoreWord } from './score';
@@ -17,10 +17,11 @@ export interface Lexicon {
 }
 
 export interface PipelineContext {
-  level: Level;
+  cut: number;
   known: ReadonlySet<string>;
   /** Aparições anteriores na sessão, pela chave `lemma|pos`. */
   sessionCounts: ReadonlyMap<string, number>;
+  mediaCounts?: ReadonlyMap<string, number> | undefined;
   allWords?: boolean | undefined;
 }
 
@@ -30,6 +31,7 @@ export interface WordCandidate {
   surface: string;
   sentence: string;
   count: number;
+  rank: number | undefined;
   score: number;
   estimatedCefr: Cefr;
 }
@@ -65,7 +67,7 @@ export function createPipeline(lexicon: Lexicon) {
 
     const tokens = detectPhrases(tokenize(sentence), lexicon.phrases);
     const kept = filterTokens(tokens, {
-      level: context.level,
+      cut: context.cut,
       known: context.known,
       ranks: lexicon.ranks,
       allWords: context.allWords,
@@ -78,13 +80,15 @@ export function createPipeline(lexicon: Lexicon) {
       if (byKey.has(key)) continue;
       const count = (context.sessionCounts.get(key) ?? 0) + 1;
       const rank = lexicon.ranks.get(token.lemma);
+      const expected = Math.max(count, context.mediaCounts?.get(key) ?? 0);
       byKey.set(key, {
         lemma: token.lemma,
         pos,
         surface: token.surface,
         sentence,
         count,
-        score: scoreWord({ count, rank }),
+        rank,
+        score: scoreWord({ count: expected, rank }),
         estimatedCefr: estimateCefr(rank),
       });
     }
@@ -170,6 +174,7 @@ export function createWordLookup(lexicon: Lexicon) {
       surface: token.surface,
       sentence,
       count,
+      rank,
       score: scoreWord({ count, rank }),
       estimatedCefr: estimateCefr(rank),
     };

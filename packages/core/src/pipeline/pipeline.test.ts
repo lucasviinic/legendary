@@ -5,7 +5,9 @@ import {
   detectPhrases,
   estimateCefr,
   filterTokens,
+  FREQUENCY_CUT,
   normalize,
+  personalCut,
   scoreWord,
   tokenize,
   type Lexicon,
@@ -99,7 +101,7 @@ describe('detectPhrases', () => {
 });
 
 describe('filterTokens', () => {
-  const options = { level: 'B2', known: new Set<string>(), ranks: lexicon.ranks } as const;
+  const options = { cut: FREQUENCY_CUT.B2, known: new Set<string>(), ranks: lexicon.ranks };
   const lemmas = (tokens: Token[]) => filterTokens(tokens, options).map((token) => token.lemma);
 
   it('keeps a rare word', () => {
@@ -132,8 +134,8 @@ describe('filterTokens', () => {
 
   it('cuts more words at a higher level', () => {
     const token = t('reckons', 'reckon', 'VERB');
-    expect(filterTokens([token], { ...options, level: 'B1' })).toHaveLength(1);
-    expect(filterTokens([token], { ...options, level: 'C1' })).toHaveLength(0);
+    expect(filterTokens([token], { ...options, cut: FREQUENCY_CUT.B1 })).toHaveLength(1);
+    expect(filterTokens([token], { ...options, cut: FREQUENCY_CUT.C1 })).toHaveLength(0);
   });
 
   it('removes a word missing from the frequency list', () => {
@@ -200,7 +202,11 @@ describe('estimateCefr', () => {
 describe('createPipeline', () => {
   const pipeline = createPipeline(lexicon);
   const run = (text: string, known: string[] = [], counts: [string, number][] = []) =>
-    pipeline(text, { level: 'B2', known: new Set(known), sessionCounts: new Map(counts) });
+    pipeline(text, {
+      cut: FREQUENCY_CUT.B2,
+      known: new Set(known),
+      sessionCounts: new Map(counts),
+    });
 
   it('returns the new words of a caption with their context', () => {
     const [word] = run('JOHN: I reckon the house is dark.');
@@ -226,6 +232,21 @@ describe('createPipeline', () => {
   it('counts earlier appearances in the session', () => {
     const [word] = run('I reckon so.', [], [['reckon|verb', 2]]);
     expect(word?.count).toBe(3);
+  });
+
+  it('ranks a word by how often it appears in the whole episode when that is known', () => {
+    const words = pipeline('I reckon he is wary.', {
+      cut: FREQUENCY_CUT.B2,
+      known: new Set(),
+      sessionCounts: new Map(),
+      mediaCounts: new Map([['reckon|verb', 6]]),
+    });
+    expect(words.map((word) => word.lemma)).toEqual(['reckon', 'wary']);
+    expect(words[0]?.count).toBe(1);
+  });
+
+  it('keeps the rank of the word for later scoring', () => {
+    expect(run('I reckon so.')[0]?.rank).toBe(4000);
   });
 
   it('counts a word once when it repeats inside a caption', () => {
@@ -345,7 +366,7 @@ describe('translating every word', () => {
   const pipeline = createPipeline(lexicon);
   const lemmas = (text: string, known: string[] = []) =>
     pipeline(text, {
-      level: 'C1',
+      cut: FREQUENCY_CUT.C1,
       known: new Set(known),
       sessionCounts: new Map(),
       allWords: true,
@@ -383,10 +404,45 @@ describe('translating every word', () => {
 
   it('is off unless asked for', () => {
     const run = pipeline('The house is dark.', {
-      level: 'C1',
+      cut: FREQUENCY_CUT.C1,
       known: new Set(),
       sessionCounts: new Map(),
     });
     expect(run).toEqual([]);
+  });
+});
+
+describe('personalCut', () => {
+  const none = { known: [], unknown: [] };
+
+  it('starts at the cut of the level', () => {
+    expect(personalCut('B2', none)).toBe(FREQUENCY_CUT.B2);
+  });
+
+  it('rises past the words the person already knows', () => {
+    const known = [3100, 3300, 3500, 3700, 3900];
+    expect(personalCut('B2', { known, unknown: [] })).toBe(3901);
+  });
+
+  it('ignores a single known word far from the level', () => {
+    expect(personalCut('B2', { known: [15000], unknown: [] })).toBe(FREQUENCY_CUT.B2);
+  });
+
+  it('drops below the words the person had to look up', () => {
+    const unknown = [2000, 2200, 2400, 2600, 2800];
+    expect(personalCut('B2', { known: [], unknown })).toBe(2000);
+  });
+
+  it('weighs known and unknown words against each other', () => {
+    const known = [3100, 3300, 3500];
+    const unknown = [3050, 3200, 3400, 3600];
+    expect(personalCut('B2', { known, unknown })).toBe(FREQUENCY_CUT.B2);
+  });
+
+  it('never rises past the rarest words worth a card', () => {
+    const known = Array.from({ length: 40 }, (_, i) => 18000 + i * 175);
+    const cut = personalCut('C1', { known, unknown: [] });
+    expect(cut).toBeGreaterThan(19000);
+    expect(cut).toBeLessThanOrEqual(20000);
   });
 });

@@ -1,19 +1,29 @@
 import type {
   EnrichRequestWord,
   EnrichedWord,
+  Level,
   Provider,
   QuizQuestionDraft,
+  SenseOption,
 } from '@legendary/contracts';
 import type { FallbackWord } from '@legendary/core';
 
-/** Avisa que a tradução de uma palavra ficou pronta, antes do resto da resposta. */
 export type OnTranslation = (word: EnrichRequestWord, translation: string) => void;
+export type OnQuestion = (question: QuizQuestionDraft) => void;
 
-/** O que o resto do app enxerga de um provedor de IA. */
+export interface EnrichOptions {
+  level: Level;
+  onTranslation?: OnTranslation | undefined;
+}
+
 export interface LLMProvider {
   readonly name: Provider;
-  enrichWords(batch: EnrichRequestWord[], onTranslation?: OnTranslation): Promise<EnrichedWord[]>;
-  generateQuiz(words: FallbackWord[], maxQuestions: number): Promise<QuizQuestionDraft[]>;
-  /** Faz uma chamada mínima para confirmar que a chave funciona. */
+  enrichWords(batch: EnrichRequestWord[], options: EnrichOptions): Promise<EnrichedWord[]>;
+  matchSense(word: EnrichRequestWord, senses: readonly SenseOption[]): Promise<number | null>;
+  generateQuiz(
+    words: FallbackWord[],
+    count: number,
+    onQuestion?: OnQuestion,
+  ): Promise<QuizQuestionDraft[]>;
   check(): Promise<void>;
 }

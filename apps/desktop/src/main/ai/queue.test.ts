@@ -17,6 +17,7 @@ const answer = (word: EnrichRequestWord): EnrichedWord => ({
   exampleEn: 'x',
   examplePt: 'y',
   cefr: 'B2',
+  polysemous: false,
 });
 
 function setup(enrich = vi.fn(async (batch: EnrichRequestWord[]) => batch.map(answer))) {

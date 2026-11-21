@@ -1,5 +1,6 @@
 import type {
   QuizAnswerResult,
+  QuizQuestionView,
   QuizResult,
   QuizSummary,
   QuizView,
@@ -35,6 +36,8 @@ interface QuizState {
   answer(value: string): Promise<void>;
   next(): Promise<void>;
   reviewMistakes(): Promise<void>;
+  receiveQuestion(quizId: number, question: QuizQuestionView): void;
+  completeQuiz(quizId: number, total: number): void;
 }
 
 /**
@@ -48,6 +51,33 @@ const write = (channel: 'vocab:mark-known' | 'vocab:unmark-known', lemma: string
 
 /** Fechar a janela antes disso perderia as marcações que ainda estão na fila. */
 export const marksSaved = () => writes;
+
+interface Arrivals {
+  questions: QuizQuestionView[];
+  total: number | null;
+}
+
+const early = new Map<number, Arrivals>();
+
+const withQuestions = (quiz: QuizView, questions: readonly QuizQuestionView[]): QuizView => {
+  const known = new Set(quiz.questions.map(({ id }) => id));
+  const fresh = questions.filter(({ id }) => !known.has(id));
+  return fresh.length > 0 ? { ...quiz, questions: [...quiz.questions, ...fresh] } : quiz;
+};
+
+function withArrivals(quiz: QuizView): QuizView {
+  const arrivals = early.get(quiz.quizId);
+  [...early.keys()].filter((id) => id <= quiz.quizId).forEach((id) => early.delete(id));
+  if (!arrivals) return quiz;
+  const merged = withQuestions(quiz, arrivals.questions);
+  return arrivals.total === null ? merged : { ...merged, total: arrivals.total };
+}
+
+function arrivalsOf(quizId: number): Arrivals {
+  const arrivals = early.get(quizId) ?? { questions: [], total: null };
+  early.set(quizId, arrivals);
+  return arrivals;
+}
 
 export const useQuiz = create<QuizState>((set, get) => {
   async function summarize(sessionId: number) {
@@ -66,6 +96,25 @@ export const useQuiz = create<QuizState>((set, get) => {
     const { triage, triageIndex } = get();
     if (triageIndex + 1 < triage.length) set({ triageIndex: triageIndex + 1 });
     else void get().finishTriage();
+  }
+
+  async function finish() {
+    const { quiz } = get();
+    if (!quiz) return;
+    const final = await api().invoke('quiz:finish', { quizId: quiz.quizId });
+    set({ final, phase: 'final' });
+  }
+
+  function showQuiz(quiz: QuizView) {
+    set({
+      quiz: withArrivals(quiz),
+      index: 0,
+      picked: null,
+      result: null,
+      final: null,
+      phase: 'question',
+      preparing: false,
+    });
   }
 
   /** A palavra que está na tela, ou nada fora da triagem. */
@@ -156,8 +205,7 @@ export const useQuiz = create<QuizState>((set, get) => {
       if (senseIds.length === 0) return;
       set({ preparing: true });
       try {
-        const quiz = await api().invoke('quiz:get', { sessionId, senseIds });
-        set({ quiz, index: 0, picked: null, result: null, phase: 'question', preparing: false });
+        showQuiz(await api().invoke('quiz:get', { sessionId, senseIds }));
       } catch {
         set({ phase: 'error', preparing: false });
       }
@@ -178,19 +226,36 @@ export const useQuiz = create<QuizState>((set, get) => {
     async next() {
       const { quiz, index, result } = get();
       if (!quiz || !result) return;
-      if (index + 1 < quiz.questions.length) {
+      if (index + 1 < quiz.total) {
         set({ index: index + 1, picked: null, result: null });
         return;
       }
-      const final = await api().invoke('quiz:finish', { quizId: quiz.quizId });
-      set({ final, phase: 'final' });
+      await finish();
     },
 
     async reviewMistakes() {
       const { final } = get();
       if (!final) return;
-      const quiz = await api().invoke('quiz:review-mistakes', { quizId: final.quizId });
-      set({ quiz, index: 0, picked: null, result: null, final: null, phase: 'question' });
+      showQuiz(await api().invoke('quiz:review-mistakes', { quizId: final.quizId }));
+    },
+
+    receiveQuestion(quizId, question) {
+      const { quiz } = get();
+      if (quiz?.quizId !== quizId) {
+        arrivalsOf(quizId).questions.push(question);
+        return;
+      }
+      set({ quiz: withQuestions(quiz, [question]) });
+    },
+
+    completeQuiz(quizId, total) {
+      const { quiz, index, phase } = get();
+      if (quiz?.quizId !== quizId) {
+        arrivalsOf(quizId).total = total;
+        return;
+      }
+      set({ quiz: { ...quiz, total } });
+      if (phase === 'question' && index >= total) void finish();
     },
   };
 });

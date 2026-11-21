@@ -32,6 +32,7 @@ function addWord(lemma: string, cefr: string, count: number, session = sessionId
     count,
     contextSentence: 's',
     firstSeenAt: h.clock.now,
+    searched: false,
   });
   return id;
 }
@@ -136,6 +137,7 @@ describe('history words', () => {
       count: 4,
       contextSentence: 's',
       firstSeenAt: 1,
+      searched: false,
     });
     expect(h.history.words(request).rows.find((row) => row.lemma === 'reckon')?.seen).toBe(7);
   });
@@ -153,6 +155,7 @@ describe('history words', () => {
       count: 4,
       contextSentence: 's',
       firstSeenAt: 1,
+      searched: false,
     });
     const result = h.history.words({ ...request, scope: { kind: 'session', sessionId: other } });
     expect(lemmas(result)).toEqual(['hunch', 'reckon']);

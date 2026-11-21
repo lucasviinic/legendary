@@ -1,4 +1,10 @@
-import type { CaptionEvent, CaptureOrigin, SessionStatus, Source } from '@legendary/contracts';
+import type {
+  CaptionEvent,
+  CaptureOrigin,
+  CaptionTrack,
+  SessionStatus,
+  Source,
+} from '@legendary/contracts';
 import type { Repositories } from '../db/repositories';
 import type { VocabularyService } from './vocabulary';
 
@@ -26,6 +32,7 @@ export class SessionService {
   private resumedAt = 0;
   private waitingSince = 0;
   private hadCaption = false;
+  private track: CaptionTrack | null = null;
 
   constructor(private readonly deps: SessionDeps) {}
 
@@ -57,6 +64,7 @@ export class SessionService {
     this.waitingSince = now;
     this.hadCaption = false;
     this.deps.vocabulary.begin();
+    if (this.track) this.deps.vocabulary.useTrack(this.track.cues);
     this.publish();
   }
 
@@ -87,6 +95,11 @@ export class SessionService {
     const sessionId = this.ensureSession(caption);
     this.deps.vocabulary.handleCaption(sessionId, caption.text);
     this.publish();
+  }
+
+  handleTrack(track: CaptionTrack): void {
+    this.track = track;
+    if (this.state !== 'idle') this.deps.vocabulary.useTrack(track.cues);
   }
 
   /** Devolve falso quando não há sessão ou o texto não tem palavra, e nesse caso nada mudou. */

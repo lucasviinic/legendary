@@ -41,7 +41,18 @@ export function App() {
   const question = state.quiz?.questions[state.index];
 
   useEffect(() => {
-    void useQuiz.getState().load(sessionId, triage);
+    const state = useQuiz.getState();
+    const legendary = api();
+    const unsubscribe = [
+      legendary.on('quiz:question', ({ quizId, question }) =>
+        useQuiz.getState().receiveQuestion(quizId, question),
+      ),
+      legendary.on('quiz:complete', ({ quizId, total }) =>
+        useQuiz.getState().completeQuiz(quizId, total),
+      ),
+    ];
+    void state.load(sessionId, triage);
+    return () => unsubscribe.forEach((stop) => stop());
   }, []);
 
   // Teclas 1 a 4 respondem, e Enter avança ou começa o quiz, como no frame 1g.
@@ -127,11 +138,14 @@ export function App() {
     );
   }
 
+  if (state.quiz && !question && state.index < state.quiz.total) {
+    return <Message text="Carregando…" />;
+  }
   if (!question || !state.quiz) return <Message text="Não deu para abrir este quiz." />;
 
   const shared = {
     position: state.index + 1,
-    total: state.quiz.questions.length,
+    total: state.quiz.total,
     result: state.result,
     onNext: () => void state.next(),
   };

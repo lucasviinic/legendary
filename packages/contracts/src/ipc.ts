@@ -6,6 +6,7 @@ import {
   HistoryWordsSchema,
   OverlayLayoutSchema,
   QuizAnswerResultSchema,
+  QuizQuestionViewSchema,
   QuizResultSchema,
   QuizSummarySchema,
   QuizViewSchema,
@@ -97,6 +98,8 @@ export const eventChannels = {
   'overlay:visibility': z.object({ visible: z.boolean() }),
   'overlay:layout': OverlayLayoutSchema,
   'settings:changed': SettingsViewSchema,
+  'quiz:question': z.object({ quizId: z.number().int(), question: QuizQuestionViewSchema }),
+  'quiz:complete': z.object({ quizId: z.number().int(), total: z.number().int().nonnegative() }),
 } as const;
 
 export type InvokeChannel = keyof typeof invokeChannels;

@@ -173,6 +173,7 @@ export type QuizQuestionView = z.infer<typeof QuizQuestionViewSchema>;
 export const QuizViewSchema = z.object({
   quizId: z.number().int(),
   questions: z.array(QuizQuestionViewSchema),
+  total: z.number().int().nonnegative(),
 });
 export type QuizView = z.infer<typeof QuizViewSchema>;
 

@@ -12,7 +12,7 @@ export function sessionWordsRepository(db: Db) {
         .values(word)
         .onConflictDoUpdate({
           target: [sessionWords.sessionId, sessionWords.senseId],
-          set: { count: word.count },
+          set: { count: word.count, ...(word.searched && { searched: true }) },
         })
         .run();
     },

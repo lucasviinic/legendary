@@ -11,11 +11,12 @@ import {
   type TriageWord,
 } from '@legendary/contracts';
 import {
+  answerQuality,
   buildFallbackQuiz,
   formatElapsed,
   gradeAnswer,
   nextReview,
-  sanitizeDrafts,
+  sanitizeDraft,
   selectWords,
   type FallbackWord,
   type Shuffle,
@@ -37,13 +38,21 @@ const StoredQuestionSchema = QuizQuestionDraftSchema.extend({
 });
 type StoredQuestion = z.infer<typeof StoredQuestionSchema>;
 
+export interface QuizEmitter {
+  question(quizId: number, question: QuizQuestionView): void;
+  complete(quizId: number, total: number): void;
+}
+
 export interface QuizDeps {
   repos: Repositories;
   getProvider: () => LLMProvider | null;
   now: () => number;
   shuffle: Shuffle;
   settings: Pick<SettingsService, 'get'>;
+  emit: QuizEmitter;
 }
+
+type SessionInfo = { id: number; title: string; startedAt: number };
 
 export class QuizService {
   constructor(private readonly deps: QuizDeps) {}
@@ -76,15 +85,17 @@ export class QuizService {
 
     const maxQuestions = this.maxQuestions();
     const shown = Math.max(SUMMARY_WORDS, maxQuestions);
-    const words = selectWords(selectable, dueNew, shown).map((senseId, index) => {
-      const sense = senses.get(senseId)!;
-      return {
-        senseId,
-        word: sense.lemma,
-        translation: sense.translation,
-        selected: index < maxQuestions,
-      };
-    });
+    const words = selectWords(selectable, dueNew, { questions: maxQuestions, limit: shown }).map(
+      (senseId, index) => {
+        const sense = senses.get(senseId)!;
+        return {
+          senseId,
+          word: sense.lemma,
+          translation: sense.translation,
+          selected: index < maxQuestions,
+        };
+      },
+    );
 
     return {
       sessionId,
@@ -138,7 +149,7 @@ export class QuizService {
   }
 
   async create(sessionId: number, senseIds: number[]): Promise<QuizView> {
-    const { repos, now } = this.deps;
+    const { repos, now, shuffle } = this.deps;
     const session = repos.sessions.byId(sessionId);
     if (!session) throw new Error(`Sessão ${sessionId} não encontrada.`);
 
@@ -146,31 +157,45 @@ export class QuizService {
     const order = new Map(senseIds.map((id, index) => [id, index]));
     senses.sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
     const words = senses.map((sense) => this.toQuizWord(sense, sessionId));
-
     const bySense = new Map(senses.map((sense) => [sense.lemma.toLowerCase(), sense]));
-    const drafts = await this.draftQuestions(words, bySense);
     const quiz = repos.quizzes.create(sessionId, now());
+    const total = Math.min(this.maxQuestions(), words.length);
 
-    const questions = drafts.map((draft) => {
-      const sense = this.senseOf(draft, bySense)!;
-      const stored: StoredQuestion = {
-        ...draft,
-        context: this.contextFor(draft, sense, session),
-        pairSenses: draft.pairs
-          ? Object.fromEntries(
-              draft.pairs.map((pair) => [pair.word, bySense.get(pair.word.toLowerCase())!.id]),
-            )
-          : null,
-      };
-      const row = repos.quizzes.addQuestion({
-        quizId: quiz.id,
-        senseId: sense.id,
-        type: draft.type,
-        payloadJson: JSON.stringify(stored),
-      });
-      return this.toView(row.id, stored);
+    const questions: QuizQuestionView[] = [];
+    const covered = new Set<string>();
+    let started: () => void = () => undefined;
+    const firstQuestion = new Promise<void>((resolve) => {
+      started = resolve;
     });
-    return { quizId: quiz.id, questions };
+
+    const add = (draft: QuizQuestionDraft) => {
+      if (questions.length >= total) return;
+      const view = this.persist(quiz.id, draft, bySense, session);
+      questions.push(view);
+      covered.add(draft.word.toLowerCase());
+      draft.pairs?.forEach((pair) => covered.add(pair.word.toLowerCase()));
+      if (questions.length === 1) started();
+      else this.deps.emit.question(quiz.id, view);
+    };
+
+    let finished = false;
+    const generation = this.draftQuestions(words, total, bySense, add).then(() => {
+      const missing = total - questions.length;
+      if (missing > 0) {
+        const isCovered = (word: FallbackWord) => covered.has(word.word.toLowerCase());
+        const pool = [...words.filter((word) => !isCovered(word)), ...words.filter(isCovered)];
+        buildFallbackQuiz(pool, missing, shuffle).forEach(add);
+      }
+      finished = true;
+      this.deps.emit.complete(quiz.id, questions.length);
+    });
+
+    await Promise.race([firstQuestion, generation]);
+    return {
+      quizId: quiz.id,
+      questions: [...questions],
+      total: finished ? questions.length : total,
+    };
   }
 
   answer(questionId: number, answer: string): QuizAnswerResult {
@@ -240,23 +265,50 @@ export class QuizService {
 
   private async draftQuestions(
     words: FallbackWord[],
+    total: number,
     bySense: Map<string, WordSense>,
-  ): Promise<QuizQuestionDraft[]> {
-    const { getProvider, shuffle } = this.deps;
-    const maxQuestions = this.maxQuestions();
-    const fallback = () => buildFallbackQuiz(words, maxQuestions, shuffle);
-    const provider = getProvider();
-    if (!provider) return fallback();
+    add: (draft: QuizQuestionDraft) => void,
+  ): Promise<void> {
+    const provider = this.deps.getProvider();
+    if (!provider || total === 0) return;
 
+    let delivered = 0;
+    const accept = (draft: QuizQuestionDraft) => {
+      delivered += 1;
+      const usable = sanitizeDraft(draft, this.deps.shuffle);
+      if (usable && this.refersToKnownWords(usable, bySense)) add(usable);
+    };
     try {
-      const generated = await provider.generateQuiz(words, maxQuestions);
-      const usable = sanitizeDrafts(generated, maxQuestions, shuffle).filter((draft) =>
-        this.refersToKnownWords(draft, bySense),
-      );
-      return usable.length > 0 ? usable : fallback();
+      const drafts = await provider.generateQuiz(words, total, accept);
+      drafts.slice(delivered).forEach(accept);
     } catch {
-      return fallback();
+      return;
     }
+  }
+
+  private persist(
+    quizId: number,
+    draft: QuizQuestionDraft,
+    bySense: Map<string, WordSense>,
+    session: SessionInfo,
+  ): QuizQuestionView {
+    const sense = this.senseOf(draft, bySense)!;
+    const stored: StoredQuestion = {
+      ...draft,
+      context: this.contextFor(draft, sense, session),
+      pairSenses: draft.pairs
+        ? Object.fromEntries(
+            draft.pairs.map((pair) => [pair.word, bySense.get(pair.word.toLowerCase())!.id]),
+          )
+        : null,
+    };
+    const row = this.deps.repos.quizzes.addQuestion({
+      quizId,
+      senseId: sense.id,
+      type: draft.type,
+      payloadJson: JSON.stringify(stored),
+    });
+    return this.toView(row.id, stored);
   }
 
   private maxQuestions() {
@@ -290,7 +342,7 @@ export class QuizService {
   private contextFor(
     draft: QuizQuestionDraft,
     sense: WordSense,
-    session: { id: number; title: string; startedAt: number },
+    session: SessionInfo,
   ): string | null {
     if (draft.type !== 'cloze') return null;
     const seen = this.deps.repos.sessionWords.forSense(session.id, sense.id);
@@ -313,9 +365,9 @@ export class QuizService {
 
   private updateReviews(parsed: { row: QuizQuestionRow; stored: StoredQuestion }[]) {
     const { repos, now } = this.deps;
-    const outcomes = new Map<number, boolean>();
-    const record = (senseId: number, correct: boolean) =>
-      outcomes.set(senseId, (outcomes.get(senseId) ?? true) && correct);
+    const outcomes = new Map<number, number>();
+    const record = (senseId: number, quality: number) =>
+      outcomes.set(senseId, Math.min(outcomes.get(senseId) ?? quality, quality));
 
     for (const { row, stored } of parsed) {
       if (row.correct === null) continue;
@@ -323,14 +375,14 @@ export class QuizService {
         const { matchResults } = gradeAnswer(stored, row.userAnswer);
         for (const pair of matchResults ?? []) {
           const senseId = stored.pairSenses[pair.word];
-          if (senseId !== undefined) record(senseId, pair.correct);
+          if (senseId !== undefined) record(senseId, answerQuality(stored, pair.correct));
         }
       } else {
-        record(row.senseId, row.correct);
+        record(row.senseId, answerQuality(stored, row.correct));
       }
     }
-    for (const [senseId, correct] of outcomes) {
-      repos.reviews.upsert(senseId, nextReview(repos.reviews.get(senseId), correct, now()));
+    for (const [senseId, quality] of outcomes) {
+      repos.reviews.upsert(senseId, nextReview(repos.reviews.get(senseId), quality, now()));
     }
   }
 
