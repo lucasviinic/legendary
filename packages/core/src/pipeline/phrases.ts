@@ -27,6 +27,17 @@ function indexPhrases(phrases: readonly Phrase[]): Map<string, Candidate[]> {
   return index;
 }
 
+const indexes = new WeakMap<readonly Phrase[], Map<string, Candidate[]>>();
+
+function indexFor(phrases: readonly Phrase[]): Map<string, Candidate[]> {
+  let index = indexes.get(phrases);
+  if (!index) {
+    index = indexPhrases(phrases);
+    indexes.set(phrases, index);
+  }
+  return index;
+}
+
 /** Devolve o índice do último token da expressão que começa em `start`, ou -1. */
 function matchEnd(tokens: readonly Token[], start: number, rest: readonly string[]): number {
   const [next, ...others] = rest;
@@ -45,7 +56,7 @@ function matchEnd(tokens: readonly Token[], start: number, rest: readonly string
 
 /** Junta phrasal verbs e expressões em um único token. */
 export function detectPhrases(tokens: readonly Token[], phrases: readonly Phrase[]): Token[] {
-  const index = indexPhrases(phrases);
+  const index = indexFor(phrases);
   const result: Token[] = [];
 
   for (let i = 0; i < tokens.length; i++) {

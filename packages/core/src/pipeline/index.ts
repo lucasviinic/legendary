@@ -116,9 +116,20 @@ function findWords(tokens: readonly Token[], words: readonly Token[]): Token[] |
  * Se uma legenda recente tiver a palavra, vale o lema, a forma e a classe usados nela. A palavra
  * sozinha é só um palpite.
  */
+const READ_CACHE_SIZE = 256;
+
 export function createWordLookup(lexicon: Lexicon) {
-  const read = (text: string) =>
-    detectPhrases(tokenize(text), lexicon.phrases).filter((token) => token.pos !== 'PUNCT');
+  const cache = new Map<string, Token[]>();
+  const read = (text: string): Token[] => {
+    const cached = cache.get(text);
+    if (cached) return cached;
+    const tokens = detectPhrases(tokenize(text), lexicon.phrases).filter(
+      (token) => token.pos !== 'PUNCT',
+    );
+    if (cache.size >= READ_CACHE_SIZE) cache.delete(cache.keys().next().value!);
+    cache.set(text, tokens);
+    return tokens;
+  };
 
   return (query: string, context: LookupContext): WordCandidate | null => {
     const typed = normalize(query);
