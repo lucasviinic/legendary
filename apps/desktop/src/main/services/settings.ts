@@ -30,12 +30,16 @@ export function maskKey(key: string): string {
 
 export class SettingsService {
   private readonly listeners = new Set<() => void>();
+  private cached: Settings | null = null;
 
   constructor(private readonly deps: { repo: SettingsRepository; secrets: SecretStore }) {}
 
   get(): Settings {
-    const stored = this.deps.repo.get(SETTINGS_KEY);
-    return SettingsSchema.parse({ ...defaultSettings, ...(stored as object | undefined) });
+    if (!this.cached) {
+      const stored = this.deps.repo.get(SETTINGS_KEY);
+      this.cached = SettingsSchema.parse({ ...defaultSettings, ...(stored as object | undefined) });
+    }
+    return this.cached;
   }
 
   /** Escolher um canto, mesmo o atual, apaga as posições arrastadas e volta ao padrão. */
@@ -54,7 +58,9 @@ export class SettingsService {
   }
 
   private save(settings: Settings) {
-    this.deps.repo.set(SETTINGS_KEY, SettingsSchema.parse(settings));
+    const parsed = SettingsSchema.parse(settings);
+    this.deps.repo.set(SETTINGS_KEY, parsed);
+    this.cached = parsed;
     this.notify();
   }
 

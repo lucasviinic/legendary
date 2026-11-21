@@ -50,6 +50,21 @@ describe('SettingsService', () => {
     expect(service.get()).toMatchObject({ level: 'C1', corner: 'tr' });
   });
 
+  it('reads the database once and keeps the settings in memory', () => {
+    const read = vi.spyOn(repo, 'get');
+    service.get();
+    service.get();
+    expect(read).toHaveBeenCalledTimes(1);
+  });
+
+  it('gives the saved settings right after a change, without reading them back', () => {
+    service.get();
+    const read = vi.spyOn(repo, 'get');
+    service.update({ level: 'B1' });
+    expect(service.get().level).toBe('B1');
+    expect(read).not.toHaveBeenCalled();
+  });
+
   it('reports changes', () => {
     const listener = vi.fn();
     service.onChange(listener);
