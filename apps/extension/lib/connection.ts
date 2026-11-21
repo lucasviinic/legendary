@@ -1,4 +1,9 @@
-import { ServerMessageSchema, type CaptionEvent, type ServerMessage } from '@legendary/contracts';
+import {
+  ServerMessageSchema,
+  type CaptionEvent,
+  type CaptionTrack,
+  type ServerMessage,
+} from '@legendary/contracts';
 
 const MAX_OUTBOX = 50;
 const BASE_RETRY_MS = 2_000;
@@ -38,6 +43,7 @@ export class AppConnection {
   private config: ConnectionConfig | null = null;
   private socket: SocketLike | null = null;
   private outbox: CaptionEvent[] = [];
+  private pendingTrack: CaptionTrack | null = null;
   private retryMs = BASE_RETRY_MS;
   private retryTimer: ReturnType<typeof setTimeout> | undefined;
   private pingTimer: ReturnType<typeof setInterval> | undefined;
@@ -71,6 +77,15 @@ export class AppConnection {
     }
     this.outbox = [...this.outbox, caption].slice(-MAX_OUTBOX);
     this.options.saveOutbox(this.outbox);
+  }
+
+  sendTrack(track: CaptionTrack): void {
+    if (this.connected) {
+      this.socket?.send(JSON.stringify({ type: 'track', track }));
+      this.pendingTrack = null;
+      return;
+    }
+    this.pendingTrack = track;
   }
 
   /** Com o app fechado, o toque se perde: abrir a barra depois de um tempo só atrapalharia. */
@@ -108,6 +123,7 @@ export class AppConnection {
   }
 
   private flush() {
+    if (this.pendingTrack) this.sendTrack(this.pendingTrack);
     const pending = this.outbox;
     this.outbox = [];
     pending.forEach((caption) => this.socket?.send(JSON.stringify({ type: 'caption', caption })));

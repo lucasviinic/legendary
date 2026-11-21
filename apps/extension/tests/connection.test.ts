@@ -214,4 +214,37 @@ describe('AppConnection', () => {
     await vi.advanceTimersByTimeAsync(120_000);
     expect(FakeSocket.instances).toHaveLength(count);
   });
+
+  describe('caption track', () => {
+    const track = { source: 'youtube' as const, cues: ['I reckon so.'] };
+    const tracks = () =>
+      latest()
+        .sent.map((data) => JSON.parse(data))
+        .filter((message) => message.type === 'track');
+
+    it('sends the track right away when connected', () => {
+      const { connection } = setup();
+      latest().open();
+      connection.sendTrack(track);
+      expect(tracks()).toEqual([{ type: 'track', track }]);
+    });
+
+    it('keeps only the latest track while the app is closed and sends it on connecting', () => {
+      const { connection } = setup();
+      connection.sendTrack({ ...track, cues: ['Old video.'] });
+      connection.sendTrack(track);
+      latest().open();
+      expect(tracks()).toEqual([{ type: 'track', track }]);
+    });
+
+    it('does not send the same track again after a reconnection', () => {
+      const { connection } = setup();
+      latest().open();
+      connection.sendTrack(track);
+      latest().drop();
+      vi.advanceTimersByTime(2_000);
+      latest().open();
+      expect(tracks()).toEqual([]);
+    });
+  });
 });

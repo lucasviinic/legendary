@@ -3,8 +3,26 @@ import { readCaption, watchCaptions, type SiteConfig } from './caption-watcher';
 import { applyHighlight } from './highlight';
 import type { RuntimeMessage, TabMessage } from './messages';
 import { isSearchShortcut } from './shortcut';
+import { observeResources, watchTrack } from './track';
 
 /** Liga a captura de legendas em uma página. A extensão pode ter sido atualizada: daí o catch. */
+export function startTrackCapture(source: SiteConfig['source']): void {
+  watchTrack({
+    source,
+    origin: location.origin,
+    observe: observeResources,
+    fetchJson: (url) =>
+      fetch(url, { credentials: 'include' }).then((response) => {
+        if (!response.ok) throw new Error(`timedtext ${response.status}`);
+        return response.json() as Promise<unknown>;
+      }),
+    send: (track) => {
+      const message: RuntimeMessage = { type: 'track', track };
+      browser.runtime.sendMessage(message).catch(() => undefined);
+    },
+  });
+}
+
 export function startCapture(site: SiteConfig): void {
   let lastSent = '';
 

@@ -1,4 +1,9 @@
-import { DEFAULT_WS_PORT, type CaptionEvent, type Source } from '@legendary/contracts';
+import {
+  DEFAULT_WS_PORT,
+  type CaptionEvent,
+  type Source,
+  type WindowBounds,
+} from '@legendary/contracts';
 import { browser } from 'wxt/browser';
 import { defineBackground } from 'wxt/utils/define-background';
 import { AppConnection, type SocketLike } from '../lib/connection';
@@ -6,6 +11,17 @@ import type { RuntimeMessage, StatusReply, TabMessage } from '../lib/messages';
 import { rewindPlayer } from '../lib/rewind';
 
 const WAKE_ALARM = 'legendary-wake';
+
+async function boundsOf(windowId: number | undefined): Promise<WindowBounds | undefined> {
+  if (windowId === undefined) return undefined;
+  try {
+    const { left, top, width, height } = await browser.windows.get(windowId);
+    if (left === undefined || top === undefined || !width || !height) return undefined;
+    return { x: left, y: top, width, height };
+  } catch {
+    return undefined;
+  }
+}
 
 export default defineBackground(() => {
   /** A aba que mandou a última legenda é a que recebe o destaque e volta o vídeo. */
@@ -57,7 +73,14 @@ export default defineBackground(() => {
     if (message.type === 'caption') {
       captionTab = sender.tab?.id;
       captionSource = message.caption.source;
-      connection.sendCaption(message.caption);
+      const { caption } = message;
+      void boundsOf(sender.tab?.windowId).then((bounds) =>
+        connection.sendCaption(bounds ? { ...caption, bounds } : caption),
+      );
+      return undefined;
+    }
+    if (message.type === 'track') {
+      connection.sendTrack(message.track);
       return undefined;
     }
     if (message.type === 'open-search') {
