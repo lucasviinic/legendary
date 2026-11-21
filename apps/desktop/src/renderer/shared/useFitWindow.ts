@@ -1,7 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { api } from './api';
 
-/** Ajusta a altura da janela ao conteúdo, para as janelas que no mockup não têm altura fixa. */
 export function useFitWindow<T extends HTMLElement>() {
   const ref = useRef<T>(null);
   useEffect(() => {

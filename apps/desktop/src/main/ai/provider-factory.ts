@@ -22,7 +22,6 @@ const MATCH_OUTPUT_TOKENS = 200;
 
 type Task = 'enrich' | 'quiz';
 
-/** A tradução precisa ser rápida; o quiz pode usar um modelo mais forte. */
 const MODEL_IDS: Record<Provider, Record<Task, string>> = {
   gemini: { enrich: 'gemini-2.5-flash', quiz: 'gemini-2.5-flash' },
   claude: { enrich: 'claude-haiku-5-5', quiz: 'claude-opus-5-5' },
@@ -41,14 +40,12 @@ function createModel(provider: Provider, task: Task, apiKey: string): LanguageMo
   }
 }
 
-/** Traduzir uma palavra não pede raciocínio, e raciocinar atrasaria o início da resposta. */
 const ENRICH_OPTIONS = {
   gemini: { google: { thinkingConfig: { thinkingBudget: 0 } } },
   claude: { anthropic: { effort: 'low' as const, thinking: { type: 'disabled' as const } } },
   deepseek: { deepseek: { thinking: { type: 'disabled' as const } } },
 } satisfies Record<Provider, unknown>;
 
-/** No Claude: esforço baixo para responder rápido, e outro modelo assume se o pedido for recusado. */
 const quizOptions = (provider: Provider) =>
   provider === 'claude'
     ? { anthropic: { effort: 'low' as const, fallbacks: 'default' as const } }
@@ -59,13 +56,11 @@ interface PartialWord {
   translation?: string | undefined;
 }
 
-/** A tradução está completa quando a IA já começou a escrever o campo seguinte. */
 function completedTranslation(word: PartialWord): string | null {
   const fields = Object.keys(word);
   return word.translation && fields.at(-1) !== 'translation' ? word.translation : null;
 }
 
-/** Acompanha a resposta enquanto ela chega e avisa cada tradução uma única vez. */
 function translationAnnouncer(batch: EnrichRequestWord[], onTranslation?: OnTranslation) {
   const announced = new Set<EnrichRequestWord>();
   return (words: readonly (PartialWord | undefined)[]) => {
@@ -88,14 +83,12 @@ export function createProvider(provider: Provider, apiKey: string): LLMProvider 
     name: provider,
 
     async enrichWords(batch, { level, onTranslation }) {
-      // Um erro no streaming não é lançado: ele só chega por aqui, e sem isto a fila ficaria parada.
       let failure: unknown;
       const result = streamText({
         model: enrichModel,
         output: Output.object({ schema: EnrichResponseSchema }),
         ...buildEnrichPrompt(batch, level),
         maxOutputTokens: MAX_OUTPUT_TOKENS,
-        // As novas tentativas ficam com a fila.
         maxRetries: 0,
         abortSignal: AbortSignal.timeout(ENRICH_TIMEOUT_MS),
         providerOptions: ENRICH_OPTIONS[provider],

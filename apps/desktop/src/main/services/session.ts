@@ -9,7 +9,6 @@ import type { Repositories } from '../db/repositories';
 import type { VocabularyService } from './vocabulary';
 
 const NO_CAPTIONS_AT_START_MS = 20_000;
-/** Cenas longas sem fala são normais, então a tolerância é maior depois da primeira legenda. */
 const NO_CAPTIONS_AFTER_START_MS = 120_000;
 const FLUSH_LIMIT_MS = 5_000;
 const UNTITLED = 'Sessão sem título';
@@ -102,7 +101,6 @@ export class SessionService {
     if (this.state !== 'idle') this.deps.vocabulary.useTrack(track.cues);
   }
 
-  /** Devolve falso quando não há sessão ou o texto não tem palavra, e nesse caso nada mudou. */
   search(query: string): boolean {
     if (this.state === 'idle') return false;
     const found = this.deps.vocabulary.search(query);
@@ -110,7 +108,6 @@ export class SessionService {
     return found;
   }
 
-  /** Encerra a sessão e devolve o id dela, ou nulo quando não há palavras para o quiz. */
   async stop(): Promise<number | null> {
     if (this.state === 'idle') return null;
     const elapsed = this.elapsed();

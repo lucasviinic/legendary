@@ -8,10 +8,6 @@ export interface ShortcutActions {
   toggleSearch(): void;
 }
 
-/**
- * Atalhos globais, que funcionam com o vídeo em tela cheia. `log` é temporário: mostra se o macOS
- * aceitou cada atalho e se o toque chegou até aqui, enquanto o ⌘⇧B é investigado.
- */
 export function registerShortcuts(actions: ShortcutActions, log: (line: string) => void): void {
   const bindings: [string, () => void][] = [
     ['CommandOrControl+Shift+L', actions.toggleSession],

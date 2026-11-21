@@ -1,4 +1,3 @@
-/** Limpa a legenda: tira tags, notas de som e nomes de personagem. */
 export function normalize(raw: string): string {
   return raw
     .replace(/<[^>]*>/g, ' ')

@@ -1,6 +1,5 @@
 @import 'tailwindcss';
 
-/* Tokens do mockup: Legendary Mockups.dc.html, frames 1a a 1j e 2a a 2e. */
 @theme {
   --color-accent: #7fdbca;
   --color-surface: #1e1e21;
@@ -27,7 +26,6 @@
 }
 
 @layer base {
-  /* As medidas do mockup contam com o box model padrão, então ele volta a valer aqui. */
   *,
   ::before,
   ::after {
@@ -58,7 +56,6 @@
 }
 
 @layer components {
-  /* O único lugar que define o vidro: para trocar por blur nativo, é aqui que se mexe. */
   .glass {
     background: var(--glass-bg, rgba(28, 28, 32, 0.66));
     backdrop-filter: blur(28px) saturate(170%);

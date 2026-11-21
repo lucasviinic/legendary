@@ -20,7 +20,6 @@ const KEY_PREFIX = /^(sk-ant-|sk-|AIza)/;
 const DOT = '•';
 const VISIBLE_END = 4;
 
-/** Mostra só o começo fixo da chave e os últimos caracteres, como no mockup. */
 export function maskKey(key: string): string {
   const prefix = KEY_PREFIX.exec(key)?.[0] ?? '';
   const hidden = key.length - prefix.length - VISIBLE_END;
@@ -42,12 +41,10 @@ export class SettingsService {
     return this.cached;
   }
 
-  /** Escolher um canto, mesmo o atual, apaga as posições arrastadas e volta ao padrão. */
   update(patch: Partial<Settings>): void {
     this.save({ ...this.get(), ...patch, ...(patch.corner ? { cardPlacements: {} } : {}) });
   }
 
-  /** Guarda a posição arrastada neste monitor. As dos outros monitores continuam valendo. */
   placeCards(displayKey: string, placement: CardPlacement): void {
     const current = this.get();
     this.save({

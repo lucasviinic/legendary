@@ -15,7 +15,6 @@ const LEVELS = new Set(['B1', 'B2', 'C1']);
 const answeredWhere = (sessionId: number | null) =>
   sessionId === null ? sql`` : sql`and ${quizzes.sessionId} = ${sessionId}`;
 
-/** Consultas de leitura da janela de histórico, que cruzam várias tabelas. */
 export function historyRepository(db: Db) {
   const answered = (sessionId: number | null) =>
     sql<number>`(select count(*) from ${quizQuestions} join ${quizzes} on ${quizzes.id} = ${quizQuestions.quizId}

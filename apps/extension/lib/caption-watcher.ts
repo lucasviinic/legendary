@@ -6,15 +6,12 @@ export interface SiteConfig {
   title: readonly string[];
 }
 
-/** Espera a legenda parar de mudar: a legenda automática do YouTube cresce palavra por palavra. */
 const SETTLE_MS = 250;
-/** Limita as leituras, porque essas páginas mudam o tempo todo. */
 const CHECK_MS = 50;
 const SITE_SUFFIX = /\s*[-|–]\s*(YouTube|Netflix)\s*$/i;
 
 const clean = (text: string) => text.replace(/\s+/g, ' ').trim();
 
-/** Texto do elemento, com a quebra de linha da legenda virando espaço. */
 function textOf(node: Node): string {
   let text = '';
   node.childNodes.forEach((child) => {
@@ -55,7 +52,6 @@ export interface WatchOptions {
   send: (caption: CaptionEvent) => void;
 }
 
-/** Observa a página e manda cada frase nova, sem repetir a que continua na tela. */
 export function watchCaptions({ site, root, send }: WatchOptions): () => void {
   let lastSent = '';
   let pending = '';

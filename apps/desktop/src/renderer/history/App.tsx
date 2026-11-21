@@ -17,7 +17,6 @@ export function App() {
   const apply = useCallback((next: HistoryList) => {
     setList(next);
     setNow(Date.now());
-    // Abre na sessão mais recente, como no frame 1j.
     setScope((current) => {
       if (current) return current;
       const latest = next.sessions[0];

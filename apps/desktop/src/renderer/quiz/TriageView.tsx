@@ -26,7 +26,6 @@ export interface TriageViewProps {
   onSkip?: () => void;
 }
 
-/** Triagem ao encerrar, antes do resumo: frame 2a. As setas estão no App, junto das outras teclas. */
 export function TriageView({
   word,
   position,

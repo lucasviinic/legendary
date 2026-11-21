@@ -3,26 +3,19 @@ import { AnimatePresence, motion } from 'motion/react';
 import { useStackDrag } from './useStackDrag';
 import { CompactCard, FullCard, type CardActions } from './WordCardView';
 
-/**
- * Opacidade de cada posição, do card em destaque ao resumo mais antigo. Os três primeiros valores
- * são do frame 1a, que desenha 3 cards. Os outros descem devagar para o texto continuar legível.
- */
 const OPACITY_BY_RANK = [1, 0.78, 0.48, 0.43, 0.39, 0.34, 0.3];
 const LOWEST_OPACITY = 0.3;
 
 export interface CardStackProps extends CardActions {
   cards: WordCard[];
   placement: CardPlacement;
-  /** Quantos dos primeiros cards estão abertos. Depois de um tempo eles também viram resumo. */
   openCards: number;
   hovered: string | null;
   onHover?: (lemma: string | null) => void;
-  /** Sem esta função, a pilha não pode ser arrastada. */
   onPlace?: (placement: CardPlacement) => void;
   onDragging?: (dragging: boolean) => void;
 }
 
-/** Pilha com o card mais novo em destaque e os anteriores resumidos abaixo dele. */
 export function CardStack({
   cards,
   placement,

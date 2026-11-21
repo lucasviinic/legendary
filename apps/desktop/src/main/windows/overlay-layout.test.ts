@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import { defaultSettings, type Settings } from '@legendary/contracts';
 import { displayKey, overlayLayout, type OverlayDisplay } from './overlay-layout';
 
-/** Medidas reais: o monitor HDMI e a tela do MacBook lidas com o app rodando. */
 const hdmi: OverlayDisplay = {
   id: 2,
   label: '27G2G5',

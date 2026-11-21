@@ -1,4 +1,3 @@
-// Comandos do drizzle-kit que abrem o banco, como migrate e studio.
 import { join, resolve } from 'node:path';
 import { runWithElectronNode } from './electron-node.mjs';
 

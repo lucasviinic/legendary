@@ -17,7 +17,6 @@ export interface Delta {
   y: number;
 }
 
-/** Prende a pilha ao canto mais próximo, para ela crescer na direção certa ao receber cards. */
 export function placementFromRect(rect: Box, screen: Size): CardPlacement {
   const right = rect.left + rect.width / 2 > screen.width / 2;
   const bottom = rect.top + rect.height / 2 > screen.height / 2;
@@ -30,7 +29,6 @@ export function placementFromRect(rect: Box, screen: Size): CardPlacement {
 
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
 
-/** Limita o movimento para a pilha não sair da tela. */
 export function clampDelta(rect: Box, delta: Delta, screen: Size): Delta {
   return {
     x: clamp(delta.x, -rect.left, screen.width - rect.left - rect.width),

@@ -22,7 +22,6 @@ const None = z.undefined();
 export const WindowNameSchema = z.enum(['history', 'settings', 'onboarding']);
 export type WindowName = z.infer<typeof WindowNameSchema>;
 
-/** Canais renderer → main. O preload só expõe estes, e o main valida cada payload. */
 export const invokeChannels = {
   'session:start': { request: z.object({ source: CaptureOriginSchema }), response: None },
   'session:stop': { request: None, response: None },
@@ -87,12 +86,10 @@ export const invokeChannels = {
   'app:quit': { request: None, response: None },
 } as const;
 
-/** Canais main → renderer. */
 export const eventChannels = {
   'session:status': SessionStatusSchema,
   'vocab:card': WordCardSchema,
   'vocab:card-update': WordCardSchema,
-  /** Uma palavra que voltou: entra como resumo, sem abrir um card. */
   'vocab:card-seen': WordCardSchema,
   'vocab:card-remove': z.object({ lemma: z.string() }),
   'overlay:visibility': z.object({ visible: z.boolean() }),
@@ -111,7 +108,6 @@ export type InvokeResponse<C extends InvokeChannel> = z.infer<
 export type EventChannel = keyof typeof eventChannels;
 export type EventPayload<C extends EventChannel> = z.infer<(typeof eventChannels)[C]>;
 
-/** API que o preload expõe em `window.legendary`. */
 export interface LegendaryApi {
   invoke<C extends InvokeChannel>(
     channel: C,

@@ -50,7 +50,6 @@ export function Segmented<T extends string>({
 const FIELD =
   'flex h-7 flex-1 items-center rounded-[7px] border border-white/12 bg-white/6 px-2.5 font-mono text-[12px] text-white/80';
 
-/** Campo da API key. A chave vai direto para o main e aqui só volta a máscara. */
 export function KeyField({
   mask,
   onSave,
@@ -103,11 +102,9 @@ export function KeyField({
 
 export interface SliderStop {
   value: number;
-  /** Posição na faixa, em porcentagem. */
   at: number;
 }
 
-/** O frame 1e desenha "até 2" em 33%. Os outros passos dividem o resto da faixa, até um card a cada 4 s. */
 export const CARD_STOPS: SliderStop[] = [
   { value: 1, at: 0 },
   { value: 2, at: 33 },
@@ -125,7 +122,6 @@ const evenStops = (values: number[]): SliderStop[] =>
   }));
 
 export const SUMMARY_STOPS = evenStops([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
-/** Inclui 4 s e 6 s, os tempos que deixam 15 e 10 cards por minuto caberem com um card por vez. */
 export const CARD_TIME_STOPS = evenStops([3, 4, 5, 6, 8, 10, 15, 20, 30]);
 
 const upTo = (value: number) => `até ${value}`;
@@ -137,7 +133,6 @@ const ARROW_STEP: Record<string, number> = {
   ArrowDown: -1,
 };
 
-/** Controle deslizante do frame 1e, sobre um input nativo para manter o teclado funcionando. */
 export function StepSlider({
   label,
   stops,
@@ -151,7 +146,6 @@ export function StepSlider({
   format?: (value: number) => string;
   onChange?: (value: number) => void;
 }) {
-  // Um valor salvo fora dos passos, como 3, aparece no passo seguinte até ser alterado.
   const index = stops.findIndex((stop) => stop.value >= value);
   const { at } = stops[index]!;
   const nearest = (position: number) =>
@@ -178,7 +172,6 @@ export function StepSlider({
           value={at}
           onChange={(event) => onChange?.(nearest(Number(event.target.value)).value)}
           onKeyDown={(event) => {
-            // A seta nativa anda 1% e o controle voltaria para o mesmo passo.
             const step = ARROW_STEP[event.key];
             if (!step) return;
             event.preventDefault();

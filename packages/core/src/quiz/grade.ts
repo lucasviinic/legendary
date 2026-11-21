@@ -36,7 +36,6 @@ function gradeMatch(question: QuizQuestionDraft, answer: string): GradeResult {
 const isTyped = (question: QuizQuestionDraft) =>
   question.type === 'type_word' || (question.type === 'cloze' && !question.options);
 
-/** Corrige uma resposta localmente. Na digitação, aceita um erro de letra. */
 export function gradeAnswer(question: QuizQuestionDraft, answer: string): GradeResult {
   if (question.type === 'match') return gradeMatch(question, answer);
 

@@ -3,7 +3,6 @@ import { BrowserWindow, type WebPreferences } from 'electron';
 
 export type RendererPage = 'overlay' | 'quiz' | 'history' | 'settings' | 'menu' | 'search';
 
-/** Toda janela usa estas opções: o renderer não tem acesso a Node nem ao main, só ao preload. */
 export const secureWebPreferences: WebPreferences = {
   preload: join(import.meta.dirname, '../preload/index.cjs'),
   contextIsolation: true,
@@ -30,7 +29,6 @@ export function loadPage(
   }
 }
 
-/** Opções das janelas normais: modo escuro nativo e semáforo na posição do mockup. */
 export const normalWindowOptions = {
   show: false,
   backgroundColor: '#1e1e21',

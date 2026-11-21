@@ -35,7 +35,6 @@ export interface StatusBarProps {
   onStop?: () => void;
 }
 
-/** Barra de status do overlay: frame 1a e os estados do frame 1c. */
 export function StatusBar({ status, onTogglePause, onStop }: StatusBarProps) {
   const time = formatElapsed(status.elapsedMs);
 

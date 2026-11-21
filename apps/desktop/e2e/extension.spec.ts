@@ -78,7 +78,6 @@ test('a caption on the page reaches the app and comes back underlined', async ()
   await invoke(menu, 'settings:set', { onboarded: true });
   await invoke(menu, 'session:start', { source: 'browser' });
 
-  // Cola o código no storage, como o popup faz, e espera a extensão conectar.
   const worker =
     browser.serviceWorkers()[0] ??
     (await browser.waitForEvent('serviceworker', { timeout: 20_000 }));
@@ -98,7 +97,6 @@ test('a caption on the page reaches the app and comes back underlined', async ()
     )
     .toBe(true);
 
-  // Uma página no endereço da Netflix, com a estrutura esperada, recebe o content script real.
   const page = await browser.newPage();
   netflix = page;
   await page.route('https://www.netflix.com/**', (route) =>
@@ -109,17 +107,14 @@ test('a caption on the page reaches the app and comes back underlined', async ()
   );
   await page.goto('https://www.netflix.com/watch/1');
 
-  // Uma legenda nova entra na página, como o player faz.
   await page.evaluate(() => {
     document.querySelector('.player-timedtext')!.innerHTML =
       '<span>I reckon we should head out before it gets dark.</span>';
   });
 
-  // O card aparece no overlay do app.
   await expect(overlay.getByTestId('card-head out')).toBeVisible({ timeout: 15_000 });
   await expect(overlay.getByTestId('status-bar')).toContainText('Netflix');
 
-  // E o destaque volta para a legenda, sem mudar o texto dela.
   await expect(page.locator(HIGHLIGHT)).toHaveText('head out', { timeout: 15_000 });
   await expect(page.locator('.player-timedtext')).toHaveText(
     'I reckon we should head out before it gets dark.',
@@ -136,11 +131,9 @@ test('the shortcut pressed inside the player opens the search bar', async () => 
     );
   expect(await searchVisible()).toBe(false);
 
-  // A página recebe a tecla antes do navegador: ⌘⇧B não muda a barra de favoritos.
   const prevented = netflix.evaluate(
     () =>
       new Promise<boolean>((resolve) => {
-        // O Meta e o Shift chegam antes, cada um com o seu próprio keydown.
         window.addEventListener('keydown', (event) => {
           if (event.code === 'KeyB') resolve(event.defaultPrevented);
         });
@@ -158,7 +151,6 @@ test('searching with the option on rewinds the video in the tab of the captions'
   const menu = await windowOf('menu');
   await invoke(menu, 'settings:set', { rewindOnSearch: true });
 
-  // Na Netflix, pela API do player, sem tocar no elemento de vídeo.
   await netflix.evaluate(() => {
     const seeks: number[] = [];
     Object.assign(window, {
@@ -187,7 +179,6 @@ test('searching with the option on rewinds the video in the tab of the captions'
     .poll(() => netflix.evaluate(() => (window as never as { seeks: number[] }).seeks))
     .toEqual([90_000]);
 
-  // No YouTube, direto no vídeo. A aba certa é a que mandou a última legenda.
   const youtube = await browser.newPage();
   await youtube.route('https://www.youtube.com/**', (route) =>
     route.fulfill({

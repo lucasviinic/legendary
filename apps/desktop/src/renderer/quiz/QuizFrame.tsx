@@ -2,7 +2,6 @@ import type { QuizAnswerResult } from '@legendary/contracts';
 import type { ReactNode } from 'react';
 import { TrafficLights } from '../shared/TrafficLights';
 
-/** Cabeçalho com o progresso, comum às questões. */
 export function QuizFrame({
   position,
   total,
@@ -31,7 +30,6 @@ export function QuizFrame({
   );
 }
 
-/** Painel com o resultado da resposta: parte de baixo do frame 1g. */
 export function Verdict({ result, onNext }: { result: QuizAnswerResult; onNext?: () => void }) {
   const pairs = result.matchResults;
   const rightPairs = pairs?.filter((pair) => pair.correct).length ?? 0;

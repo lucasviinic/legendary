@@ -1,11 +1,9 @@
 import type { Level } from '@legendary/contracts';
 import type { Token } from './tokenize';
 
-/** Posição mínima na lista de frequência para uma palavra interessar a cada nível. */
 export const FREQUENCY_CUT: Record<Level, number> = { B1: 1350, B2: 2600, C1: 5800 };
 
 const CONTENT_POS = new Set(['VERB', 'NOUN', 'ADJ', 'ADV']);
-/** Ao traduzir tudo, também entram palavras como "despite". As mais básicas estão em STOPWORDS. */
 const ALL_WORDS_POS = new Set([...CONTENT_POS, 'ADP', 'CCONJ', 'SCONJ']);
 
 const STOPWORDS = new Set(
@@ -25,7 +23,6 @@ export interface FilterOptions {
   cut: number;
   known: ReadonlySet<string>;
   ranks: ReadonlyMap<string, number>;
-  /** Não corta pela frequência, então vale até para palavras fora da lista. */
   allWords?: boolean | undefined;
 }
 

@@ -6,7 +6,6 @@ export type SessionWordRow = typeof sessionWords.$inferSelect;
 
 export function sessionWordsRepository(db: Db) {
   return {
-    /** Grava a palavra na sessão. A frase e o horário da primeira aparição não mudam depois. */
     upsert(word: SessionWordRow) {
       db.insert(sessionWords)
         .values(word)

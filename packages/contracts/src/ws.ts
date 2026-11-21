@@ -3,17 +3,14 @@ import { CaptionEventSchema, CaptionTrackSchema } from './caption';
 
 export const DEFAULT_WS_PORT = 47615;
 
-/** Mensagens da extensão para o app. */
 export const ClientMessageSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('caption'), caption: CaptionEventSchema }),
   z.object({ type: z.literal('track'), track: CaptionTrackSchema }),
   z.object({ type: z.literal('ping') }),
-  /** O atalho da busca foi apertado dentro do player. */
   z.object({ type: z.literal('open-search') }),
 ]);
 export type ClientMessage = z.infer<typeof ClientMessageSchema>;
 
-/** Mensagens do app para a extensão. */
 export const ServerMessageSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('highlight'),

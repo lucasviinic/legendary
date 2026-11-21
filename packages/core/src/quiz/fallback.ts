@@ -75,7 +75,6 @@ function choice(
   };
 }
 
-/** Quiz montado sem IA, para quando a chave falta ou a chamada falha. */
 export function buildFallbackQuiz(
   words: readonly FallbackWord[],
   limit: number,

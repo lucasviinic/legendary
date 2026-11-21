@@ -104,7 +104,6 @@ export function KeyRow({
   );
 }
 
-/** Código que a pessoa cola na extensão: última linha do frame 1e e do frame 2e. */
 export function PairingRow({ view }: { view: View }) {
   const [copied, setCopied] = useState(false);
   const { token, connected } = view.pairing;
@@ -140,7 +139,6 @@ export interface SettingsViewProps {
   onSaveKey?: (provider: Provider, key: string) => void;
 }
 
-/** Janela de configurações: frame 1e. */
 export function SettingsView({ view, onChange, onSaveKey }: SettingsViewProps) {
   const { settings } = view;
   return (

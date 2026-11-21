@@ -1,6 +1,5 @@
 import { TrafficLights } from '../shared/TrafficLights';
 
-/** Quiz sem palavras, quando a pessoa já sabia todas as da sessão: frame 2b. Enter também fecha. */
 export function NoWordsView({ onClose }: { onClose?: () => void }) {
   return (
     <div className="flex h-full flex-col bg-surface text-[13px] text-white">

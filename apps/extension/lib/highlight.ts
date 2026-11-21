@@ -19,7 +19,6 @@ function wrap(node: Text, start: number, length: number) {
   target.splitText(length);
   const mark = node.ownerDocument.createElement('span');
   mark.setAttribute(HIGHLIGHT_ATTRIBUTE, '');
-  // As medidas seguem o sublinhado da legenda nos frames 1a e 1b, proporcionais à fonte.
   mark.style.setProperty('text-decoration-line', 'underline');
   mark.style.setProperty('text-decoration-color', ACCENT);
   mark.style.setProperty('text-decoration-thickness', '0.09em');
@@ -28,7 +27,6 @@ function wrap(node: Text, start: number, length: number) {
   mark.append(target);
 }
 
-/** Sublinha as palavras dentro da legenda. O texto da legenda nunca é tratado como HTML. */
 export function applyHighlight(
   root: ParentNode,
   selector: string,

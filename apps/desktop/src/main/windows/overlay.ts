@@ -1,14 +1,6 @@
 import { BrowserWindow, screen, type Display, type Rectangle } from 'electron';
 import { loadPage, secureWebPreferences } from './common';
 
-/**
- * Janela transparente sobre o vídeo. A especificação previa `vibrancy: 'hud'`, mas vibrancy vale
- * para a janela inteira e embaçaria o vídeo todo, então o vidro é feito só com CSS nos cards.
- *
- * Ela cobre a tela inteira para os cards poderem ser arrastados até a borda de cima, que em tela
- * cheia é onde o vídeo começa. Sem `enableLargerThanScreen`, o macOS empurra a janela para baixo
- * da barra de menus.
- */
 export class OverlayWindow {
   private window: BrowserWindow | null = null;
   private userHidden = false;
@@ -81,7 +73,6 @@ export class OverlayWindow {
     this.window?.setIgnoreMouseEvents(!interactive, { forward: true });
   }
 
-  /** Chamado a cada atualização de status: só a virada de estado pode mexer na janela. */
   setSessionActive(active: boolean): void {
     if (active === this.sessionActive) return;
     this.sessionActive = active;

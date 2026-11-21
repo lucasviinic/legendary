@@ -6,7 +6,6 @@ export interface Phrase {
 }
 
 const MAX_GAP = 2;
-/** Palavras que podem separar um phrasal verb: "figure the problem out". */
 const GAP_POS = new Set(['PRON', 'DET', 'NOUN', 'PROPN', 'ADJ']);
 
 interface Candidate {
@@ -38,7 +37,6 @@ function indexFor(phrases: readonly Phrase[]): Map<string, Candidate[]> {
   return index;
 }
 
-/** Devolve o índice do último token da expressão que começa em `start`, ou -1. */
 function matchEnd(tokens: readonly Token[], start: number, rest: readonly string[]): number {
   const [next, ...others] = rest;
   for (let gap = 0; gap <= MAX_GAP; gap++) {
@@ -54,7 +52,6 @@ function matchEnd(tokens: readonly Token[], start: number, rest: readonly string
   return -1;
 }
 
-/** Junta phrasal verbs e expressões em um único token. */
 export function detectPhrases(tokens: readonly Token[], phrases: readonly Phrase[]): Token[] {
   const index = indexFor(phrases);
   const result: Token[] = [];

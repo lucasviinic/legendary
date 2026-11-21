@@ -76,7 +76,6 @@ export function createHarness(
     join(__dirname, '../../../../../packages/db/migrations'),
   );
   const repos = createRepositories(db);
-  /** `step` faz o tempo passar a cada leitura, como acontece com o relógio de verdade. */
   const clock = { now: 1_000_000, step: 0 };
   const now = () => (clock.now += clock.step);
   const provider = options.provider === undefined ? fakeProvider() : options.provider;

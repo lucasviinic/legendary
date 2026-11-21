@@ -11,7 +11,6 @@ const noCsp = (): Plugin => ({
   },
 });
 
-/** Serve só a página de comparação com o mockup. */
 export default defineConfig({
   root: resolve(import.meta.dirname, '../src/renderer'),
   plugins: [react(), tailwindcss(), noCsp()],

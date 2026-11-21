@@ -24,7 +24,6 @@ async function boundsOf(windowId: number | undefined): Promise<WindowBounds | un
 }
 
 export default defineBackground(() => {
-  /** A aba que mandou a última legenda é a que recebe o destaque e volta o vídeo. */
   let captionTab: number | undefined;
   let captionSource: Source = 'netflix';
 
@@ -94,7 +93,6 @@ export default defineBackground(() => {
     return undefined;
   });
 
-  // O service worker pode dormir com o app fechado: o alarme o acorda para tentar de novo.
   void browser.alarms.create(WAKE_ALARM, { periodInMinutes: 1 });
   browser.alarms.onAlarm.addListener(() => connection.wake());
 });

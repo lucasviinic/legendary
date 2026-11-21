@@ -1,4 +1,3 @@
-/** A frase entre aspas, com a palavra sublinhada na cor de destaque. */
 export function Sentence({
   sentence,
   surface,

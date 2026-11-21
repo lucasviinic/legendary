@@ -19,7 +19,6 @@ const caption = (text: string, mediaTitle = 'Northbound · T1E3'): CaptionEvent 
   mediaTitle,
 });
 
-/** A palavra de um card vai para a IA na hora, então basta o relógio andar um instante. */
 const settle = async () => {
   await vi.advanceTimersByTimeAsync(1);
 };
@@ -503,13 +502,11 @@ describe('searching a word', () => {
   });
 
   it('does not translate again when the caption gives the word another class', async () => {
-    // Sozinha, "hunch" parece substantivo. Nesta legenda, é verbo.
     h.session.search('hunch');
     await settle();
     expect(h.events.cards[0]?.pos).toBe('noun');
 
     h.session.handleCaption(caption('They hunch over the table.'));
-    // Tempo para a palavra chegar à vez dela e para a fila antecipar a tradução.
     await vi.advanceTimersByTimeAsync(2_000);
     h.clock.now += 60_000;
     h.session.tick();
@@ -618,7 +615,6 @@ describe('translating every word', () => {
   });
 
   it('does not translate again when the same word comes back with another class', async () => {
-    // "hunch" é substantivo na primeira frase e verbo na segunda.
     h.session.handleCaption(caption('He had a hunch.'));
     await settle();
     h.session.handleCaption(caption('They hunch over it.'));

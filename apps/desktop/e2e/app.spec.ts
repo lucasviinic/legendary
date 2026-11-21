@@ -20,7 +20,6 @@ let socket: WebSocket | null = null;
 const highlights: unknown[] = [];
 const rewinds: unknown[] = [];
 
-/** As janelas ficam em memória mesmo escondidas: procura pela página de cada uma. */
 async function windowOf(page: string): Promise<Page> {
   await expect
     .poll(() => app.windows().some((window) => window.url().includes(`/${page}/`)), {
@@ -38,7 +37,6 @@ const invoke = (page: Page, channel: string, payload?: unknown) =>
     payload,
   ] as const);
 
-/** Onde o elemento está depois de parar: duas leituras no mesmo quadro sempre dariam iguais. */
 async function settledBox(locator: Locator) {
   const boxes: { x: number; y: number; width: number; height: number }[] = [];
   await expect
@@ -75,7 +73,6 @@ function sendCaption(text: string) {
 
 test.beforeAll(async () => {
   userData = mkdtempSync(join(tmpdir(), 'legendary-e2e-'));
-  // Quem roda dentro do VS Code herda esta variável, que faria o Electron subir como Node.
   const { ELECTRON_RUN_AS_NODE, ...inherited } = process.env as Record<string, string>;
   app = await electron.launch({
     args: ['.'],
@@ -129,10 +126,8 @@ test('captions become cards, and the session ends in a quiz and in the history',
   await invoke(menu, 'settings:set', { cardsPerMinute: 4, level: 'B2', onboarded: true });
   await invoke(menu, 'session:start', { source: 'browser' });
 
-  // A barra de status aparece com a sessão ativa.
   await expect(overlay.getByTestId('status-bar')).toContainText('Encerrar');
 
-  // Esconder o overlay vale até a pessoa mostrar de novo, mesmo com o status chegando a cada segundo.
   const overlayVisible = () =>
     app.evaluate(({ BrowserWindow }) =>
       BrowserWindow.getAllWindows()
@@ -147,7 +142,6 @@ test('captions become cards, and the session ends in a quiz and in the history',
   await invoke(menu, 'overlay:toggle');
   await expect.poll(overlayVisible).toBe(true);
 
-  // A legenda gera um card, primeiro sem tradução.
   sendCaption('JOHN: I presume we should head out before it gets dark.');
   const firstCard = overlay.getByTestId('card-head out');
   await expect(firstCard).toContainText('phrasal verb');
@@ -160,24 +154,19 @@ test('captions become cards, and the session ends in a quiz and in the history',
       surfaces: ['head out'],
     });
 
-  // A tradução chega logo depois, sem esperar outras palavras. A explicação vem em seguida.
   await expect(firstCard).toContainText('tradução de head out', { timeout: 2_000 });
   await expect(firstCard).toContainText('Explicação curta de head out', { timeout: 2_000 });
 
-  // A palavra que espera a vez já foi traduzida: o card dela aparece pronto.
   const secondCard = overlay.getByTestId('card-presume');
   await expect(secondCard).toBeVisible({ timeout: 20_000 });
   await expect(secondCard).toContainText('tradução de presume', { timeout: 200 });
   await expect(overlay.getByTestId('status-bar')).toContainText('2 palavras novas');
 
-  // O card anterior continua na pilha, resumido.
   await expect(firstCard).toContainText('tradução de head out');
   await expect(firstCard).not.toContainText('Explicação curta');
 
-  // Salvar pelo card.
   await invoke(menu, 'vocab:save', { lemma: 'presume' });
 
-  // Encerrar abre o quiz pela triagem, sem a palavra salva. Enter pula para o resumo.
   const quizOpened = app.waitForEvent('window', (window) => window.url().includes('/quiz/'));
   await invoke(menu, 'session:stop');
   const quiz = await quizOpened;
@@ -191,7 +180,6 @@ test('captions become cards, and the session ends in a quiz and in the history',
 
   await quiz.getByRole('button', { name: /Começar quiz/ }).click();
 
-  // Responde cada questão até a tela final.
   for (let guard = 0; guard < 12; guard++) {
     if (
       await quiz
@@ -204,7 +192,6 @@ test('captions become cards, and the session ends in a quiz and in the history',
     await expect(quiz.getByText(/\d+ de \d+/).first()).toBeVisible();
     const typed = quiz.getByLabel('Sua resposta');
     if (await quiz.getByText('Associar').isVisible()) {
-      // Arrasta cada expressão até a tradução dela, como faria com o mouse.
       for (const word of ['head out', 'presume']) {
         const from = (await quiz.getByTestId(`match-word-${word}`).boundingBox())!;
         const to = (await quiz.locator(`[data-meaning="tradução de ${word}"]`).boundingBox())!;
@@ -222,12 +209,10 @@ test('captions become cards, and the session ends in a quiz and in the history',
     }
     await expect(next).toBeVisible();
     await next.click();
-    // Enquanto a tela não avança, a resposta anterior ainda vale e a tecla seria ignorada.
     await expect(next).toBeHidden();
   }
   await expect(quiz.getByRole('button', { name: 'Fechar' })).toBeVisible();
 
-  // O histórico mostra a sessão e as palavras.
   const historyOpened = app.waitForEvent('window', (window) => window.url().includes('/history/'));
   await quiz.getByRole('button', { name: 'Ver histórico' }).click();
   const history = await historyOpened;
@@ -237,7 +222,6 @@ test('captions become cards, and the session ends in a quiz and in the history',
   await expect(row).toContainText('★');
   await expect(row).toContainText('B2');
 
-  // A barra some quando a sessão acaba.
   await expect(overlay.getByTestId('status-bar')).toHaveCount(0);
 });
 
@@ -269,7 +253,6 @@ test('the cards can be dragged anywhere on the screen, and the position is remem
         .cardPlacements,
     );
 
-  // A janela cobre a tela inteira, mas a posição padrão continua abaixo da barra de menus.
   const geometry = await app.evaluate(({ BrowserWindow, screen }) => {
     const display = screen.getPrimaryDisplay();
     const overlayWindow = BrowserWindow.getAllWindows().find((window) =>
@@ -289,9 +272,6 @@ test('the cards can be dragged anywhere on the screen, and the position is remem
   const bar = (await overlay.getByTestId('status-bar').boundingBox())!;
   expect(bar.y).toBe(geometry.safeTop + 18);
 
-  // Ao soltar, a pilha fica onde estava: não volta nem voa até a posição nova.
-  // A medida é do card, porque é ele que a animação move, não a pilha em volta. Antes, espera o
-  // card terminar de entrar, porque ele chega deslizando.
   await expect.poll(async () => (await card.boundingBox())!.x).toBe(start.x);
   await dragBy(-300, 40);
   for (let sample = 0; sample < 6; sample++) {
@@ -302,17 +282,14 @@ test('the cards can be dragged anywhere on the screen, and the position is remem
   }
   await expect.poll(placements).toEqual([{ corner: 'tr', x: 320, y: geometry.safeTop + 60 }]);
 
-  // Chega até o topo da tela, acima da faixa da barra de menus, e não sai dela.
   await dragBy(0, -2_000);
   expect((await box()).y).toBe(0);
   await expect.poll(placements).toEqual([{ corner: 'tr', x: 320, y: 0 }]);
 
-  // Um botão continua sendo botão. O card expande com o mouse em cima, como no frame 1c.
   await expect(card).toContainText('Explicação curta', { timeout: 2_000 });
   const save = card.getByRole('button', { name: 'Salvar' });
   await save.hover();
   await expect(card.getByText('Outro exemplo')).toBeVisible();
-  // O botão desce enquanto o card abre, e medir antes faria o clique cair fora dele.
   const saveBox = await settledBox(save);
   const before = await box();
   await overlay.mouse.move(saveBox.x + 5, saveBox.y + 5);
@@ -321,20 +298,17 @@ test('the cards can be dragged anywhere on the screen, and the position is remem
   await overlay.mouse.up();
   expect(await box()).toMatchObject({ x: before.x, y: before.y });
 
-  // Um clique sem movimento não muda nada.
   const clickFrom = await box();
   await overlay.mouse.click(clickFrom.x + 30, clickFrom.y + 12);
   expect(await box()).toMatchObject({ x: clickFrom.x, y: clickFrom.y });
   await expect.poll(placements).toEqual([{ corner: 'tr', x: 320, y: 0 }]);
 
-  // Na metade de baixo a pilha se prende ao canto de baixo e cresce para cima.
   const screenHeight = await overlay.evaluate(() => window.innerHeight);
   await dragBy(-600, screenHeight - 400);
   await expect.poll(async () => ((await placements())[0] as { corner: string }).corner).toBe('bl');
   const settings = (await invoke(menu, 'settings:get')) as { settings: { corner: string } };
   expect(settings.settings.corner).toBe('bl');
 
-  // Escolher um canto nas Configurações volta para a posição padrão.
   await invoke(menu, 'settings:set', { corner: 'tr' });
   await expect.poll(async () => (await box()).y).toBe(geometry.safeTop + 20);
   await expect
@@ -369,7 +343,6 @@ test('the settings control the pace of the cards and how many summaries stay', a
   await rate.focus();
   await settings.keyboard.press('Home');
   await expectRate(1, '0');
-  // O frame 1e desenha "até 2" em 33%, e essa posição não pode mudar.
   await settings.keyboard.press('ArrowRight');
   await expectRate(2, '33');
   for (const [value, position] of [
@@ -386,7 +359,6 @@ test('the settings control the pace of the cards and how many summaries stay', a
   await settings.keyboard.press('ArrowLeft');
   await expectRate(10, '87');
 
-  // Quem salvou 3 antes desta mudança continua com 3, e o controle aparece no passo seguinte.
   await invoke(menu, 'settings:set', { cardsPerMinute: 3 });
   await expect(settings.getByText('até 3', { exact: true })).toBeVisible();
   await expect(rate).toHaveValue('46');
@@ -406,7 +378,6 @@ test('the settings control the pace of the cards and how many summaries stay', a
   await expectSummaries(1);
   await invoke(menu, 'settings:set', { maxSummaries: 6 });
 
-  // O tempo de cada card começa em 10 s, e os cards por vez, em 1.
   const time = settings.getByLabel('Tempo de cada card');
   await expect(time).toHaveAttribute('aria-valuetext', '10 s');
   await time.focus();
@@ -428,7 +399,6 @@ test('the settings control the pace of the cards and how many summaries stay', a
     .toBe(2);
   await invoke(menu, 'settings:set', { cardsAtOnce: 1 });
 
-  // O quiz começa com 10 questões, e as Configurações mudam isso.
   const quizQuestions = async () =>
     ((await invoke(menu, 'settings:get')) as { settings: { quizQuestions: number } }).settings
       .quizQuestions;
@@ -437,7 +407,6 @@ test('the settings control the pace of the cards and how many summaries stay', a
   await expect.poll(quizQuestions).toBe(15);
   await invoke(menu, 'settings:set', { quizQuestions: 10 });
 
-  // Voltar o vídeo começa desligado e liga pelas Configurações.
   const rewind = settings.getByRole('switch', { name: 'Voltar o vídeo ao buscar' });
   await expect(rewind).toHaveAttribute('aria-checked', 'false');
   await rewind.click();
@@ -469,7 +438,6 @@ test('a word typed in the search bar becomes a card, and can rewind the video', 
       };
     });
   const searchVisible = async () => (await searchState()).visible;
-  // Dois avisos seguidos do mesmo toque contam uma vez só, então um teste precisa dar um intervalo.
   const toggleSearch = async () => {
     await overlay.waitForTimeout(250);
     await app.evaluate(({ app: electronApp }) =>
@@ -483,7 +451,6 @@ test('a word typed in the search bar becomes a card, and can rewind the video', 
     ),
   ).toBe(true);
 
-  // Sem sessão não há onde mostrar o card, e a barra abre avisando em vez de não fazer nada.
   await invoke(menu, 'session:stop');
   await toggleSearch();
   await expect.poll(searchVisible).toBe(true);
@@ -499,7 +466,6 @@ test('a word typed in the search bar becomes a card, and can rewind the video', 
   const wary = overlay.getByTestId('card-wary');
   await expect(wary).toBeVisible();
 
-  // A barra abre centralizada, em foco e acima do overlay, e a palavra entra sem esperar a vez.
   await toggleSearch();
   await expect.poll(searchVisible).toBe(true);
   const opened = await searchState();
@@ -508,7 +474,6 @@ test('a word typed in the search bar becomes a card, and can rewind the video', 
   await expect(field).toBeFocused();
   await expect(field).toHaveAttribute('placeholder', 'Buscar palavra em inglês');
 
-  // Um segundo aviso do mesmo toque, como o da extensão junto com o do sistema, não fecha a barra.
   await app.evaluate(({ app: electronApp }) =>
     electronApp.emit('legendary:toggle-search' as never),
   );
@@ -525,7 +490,6 @@ test('a word typed in the search bar becomes a card, and can rewind the video', 
   await overlay.waitForTimeout(100);
   expect(rewinds).toEqual([]);
 
-  // Esc fecha sem criar card, e o campo volta vazio.
   await toggleSearch();
   await expect.poll(searchVisible).toBe(true);
   await expect(field).toHaveValue('');
@@ -534,7 +498,6 @@ test('a word typed in the search bar becomes a card, and can rewind the video', 
   await expect.poll(searchVisible).toBe(false);
   await expect(overlay.getByTestId('card-hunch')).toHaveCount(0);
 
-  // Enter com o campo vazio só fecha. O atalho também fecha a barra aberta.
   await toggleSearch();
   await expect.poll(searchVisible).toBe(true);
   await expect(field).toHaveValue('');
@@ -545,7 +508,6 @@ test('a word typed in the search bar becomes a card, and can rewind the video', 
   await toggleSearch();
   await expect.poll(searchVisible).toBe(false);
 
-  // Com a opção ligada, a palavra volta o vídeo. Um texto sem palavra não.
   await invoke(menu, 'settings:set', { rewindOnSearch: true });
   await invoke(menu, 'search:submit', { query: '123' });
   await overlay.waitForTimeout(100);
@@ -553,7 +515,6 @@ test('a word typed in the search bar becomes a card, and can rewind the video', 
   await invoke(menu, 'search:submit', { query: 'hunch' });
   await expect.poll(() => rewinds).toEqual([{ type: 'rewind', seconds: 10 }]);
 
-  // O card fica visível mesmo com o overlay escondido pelo atalho.
   await invoke(menu, 'overlay:toggle');
   await invoke(menu, 'search:submit', { query: 'grumpy' });
   await expect(overlay.getByTestId('card-grumpy')).toBeVisible();
@@ -565,14 +526,12 @@ test('a word typed in the search bar becomes a card, and can rewind the video', 
     ),
   ).toBe(true);
 
-  // Baixar o limite tira os resumos mais antigos na hora.
   const cards = overlay.locator('[data-testid^="card-"]:not([data-testid="card-stack"])');
   await expect(cards).toHaveCount(4);
   await invoke(menu, 'settings:set', { maxSummaries: 1 });
   await expect(cards).toHaveCount(2);
   await invoke(menu, 'settings:set', { maxSummaries: 6, rewindOnSearch: false });
 
-  // Encerrar a sessão fecha a barra.
   await toggleSearch();
   await expect.poll(searchVisible).toBe(true);
   await invoke(menu, 'session:stop');
@@ -612,20 +571,17 @@ test('with every word on, one that comes back is only a summary with its count',
   });
   await invoke(menu, 'session:start', { source: 'browser' });
 
-  // Uma palavra comum, que o filtro de nível dispensaria, vira card e é traduzida.
   sendCaption('The table is here.');
   const table = overlay.getByTestId('card-table');
   await expect(table).toContainText('Explicação curta de table', { timeout: 5_000 });
   await expect(table).not.toContainText('Explicação curta', { timeout: 10_000 });
   await expect(table).not.toContainText('2x');
 
-  // Quando ela volta, aparece só em resumo, com o contador.
   sendCaption('What a table.');
   await expect(table).toContainText('2x');
   await expect(table).toContainText('tradução de table');
   await expect(table).not.toContainText('Explicação curta');
 
-  // Passar o mouse mostra o resto, como em qualquer resumo.
   await table.hover();
   await expect(table).toContainText('Explicação curta de table');
   await overlay.mouse.move(5, 5);
@@ -653,25 +609,21 @@ test('a word marked as known stays out of the cards, and a search shows it marke
   await expect(gloomy).toHaveCount(0);
   await overlay.mouse.move(5, 5);
 
-  // Em outra sessão, a legenda traz as duas palavras e só a que a pessoa não sabe vira card.
   await invoke(menu, 'session:stop');
   await invoke(menu, 'session:start', { source: 'browser' });
   sendCaption('The gloomy and weary man.');
   await expect(overlay.getByTestId('card-weary')).toBeVisible();
   await expect(gloomy).toHaveCount(0);
 
-  // A busca abre o card normal, com a marcação.
   await invoke(menu, 'search:submit', { query: 'gloomy' });
   await expect(gloomy).toContainText('Explicação curta de gloomy', { timeout: 2_000 });
   const marked = gloomy.getByRole('button', { name: 'Já sei ✓' });
   await expect(marked).toBeVisible();
 
-  // Clicar desmarca, e o card continua aberto.
   await marked.click();
   await expect(known).toBeVisible();
   await expect(marked).toHaveCount(0);
 
-  // Depois disso ela vale como qualquer palavra: marcar de novo fecha o card.
   await known.click();
   await expect(gloomy).toHaveCount(0);
   await overlay.mouse.move(5, 5);
@@ -689,7 +641,6 @@ test('at the end, the arrows mark the words already known before the quiz', asyn
   await invoke(menu, 'settings:set', { cardsPerMinute: 15, cardsAtOnce: 3 });
   await invoke(menu, 'session:start', { source: 'browser' });
 
-  // Só palavras traduzidas entram na sessão, então cada card espera a explicação.
   sendCaption('A bleak frown and a shrug.');
   for (const word of ['bleak', 'frown', 'shrug']) {
     await expect(overlay.getByTestId(`card-${word}`)).toContainText(`Explicação curta de ${word}`, {
@@ -705,14 +656,12 @@ test('at the end, the arrows mark the words already known before the quiz', asyn
   await expect(quiz.getByText('1 de 3')).toBeVisible();
   const first = await word.innerText();
 
-  // Segurar a seta conta um toque só. ↓ deixa a palavra para o quiz.
   await quiz.keyboard.down('ArrowDown');
   await quiz.keyboard.down('ArrowDown');
   await quiz.keyboard.up('ArrowDown');
   await expect(quiz.getByText('2 de 3')).toBeVisible();
   const second = await word.innerText();
 
-  // ↑ marca e passa para a próxima. ← volta e desfaz a marcação.
   await quiz.keyboard.press('ArrowUp');
   await expect(quiz.getByText('3 de 3')).toBeVisible();
   const third = await word.innerText();
@@ -721,7 +670,6 @@ test('at the end, the arrows mark the words already known before the quiz', asyn
   await quiz.keyboard.press('ArrowDown');
   await expect(word).toHaveText(third);
 
-  // A última resposta leva ao resumo, que fica só com as palavras que a pessoa não sabe.
   await quiz.keyboard.press('ArrowUp');
   await expect(quiz.getByText('Sessão encerrada')).toBeVisible();
   await expect(quiz.getByText(/· 2 palavras novas ·/)).toBeVisible();
@@ -731,7 +679,6 @@ test('at the end, the arrows mark the words already known before the quiz', asyn
   await expect(chips.filter({ hasText: second })).toHaveCount(1);
   await expect(chips.filter({ hasText: third })).toHaveCount(0);
 
-  // Pelo histórico, o quiz abre direto no resumo.
   const sessionId = Number(new URL(quiz.url()).searchParams.get('sessionId'));
   const reopened = app.waitForEvent('window', (window) => window.url().includes('/quiz/'));
   await invoke(menu, 'quiz:open', { sessionId });
@@ -739,7 +686,6 @@ test('at the end, the arrows mark the words already known before the quiz', asyn
   await expect(retake.getByText('Sessão encerrada')).toBeVisible();
   await expect(retake.getByText('Você já sabe esta?')).toHaveCount(0);
 
-  // Dá para sair sem fazer o quiz, pelo botão ou pelo Esc.
   const retakeClosed = retake.waitForEvent('close');
   await retake.getByRole('button', { name: /Agora não/ }).click();
   await retakeClosed;
@@ -751,7 +697,6 @@ test('at the end, the arrows mark the words already known before the quiz', asyn
   await another.keyboard.down('Escape');
   await anotherClosed;
 
-  // Quem já sabia todas as palavras não tem quiz, e Enter fecha a janela.
   await invoke(menu, 'session:start', { source: 'browser' });
   sendCaption('He felt drowsy.');
   await expect(overlay.getByTestId('card-drowsy')).toContainText('Explicação curta de drowsy', {
@@ -763,7 +708,6 @@ test('at the end, the arrows mark the words already known before the quiz', asyn
   await expect(last.getByTestId('triage-word')).toHaveText('drowsy');
   await last.keyboard.press('ArrowUp');
   await expect(last.getByText('Nenhuma palavra para o quiz')).toBeVisible();
-  // A janela fecha já ao apertar a tecla, então o teste não espera ela ser solta.
   const closed = last.waitForEvent('close');
   await last.keyboard.down('Enter');
   await closed;

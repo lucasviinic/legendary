@@ -1,4 +1,3 @@
-// Desenha os ícones da barra de menus a partir do glifo do frame 1d.
 import { mkdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { chromium } from '@playwright/test';

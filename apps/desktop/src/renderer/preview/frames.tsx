@@ -26,8 +26,6 @@ import { SearchBar } from '../search/SearchBar';
 import { OnboardingView } from '../settings/OnboardingView';
 import { SettingsView } from '../settings/SettingsView';
 
-/** Os dados daqui são os do mockup, para cada tela poder ser comparada com o frame dela. */
-
 const ELAPSED = 24 * 60_000 + 12_000;
 
 const status = (overrides: Partial<SessionStatus> = {}): SessionStatus => ({
@@ -328,7 +326,6 @@ const SCENE_DARK =
 const SCENE_LIGHT =
   'radial-gradient(ellipse 50% 55% at 22% 32%,#fbf0d6 0%,transparent 70%),radial-gradient(ellipse 45% 55% at 80% 70%,#b7d3e6 0%,transparent 70%),radial-gradient(ellipse 35% 30% at 60% 25%,#f3f6f8 0%,transparent 70%),linear-gradient(180deg,#e8e2d6,#c9d4db)';
 
-/** Fundo das folhas de estados, como a do frame 1c. */
 const SHEET =
   'radial-gradient(ellipse 60% 60% at 25% 40%,#3d4a3a 0%,transparent 70%),radial-gradient(ellipse 50% 60% at 80% 70%,#5a4a62 0%,transparent 70%),linear-gradient(160deg,#20242a,#2c2a30)';
 

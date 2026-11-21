@@ -6,7 +6,6 @@ import { createTypeScriptImportResolver } from 'eslint-import-resolver-typescrip
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
-/** Pacotes que cada área pode importar, conforme a direção de dependências da especificação. */
 const packageRule = (message, ...group) => ({
   'no-restricted-imports': ['error', { patterns: [{ group, message }] }],
 });

@@ -3,7 +3,6 @@ import { safeStorage } from 'electron';
 import type { Provider } from '@legendary/contracts';
 import type { SecretStore } from './secrets';
 
-/** Cifra as chaves com o safeStorage, cuja chave de cifragem fica no Keychain do macOS. */
 export function createSafeStorageSecrets(filePath: string): SecretStore {
   const read = (): Partial<Record<Provider, string>> =>
     existsSync(filePath) ? JSON.parse(readFileSync(filePath, 'utf8')) : {};
@@ -15,7 +14,6 @@ export function createSafeStorageSecrets(filePath: string): SecretStore {
       try {
         return safeStorage.decryptString(Buffer.from(encrypted, 'base64'));
       } catch {
-        // Keychain negado ou chave de outra instalação: para o app, é o mesmo que não ter chave.
         return null;
       }
     },

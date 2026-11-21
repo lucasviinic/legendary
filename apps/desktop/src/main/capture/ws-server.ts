@@ -15,7 +15,6 @@ function sameToken(given: string | null, expected: string): boolean {
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
-/** Servidor local que recebe as legendas da extensão. Aceita só 127.0.0.1 e com o token certo. */
 export class ExtensionSource extends EventEmitter implements CaptionSource {
   private server: WebSocketServer | null = null;
 
@@ -42,7 +41,6 @@ export class ExtensionSource extends EventEmitter implements CaptionSource {
         port: this.options.port,
         maxPayload: MAX_PAYLOAD_BYTES,
         verifyClient: ({ origin, req }: { origin?: string; req: { url?: string } }) => {
-          // Navegadores sempre mandam Origin: assim um site comum não consegue conectar.
           if (origin && !origin.startsWith('chrome-extension://')) return false;
           const url = new URL(req.url ?? '/', `http://${LOOPBACK}`);
           return sameToken(url.searchParams.get('token'), this.options.token);

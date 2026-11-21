@@ -7,7 +7,6 @@ import {
 } from '@legendary/contracts';
 import { create } from 'zustand';
 
-/** Sem cards novos para empurrar os resumos, eles saem de cena sozinhos. */
 const CARD_LIFETIME_MS = 3 * 60_000;
 
 export const idleStatus: SessionStatus = {
@@ -27,7 +26,6 @@ interface Item {
   expiresAt: number;
 }
 
-/** Os cards abertos ficam em cima, e os resumos, do mais novo para o mais velho, embaixo. */
 const openFirst = (items: Item[]) => [
   ...items.filter((item) => item.focused),
   ...items.filter((item) => !item.focused),
@@ -35,7 +33,6 @@ const openFirst = (items: Item[]) => [
 const withinLimit = (items: Item[], maxSummaries: number) =>
   items.slice(0, items.filter((item) => item.focused).length + maxSummaries);
 
-/** A palavra que voltou entra como o resumo mais novo. Um card aberto só atualiza o contador. */
 function withReturn(items: Item[], card: WordCard, maxSummaries: number): Item[] {
   const expiresAt = Date.now() + CARD_LIFETIME_MS;
   const current = items.find((item) => item.card.lemma === card.lemma);
@@ -59,7 +56,6 @@ interface OverlayState {
   cardSeconds: number;
   cardsAtOnce: number;
   hovered: string | null;
-  /** Palavras que voltaram com o mouse sobre a pilha. Entrar agora tiraria o card do lugar. */
   returning: WordCard[];
   setStatus(status: SessionStatus): void;
   setLayout(layout: OverlayLayout): void;
@@ -116,7 +112,6 @@ export const useOverlay = create<OverlayState>((set) => ({
         focusUntil: now + state.cardSeconds * 1000,
         expiresAt: now + CARD_LIFETIME_MS,
       };
-      // Os abertos mais novos continuam abertos, até o limite. Os outros viram resumo.
       let room = state.cardsAtOnce - 1;
       const others = state.items
         .filter((item) => item.card.lemma !== card.lemma)
@@ -131,7 +126,6 @@ export const useOverlay = create<OverlayState>((set) => ({
     set((state) => ({
       items: state.items.map((item) => {
         if (item.card.lemma !== card.lemma) return item;
-        // O destaque recomeça quando a explicação chega, para dar tempo de ler.
         const explained = item.card.explanation === null && card.explanation !== null;
         const focusUntil = explained ? Date.now() + state.cardSeconds * 1000 : item.focusUntil;
         return { ...item, card, focusUntil };

@@ -31,7 +31,6 @@ function resultClass(correct: boolean | undefined) {
   return correct ? 'justify-between border-ok bg-ok/14' : 'justify-between border-bad bg-bad/14';
 }
 
-/** Questão de associar arrastando: frame 1h. */
 export function MatchView({
   question,
   position,
@@ -84,7 +83,6 @@ export function MatchView({
     update(null);
     if (!target) return;
 
-    // Soltar sobre um significado já usado tira o par antigo.
     const next = Object.fromEntries(
       Object.entries(pairs).filter(([, meaning]) => meaning !== target),
     );
@@ -111,8 +109,6 @@ export function MatchView({
           <div className="flex flex-col gap-2.5">
             {words.map((word) => {
               if (drag?.word === word) {
-                // O React reaproveita o elemento da linha, que guarda a captura do ponteiro: sem
-                // estes handlers, o arrasto não acompanha o mouse nem solta.
                 return (
                   <div
                     key={word}

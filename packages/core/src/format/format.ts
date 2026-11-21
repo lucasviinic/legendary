@@ -2,7 +2,6 @@ import type { QuestionType, Source } from '@legendary/contracts';
 
 const pad = (value: number) => String(value).padStart(2, '0');
 
-/** Tempo da sessão, como "24:12". */
 export function formatElapsed(ms: number): string {
   const total = Math.floor(ms / 1000);
   const hours = Math.floor(total / 3600);
@@ -67,7 +66,6 @@ interface QuizScore {
   total: number;
 }
 
-/** Linha de cada sessão na barra lateral do histórico. */
 export function formatSessionMeta(session: {
   source: Source;
   durationMs: number;
@@ -93,7 +91,6 @@ function dayLabel(timestamp: number, now: number): string {
   return `${pad(date.getDate())}/${pad(date.getMonth() + 1)}`;
 }
 
-/** Linha embaixo do título da sessão selecionada no histórico. */
 export function formatSessionHeader(
   session: { source: Source; startedAt: number; durationMs: number; quiz: QuizScore | null },
   now: number,

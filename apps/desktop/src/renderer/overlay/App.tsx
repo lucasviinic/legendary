@@ -8,10 +8,8 @@ import { useOverlay } from './store';
 const EXPIRE_CHECK_MS = 500;
 const BAR_IDLE_AFTER_MS = 4_000;
 const NEAR_TOP_PX = 80;
-/** Distância da barra de status até a borda da área livre (frame 1a). */
 const BAR_MARGIN = 18;
 
-/** Barra e cards sobre o vídeo. Os cliques atravessam a janela, exceto sobre estes elementos. */
 export function App() {
   const { status, items, placement, safeTop, hovered, setHovered } = useOverlay();
   const [barAwake, setBarAwake] = useState(true);
@@ -39,7 +37,6 @@ export function App() {
     };
   }, []);
 
-  // A janela recebe o movimento do mouse mesmo deixando os cliques passarem (`forward: true`).
   useEffect(() => {
     let interactive = false;
     const wake = () => {
@@ -49,7 +46,6 @@ export function App() {
     };
     const onMove = (event: MouseEvent) => {
       if (event.clientY < useOverlay.getState().safeTop + NEAR_TOP_PX) wake();
-      // O mouse pode sair da pilha na borda da tela, mas o botão solto tem que chegar até aqui.
       if (dragging.current) return;
       const over = document.elementFromPoint(event.clientX, event.clientY);
       const next = over?.closest('[data-interactive]') != null;
@@ -68,10 +64,8 @@ export function App() {
 
   if (status.state === 'idle') return null;
 
-  // Pausa e avisos ficam sempre legíveis: só a barra ativa, sem novidade, some sozinha.
   const canFade = status.state === 'active' && status.notice === null;
 
-  // A posição muda aqui na hora, para a pilha não voltar ao lugar antigo enquanto o main responde.
   const place = (next: CardPlacement) => {
     useOverlay.getState().setPlacement(next);
     void api().invoke('overlay:set-placement', next);

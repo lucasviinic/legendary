@@ -5,7 +5,6 @@ import type { RuntimeMessage, TabMessage } from './messages';
 import { isSearchShortcut } from './shortcut';
 import { observeResources, watchTrack } from './track';
 
-/** Liga a captura de legendas em uma página. A extensão pode ter sido atualizada: daí o catch. */
 export function startTrackCapture(source: SiteConfig['source']): void {
   watchTrack({
     source,
@@ -36,8 +35,6 @@ export function startCapture(site: SiteConfig): void {
     },
   });
 
-  // Segundo caminho para o atalho, caso o atalho global do sistema não chegue ao app. Na fase de
-  // captura, antes do player, e sem deixar o navegador mostrar a barra de favoritos.
   window.addEventListener(
     'keydown',
     (event) => {

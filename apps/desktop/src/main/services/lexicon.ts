@@ -2,7 +2,6 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Lexicon, Phrase, PhraseKind } from '@legendary/core/pipeline';
 
-/** Carrega a lista de frequência e as expressões, que ficam em `resources/lexicon`. */
 export function loadLexicon(resourcesDir: string): Lexicon {
   const dir = join(resourcesDir, 'lexicon');
   const words = JSON.parse(readFileSync(join(dir, 'frequency.json'), 'utf8')) as string[];

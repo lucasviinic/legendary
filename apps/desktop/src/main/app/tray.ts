@@ -1,7 +1,6 @@
 import { join } from 'node:path';
 import { nativeImage, nativeTheme, Tray } from 'electron';
 
-/** Ícone da barra de menus. O ponto vermelho do frame 1d aparece só com a sessão ativa. */
 export class AppTray {
   private readonly tray: Tray;
   private active = false;

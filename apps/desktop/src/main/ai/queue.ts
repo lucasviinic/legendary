@@ -2,13 +2,9 @@ import type { EnrichRequestWord, EnrichedWord } from '@legendary/contracts';
 
 const MAX_BATCH = 5;
 const MAX_CALLS_PER_MINUTE = 10;
-/** Antecipar nunca gasta todas as chamadas do minuto: as outras ficam para os cards na tela. */
 const MAX_AHEAD_CALLS_PER_MINUTE = 6;
-/** Assim um card na tela não espera as chamadas que já estão em andamento. */
 const MAX_RUNNING_CALLS = 3;
-/** Antecipar corre em paralelo com o resto, mas deixa uma chamada livre para o card na tela. */
 const MAX_RUNNING_AHEAD_CALLS = 2;
-/** Junta as palavras antecipadas da mesma legenda numa chamada só. */
 const AHEAD_GATHER_MS = 400;
 const MINUTE_MS = 60_000;
 const BASE_BACKOFF_MS = 2_000;
@@ -17,7 +13,6 @@ const MAX_BACKOFF_MS = 60_000;
 interface Waiting {
   word: EnrichRequestWord;
   queuedAt: number;
-  /** Verdadeiro quando o card já está na tela. As demais só estão sendo antecipadas. */
   urgent: boolean;
 }
 
@@ -31,11 +26,6 @@ export interface EnrichQueueOptions {
 const sameWord = (a: EnrichRequestWord, b: EnrichRequestWord) =>
   a.lemma === b.lemma && a.pos === b.pos;
 
-/**
- * Fila de tradução. A palavra de um card na tela vai na hora. As outras esperam um instante para
- * dividir a chamada e, se ela falhar, não são repetidas. Limita as chamadas e tenta de novo com
- * espera crescente.
- */
 export class EnrichQueue {
   private waiting: Waiting[] = [];
   private inFlight: Waiting[] = [];
@@ -48,12 +38,10 @@ export class EnrichQueue {
 
   constructor(private readonly options: EnrichQueueOptions) {}
 
-  /** Palavras de cards na tela ainda sem tradução. */
   get pending(): number {
     return [...this.waiting, ...this.inFlight].filter((item) => item.urgent).length;
   }
 
-  /** Pede a tradução de uma palavra que já está na tela. */
   add(word: EnrichRequestWord): void {
     const known = this.find(word);
     if (known) known.urgent = true;
@@ -61,14 +49,12 @@ export class EnrichQueue {
     this.schedule();
   }
 
-  /** Adianta a tradução de uma palavra que ainda espera a vez de virar card. */
   addAhead(word: EnrichRequestWord): void {
     if (this.find(word)) return;
     this.waiting.push({ word, queuedAt: Date.now(), urgent: false });
     this.schedule();
   }
 
-  /** Envia o que está na tela e ainda espera, sem nova tentativa. Usado ao encerrar a sessão. */
   async flush(): Promise<void> {
     this.held = true;
     this.clearTimer();
@@ -126,7 +112,6 @@ export class EnrichQueue {
   }
 
   private sendNext(): Promise<void> {
-    // A ordem importa: a resposta vem na ordem do pedido, e o card na tela não pode esperar.
     const byUrgency = [...this.waiting].sort((a, b) => Number(b.urgent) - Number(a.urgent));
     const batch = byUrgency.slice(0, MAX_BATCH);
     this.waiting = byUrgency.slice(MAX_BATCH);

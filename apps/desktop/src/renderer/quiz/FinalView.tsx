@@ -19,7 +19,6 @@ function reviewNote(mistakes: number) {
     : `As ${mistakes} que você errou voltam na revisão de amanhã.`;
 }
 
-/** Tela final do quiz: frame 1i. */
 export function FinalView({ result, onHistory, onClose, onReview }: FinalViewProps) {
   const { score, total, mistakes } = result;
   return (

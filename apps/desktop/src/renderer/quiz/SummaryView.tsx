@@ -13,7 +13,6 @@ export interface SummaryViewProps {
   onSkip?: () => void;
 }
 
-/** Resumo da sessão antes do quiz: frame 1f. */
 export function SummaryView({
   summary,
   excluded,
@@ -48,7 +47,6 @@ export function SummaryView({
             {selected} de {summary.words.length} selecionadas · desmarque as que não quer testar
           </span>
         </div>
-        {/* Com 15 ou 20 questões a grade não cabe na janela e rola. */}
         <div className="grid min-h-0 grid-cols-3 content-start gap-2 overflow-y-auto">
           {summary.words.map((word) => {
             const on = !excluded.has(word.senseId);

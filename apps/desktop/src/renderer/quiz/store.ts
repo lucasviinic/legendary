@@ -16,7 +16,6 @@ interface QuizState {
   sessionId: number;
   triage: TriageWord[];
   triageIndex: number;
-  /** As palavras marcadas na triagem, pelo sentido, para a volta saber o que desfazer. */
   triageKnown: Set<number>;
   summary: QuizSummary | null;
   excluded: Set<number>;
@@ -40,16 +39,11 @@ interface QuizState {
   completeQuiz(quizId: number, total: number): void;
 }
 
-/**
- * A triagem anda na hora, e cada marcação vai para o main em seguida, na ordem em que foi feita.
- * O resumo só é lido depois que todas chegaram, para já sair sem as palavras marcadas.
- */
 let writes: Promise<unknown> = Promise.resolve();
 const write = (channel: 'vocab:mark-known' | 'vocab:unmark-known', lemma: string) => {
   writes = writes.then(() => api().invoke(channel, { lemma })).catch(() => undefined);
 };
 
-/** Fechar a janela antes disso perderia as marcações que ainda estão na fila. */
 export const marksSaved = () => writes;
 
 interface Arrivals {
@@ -117,7 +111,6 @@ export const useQuiz = create<QuizState>((set, get) => {
     });
   }
 
-  /** A palavra que está na tela, ou nada fora da triagem. */
   function current() {
     const { phase, triage, triageIndex } = get();
     return phase === 'triage' ? triage[triageIndex] : undefined;

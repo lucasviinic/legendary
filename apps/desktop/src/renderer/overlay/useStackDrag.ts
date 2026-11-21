@@ -2,7 +2,6 @@ import { useLayoutEffect, useRef, type PointerEvent } from 'react';
 import type { CardPlacement } from '@legendary/contracts';
 import { clampDelta, placementFromRect } from './placement';
 
-/** Abaixo disso é um clique, não um arraste. */
 const DRAG_THRESHOLD_PX = 3;
 
 interface Drag {
@@ -20,11 +19,6 @@ export interface StackDragOptions {
 
 const screenSize = () => ({ width: window.innerWidth, height: window.innerHeight });
 
-/**
- * Arrasta a pilha com `transform`, sem renderizar nada, para as animações dos cards não reagirem a
- * cada movimento. Ao soltar, a posição nova entra no mesmo render que limpa o `transform`, senão a
- * pilha voaria da posição antiga até a nova.
- */
 export function useStackDrag({ placement, onPlace, onDragging }: StackDragOptions) {
   const ref = useRef<HTMLDivElement>(null);
   const drag = useRef<Drag | null>(null);
@@ -58,7 +52,6 @@ export function useStackDrag({ placement, onPlace, onDragging }: StackDragOption
       const delta = clampDelta(current.rect, { x, y }, screenSize());
       event.currentTarget.style.transform = `translate(${delta.x}px, ${delta.y}px)`;
     },
-    // Dispara ao soltar o botão e também se o sistema interromper o arraste.
     onLostPointerCapture(event: PointerEvent<HTMLDivElement>) {
       const current = drag.current;
       if (!current) return;

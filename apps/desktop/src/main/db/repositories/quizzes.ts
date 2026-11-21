@@ -25,7 +25,6 @@ export function quizzesRepository(db: Db) {
     finish(id: number, score: number, finishedAt: number) {
       db.update(quizzes).set({ score, finishedAt }).where(eq(quizzes.id, id)).run();
     },
-    /** Quantas vezes cada sentido já foi respondido errado. */
     wrongCounts(): Map<number, number> {
       const rows = db
         .select({ senseId: quizQuestions.senseId, total: count() })

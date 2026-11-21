@@ -13,18 +13,15 @@ import { DEFAULT_WS_PORT } from './ws';
 
 export const WordCardSchema = z.object({
   lemma: z.string(),
-  /** Como a palavra apareceu na legenda, para sublinhar na frase. */
   surface: z.string(),
   pos: z.string(),
   cefr: CefrSchema.nullable(),
-  /** Nulo enquanto a IA não respondeu: o card aparece antes da tradução. */
   translation: z.string().nullable(),
   explanation: z.string().nullable(),
   sentence: z.string(),
   extraExample: z.string().nullable(),
   count: z.number().int().positive(),
   saved: z.boolean(),
-  /** Marcada como "já sei": só tem card porque a pessoa buscou. */
   known: z.boolean(),
 });
 export type WordCard = z.infer<typeof WordCardSchema>;
@@ -49,22 +46,15 @@ export type SessionStatus = z.infer<typeof SessionStatusSchema>;
 export const SettingsSchema = z.object({
   provider: ProviderSchema,
   level: LevelSchema,
-  /** Ignora o nível: quase toda palavra vira card, e as repetidas só voltam como resumo. */
   translateAllWords: z.boolean(),
   cardsPerMinute: z.number().int().min(1).max(15),
-  /** Quanto tempo um card fica aberto, e só depois disso o lugar dele fica livre para o próximo. */
   cardSeconds: z.number().int().min(3).max(30),
-  /** Quantos cards ficam abertos ao mesmo tempo, sem contar os resumos. */
   cardsAtOnce: z.number().int().min(1).max(3),
-  /** Quantos cards ficam resumidos abaixo do atual. */
   maxSummaries: z.number().int().min(1).max(12),
   corner: CornerSchema,
-  /** Posição arrastada em cada monitor, pelo nome dele. Sem ela, vale o canto escolhido. */
   cardPlacements: z.record(z.string(), CardPlacementSchema),
   highlightSubtitles: z.boolean(),
-  /** Volta o vídeo ao buscar uma palavra, para a pessoa ouvir de novo. */
   rewindOnSearch: z.boolean(),
-  /** Quantas questões o quiz tem no máximo, e quantas palavras o resumo já marca. */
   quizQuestions: z.number().int().min(5).max(20),
   origin: CaptureOriginSchema,
   wsPort: z.number().int().min(1024).max(65535),
@@ -93,7 +83,6 @@ export const defaultSettings: Settings = {
 export const ApiKeyStatusSchema = z.enum(['missing', 'untested', 'ok', 'invalid']);
 export type ApiKeyStatus = z.infer<typeof ApiKeyStatusSchema>;
 
-/** A chave em si nunca sai do processo main: o renderer só recebe a máscara. */
 export const ApiKeyInfoSchema = z.object({
   mask: z.string().nullable(),
   status: ApiKeyStatusSchema,
@@ -114,10 +103,8 @@ export const SettingsViewSchema = z.object({
 });
 export type SettingsView = z.infer<typeof SettingsViewSchema>;
 
-/** O que o overlay precisa saber para arrumar a pilha na tela em que está. */
 export const OverlayLayoutSchema = z.object({
   placement: CardPlacementSchema,
-  /** Altura da faixa da barra de menus, que a janela do overlay também cobre. */
   safeTop: z.number().nonnegative(),
   maxSummaries: SettingsSchema.shape.maxSummaries,
   cardSeconds: SettingsSchema.shape.cardSeconds,
@@ -133,14 +120,12 @@ export const QuizSummaryWordSchema = z.object({
 });
 export type QuizSummaryWord = z.infer<typeof QuizSummaryWordSchema>;
 
-/** Palavra da triagem do fim da sessão, em que a pessoa diz se já sabe (frame 2a). */
 export const TriageWordSchema = z.object({
   senseId: z.number().int(),
   word: z.string(),
   pos: z.string(),
   cefr: CefrSchema.nullable(),
   translation: z.string(),
-  /** A primeira frase em que a palavra apareceu. */
   sentence: z.string(),
 });
 export type TriageWord = z.infer<typeof TriageWordSchema>;
@@ -151,21 +136,17 @@ export const QuizSummarySchema = z.object({
   durationMs: z.number().nonnegative(),
   newWords: z.number().int().nonnegative(),
   savedWords: z.number().int().nonnegative(),
-  /** O limite das Configurações: com mais palavras marcadas, o quiz fica só com este tanto. */
   maxQuestions: z.number().int().positive(),
   words: z.array(QuizSummaryWordSchema),
 });
 export type QuizSummary = z.infer<typeof QuizSummarySchema>;
 
-/** Questão como chega ao renderer: sem a resposta, porque a correção é feita no main. */
 export const QuizQuestionViewSchema = z.object({
   id: z.number().int(),
   type: QuestionTypeSchema,
   prompt: z.string(),
   options: z.array(z.string()).nullable(),
-  /** Coluna da esquerda da questão de associar. */
   matchWords: z.array(z.string()).nullable(),
-  /** Linha discreta com a origem da frase, como "Northbound · T1E3 · 12:04". */
   context: z.string().nullable(),
 });
 export type QuizQuestionView = z.infer<typeof QuizQuestionViewSchema>;
@@ -183,7 +164,6 @@ export const QuizAnswerResultSchema = z.object({
   word: z.string(),
   translation: z.string(),
   explanation: z.string(),
-  /** Na questão de associar, o resultado de cada par. */
   matchResults: z
     .array(z.object({ word: z.string(), meaning: z.string(), correct: z.boolean() }))
     .nullable(),
@@ -257,7 +237,6 @@ export const HistoryWordSchema = z.object({
   correct: z.number().int().nonnegative(),
   answered: z.number().int().nonnegative(),
   cefr: CefrSchema.nullable(),
-  /** Nulo quando a palavra ainda não passou por um quiz. */
   dueAt: z.number().nullable(),
   saved: z.boolean(),
 });

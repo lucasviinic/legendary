@@ -5,10 +5,6 @@ const FRAMES = [
   ...['2a', '2b', '2c', '2d', '2e'],
 ];
 
-/**
- * O que sobra de diferença é arredondamento de subpixel: os frames ficam em posições fracionárias
- * na página do mockup. No frame 1c ainda entra a barra "Ativa", abreviada no mockup e completa aqui.
- */
 const MAX_DIFF_RATIO = 0.005;
 
 for (const frame of FRAMES) {

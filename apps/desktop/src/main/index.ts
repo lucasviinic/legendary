@@ -32,7 +32,6 @@ import { openSettingsWindow } from './windows/settings';
 
 const STATUS_TICK_MS = 1_000;
 const REWIND_SECONDS = 10;
-/** Só os testes ponta a ponta usam isto, e nunca no app empacotado. */
 const isE2E = !app.isPackaged && process.env.LEGENDARY_E2E === '1';
 
 function shuffle<T>(items: T[]): T[] {
@@ -256,7 +255,6 @@ async function bootstrap() {
     },
     logShortcut,
   );
-  // Um teste não consegue apertar um atalho global do sistema.
   if (isE2E) app.on('legendary:toggle-search' as never, toggleSearch);
 
   overlay.create(publishLayout);
@@ -279,7 +277,6 @@ configurePaths();
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
-  // Sem esta espera por janelas, fechar o quiz encerraria um app que vive na barra de menus.
   app.on('window-all-closed', () => undefined);
   void app.whenReady().then(bootstrap);
 }

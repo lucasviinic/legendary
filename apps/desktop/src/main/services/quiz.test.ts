@@ -153,7 +153,6 @@ describe('words to sort at the end of the session', () => {
     }).id;
   });
 
-  /** Grava uma palavra da sessão vista pela primeira vez `seconds` depois do começo. */
   const seen = (lemma: string, seconds: number, pos = 'adj') => {
     const sense = h.repos.senses.insert({
       lemma,

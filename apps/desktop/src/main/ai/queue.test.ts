@@ -33,7 +33,6 @@ const offline = () =>
     throw new Error('offline');
   });
 
-/** Uma chamada que só termina quando o teste manda. */
 function heldCalls() {
   const finish: (() => void)[] = [];
   const enrich = vi.fn(

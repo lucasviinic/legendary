@@ -3,7 +3,6 @@ import { loadPage, normalWindowOptions } from './common';
 
 let current: BrowserWindow | null = null;
 
-/** `triage` começa pela triagem das palavras: vale ao encerrar a sessão, não ao refazer o quiz. */
 export function openQuizWindow(sessionId: number, { triage = false } = {}): void {
   current?.close();
   const window = new BrowserWindow({

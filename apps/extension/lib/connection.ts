@@ -8,7 +8,6 @@ import {
 const MAX_OUTBOX = 50;
 const BASE_RETRY_MS = 2_000;
 const MAX_RETRY_MS = 30_000;
-/** Uma mensagem a cada 20 s mantém vivo o service worker do Manifest V3. */
 const PING_MS = 20_000;
 const OPEN = 1;
 
@@ -38,7 +37,6 @@ export interface AppConnectionOptions {
   saveOutbox: (outbox: CaptionEvent[]) => void;
 }
 
-/** Mantém o WebSocket com o app, reconecta sozinho e guarda as frases enquanto ele está fechado. */
 export class AppConnection {
   private config: ConnectionConfig | null = null;
   private socket: SocketLike | null = null;
@@ -88,12 +86,10 @@ export class AppConnection {
     this.pendingTrack = track;
   }
 
-  /** Com o app fechado, o toque se perde: abrir a barra depois de um tempo só atrapalharia. */
   sendOpenSearch(): void {
     if (this.connected) this.socket?.send(JSON.stringify({ type: 'open-search' }));
   }
 
-  /** Tenta conectar agora, se estiver esperando. Chamado quando o service worker acorda. */
   wake(): void {
     if (!this.config || this.socket) return;
     clearTimeout(this.retryTimer);

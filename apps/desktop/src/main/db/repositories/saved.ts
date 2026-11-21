@@ -8,7 +8,6 @@ export function savedRepository(db: Db) {
 
   return {
     isSaved,
-    /** Inverte o estado e devolve se a palavra ficou salva. */
     toggle(senseId: number, savedAt: number): boolean {
       if (isSaved(senseId)) {
         db.delete(savedWords).where(eq(savedWords.senseId, senseId)).run();

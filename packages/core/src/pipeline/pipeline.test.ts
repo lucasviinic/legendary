@@ -308,7 +308,6 @@ describe('createWordLookup', () => {
   });
 
   it('finds the caption by the typed form when the sentence gives it another lemma', () => {
-    // Sozinha, "leaves" parece o verbo "leave". Na frase, é o plural de "leaf".
     expect(find('leaves')).toMatchObject({ lemma: 'leave', pos: 'verb', sentence: '' });
     expect(find('leaves', ['The leaves fell down.'])).toMatchObject({
       lemma: 'leaf',

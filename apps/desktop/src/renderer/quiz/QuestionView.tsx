@@ -16,7 +16,6 @@ const TRUE_FALSE: Choice[] = [
   { value: 'false', label: 'Falso' },
 ];
 
-/** As opções de resposta da questão, ou nulo quando a resposta é digitada. */
 export function choicesOf(question: QuizQuestionView): Choice[] | null {
   if (question.type === 'true_false') return TRUE_FALSE;
   return question.options?.map((option) => ({ value: option, label: option })) ?? null;
@@ -111,7 +110,6 @@ function Choices({
   );
 }
 
-/** Resposta digitada: frame 2c. */
 function TypedAnswer({
   result,
   onAnswer,
@@ -151,7 +149,6 @@ export interface QuestionViewProps {
   onNext?: () => void;
 }
 
-/** Questão com enunciado e opções: frame 1g. */
 export function QuestionView({
   question,
   position,

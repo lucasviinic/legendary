@@ -27,7 +27,6 @@ export interface CardActions {
 
 const BUTTON = 'flex h-[26px] items-center rounded-lg px-2.5 text-[12px] font-medium';
 
-/** Card em destaque (frame 1a) e card aberto pelo hover (frame 1c), quando `hovered` é verdadeiro. */
 export function FullCard({
   card,
   hovered,
@@ -35,7 +34,6 @@ export function FullCard({
   onUnmarkKnown,
   onSave,
 }: { card: WordCard; hovered: boolean } & CardActions) {
-  // Frame 1c. A tradução chega antes do resto da resposta e ocupa o lugar da primeira barra.
   if (card.explanation === null) {
     return (
       <Glass className="flex flex-col gap-[9px] rounded-[14px] px-4 py-3.5">
@@ -94,7 +92,6 @@ export function FullCard({
   );
 }
 
-/** Card anterior, encolhido para a palavra e a tradução, com o contador quando ela voltou (1c). */
 export function CompactCard({ card }: { card: WordCard }) {
   return (
     <Glass className="flex items-baseline gap-2.5 rounded-[14px] px-3.5 py-[9px]">

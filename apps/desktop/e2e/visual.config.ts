@@ -1,6 +1,5 @@
 import { defineConfig } from '@playwright/test';
 
-/** Compara cada tela com o PNG do frame do mockup em `design/reference`. */
 export default defineConfig({
   testDir: '.',
   testMatch: 'visual.spec.ts',

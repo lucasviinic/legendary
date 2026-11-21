@@ -6,7 +6,6 @@ import type { Plugin } from 'vite';
 
 const PAGES = ['overlay', 'quiz', 'history', 'settings', 'menu', 'search'];
 
-/** CSP restrita em produção. Em dev, o Vite precisa de script inline e de WebSocket para o reload. */
 function contentSecurityPolicy(): Plugin {
   const production =
     "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'";
@@ -31,7 +30,6 @@ export default defineConfig({
     build: {
       rollupOptions: {
         input: { index: resolve('src/preload/index.ts') },
-        // Janelas com sandbox só aceitam preload em CommonJS.
         output: { format: 'cjs', entryFileNames: '[name].cjs' },
       },
     },

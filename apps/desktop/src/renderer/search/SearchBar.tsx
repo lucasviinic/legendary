@@ -3,7 +3,6 @@ import { Glass } from '../shared/Glass';
 
 export interface SearchBarProps {
   value: string;
-  /** Sem sessão não há onde mostrar o card, então o campo só explica o que fazer. */
   idle?: boolean;
   inputRef?: Ref<HTMLInputElement>;
   onChange?: (value: string) => void;
@@ -11,10 +10,6 @@ export interface SearchBarProps {
   onCancel?: () => void;
 }
 
-/**
- * Barra de busca: frame 2d. O vidro é o dos cards (frame 1a), mais opaco porque o texto digitado não
- * pode sumir em uma cena clara.
- */
 export function SearchBar({ value, idle, inputRef, onChange, onSubmit, onCancel }: SearchBarProps) {
   return (
     <Glass className="box-border flex h-11 w-full items-center rounded-[14px] px-4 shadow-[0_10px_30px_rgba(0,0,0,0.28)] [--glass-bg:rgba(28,28,32,0.88)]">

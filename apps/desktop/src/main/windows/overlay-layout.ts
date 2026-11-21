@@ -1,6 +1,5 @@
 import type { CardPlacement, Corner, OverlayLayout, Settings } from '@legendary/contracts';
 
-/** Distância da pilha até a borda da área livre (frame 1a). */
 const CARD_MARGIN = 20;
 
 interface Rect {
@@ -17,10 +16,8 @@ export interface OverlayDisplay {
   workArea: Rect;
 }
 
-/** O id de um monitor pode mudar ao reconectar. O nome continua o mesmo. */
 export const displayKey = ({ id, label }: OverlayDisplay): string => label || String(id);
 
-/** O canto escolhido, sem invadir a barra de menus nem o Dock. */
 function defaultPlacement(corner: Corner, { bounds, workArea }: OverlayDisplay): CardPlacement {
   const top = workArea.y - bounds.y;
   const left = workArea.x - bounds.x;

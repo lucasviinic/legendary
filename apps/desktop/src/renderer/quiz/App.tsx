@@ -15,7 +15,6 @@ const triage = params.has('triage');
 
 type QuizStore = ReturnType<typeof useQuiz.getState>;
 
-/** As teclas da triagem, como no frame 2a. */
 const TRIAGE_KEYS: Record<string, (state: QuizStore) => void> = {
   ArrowUp: (state) => state.knowWord(),
   ArrowDown: (state) => state.skipWord(),
@@ -55,10 +54,8 @@ export function App() {
     return () => unsubscribe.forEach((stop) => stop());
   }, []);
 
-  // Teclas 1 a 4 respondem, e Enter avança ou começa o quiz, como no frame 1g.
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      // Esc sai do quiz em qualquer etapa. Ele fica no histórico para fazer depois.
       if (event.key === 'Escape') {
         event.preventDefault();
         closeWindow();
@@ -70,7 +67,6 @@ export function App() {
         const action = TRIAGE_KEYS[event.key];
         if (!action) return;
         event.preventDefault();
-        // Segurar a tecla repete o toque, e isso marcaria palavras que a pessoa nem chegou a ver.
         if (!event.repeat) action(current);
         return;
       }

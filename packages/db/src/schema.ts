@@ -10,7 +10,6 @@ import {
 
 const SOURCES = ['netflix', 'youtube', 'audio'] as const;
 
-/** Cache global de sentidos. Palavra já explicada não volta para a IA. */
 export const wordSenses = sqliteTable(
   'word_senses',
   {
@@ -97,7 +96,6 @@ export const quizQuestions = sqliteTable(
   (table) => [index('quiz_questions_quiz').on(table.quizId)],
 );
 
-/** Estado da revisão espaçada (SM-2). */
 export const reviews = sqliteTable('reviews', {
   senseId: integer('sense_id')
     .primaryKey()
@@ -108,7 +106,6 @@ export const reviews = sqliteTable('reviews', {
   dueAt: integer('due_at').notNull(),
 });
 
-/** Preferências. A API key não fica aqui. */
 export const settings = sqliteTable('settings', {
   key: text('key').primaryKey(),
   valueJson: text('value_json').notNull(),

@@ -27,13 +27,10 @@ import type { QuizQuestionRow } from '../db/repositories/quizzes';
 import type { WordSense } from '../db/repositories/senses';
 import type { SettingsService } from './settings';
 
-/** O resumo do frame 1f mostra 12 palavras. Um quiz mais longo mostra todas as que ele precisa. */
 const SUMMARY_WORDS = 12;
 
-/** O que fica em `payload_json`: a questão e os dados do app calculados na criação. */
 const StoredQuestionSchema = QuizQuestionDraftSchema.extend({
   context: z.string().nullable(),
-  /** Na questão de associar, o sentido de cada palavra da coluna da esquerda. */
   pairSenses: z.record(z.string(), z.number()).nullable(),
 });
 type StoredQuestion = z.infer<typeof StoredQuestionSchema>;
@@ -108,11 +105,6 @@ export class QuizService {
     };
   }
 
-  /**
-   * As palavras da sessão para a pessoa dizer se já sabe, na ordem em que apareceram. "Já sei" vale
-   * para a palavra inteira, então ela aparece uma vez só, mesmo vista em duas classes. Salvar durante
-   * o vídeo já diz que a pessoa quer estudar a palavra, então as salvas ficam de fora.
-   */
   triage(sessionId: number): TriageWord[] {
     const { repos } = this.deps;
     const known = repos.known.all();
@@ -204,7 +196,6 @@ export class QuizService {
     if (!row) throw new Error(`Questão ${questionId} não encontrada.`);
     const stored = StoredQuestionSchema.parse(JSON.parse(row.payloadJson));
 
-    // Quem já respondeu não troca a resposta: a primeira é a que vale.
     const given = row.userAnswer ?? answer;
     const graded = gradeAnswer(stored, given);
     if (row.userAnswer === null) repos.quizzes.recordAnswer(questionId, given, graded.correct);
@@ -278,12 +269,8 @@ export class QuizService {
       const usable = sanitizeDraft(draft, this.deps.shuffle);
       if (usable && this.refersToKnownWords(usable, bySense)) add(usable);
     };
-    try {
-      const drafts = await provider.generateQuiz(words, total, accept);
-      drafts.slice(delivered).forEach(accept);
-    } catch {
-      return;
-    }
+    const drafts = await provider.generateQuiz(words, total, accept).catch(() => []);
+    drafts.slice(delivered).forEach(accept);
   }
 
   private persist(
@@ -338,7 +325,6 @@ export class QuizService {
     };
   }
 
-  /** A origem da frase, mostrada embaixo da lacuna como no mockup. */
   private contextFor(
     draft: QuizQuestionDraft,
     sense: WordSense,

@@ -19,7 +19,6 @@ export interface Lexicon {
 export interface PipelineContext {
   cut: number;
   known: ReadonlySet<string>;
-  /** Aparições anteriores na sessão, pela chave `lemma|pos`. */
   sessionCounts: ReadonlyMap<string, number>;
   mediaCounts?: ReadonlyMap<string, number> | undefined;
   allWords?: boolean | undefined;
@@ -36,7 +35,6 @@ export interface WordCandidate {
   estimatedCefr: Cefr;
 }
 
-/** As legendas só deixam passar as quatro primeiras classes. As demais vêm da busca. */
 const POS_LABEL: Record<string, string> = {
   VERB: 'verb',
   NOUN: 'noun',
@@ -59,7 +57,6 @@ function posLabel(token: Token): string {
 
 export const wordKey = (lemma: string, pos: string): string => `${lemma}|${pos}`;
 
-/** Executa os passos do pipeline para uma frase e devolve as palavras novas por pontuação. */
 export function createPipeline(lexicon: Lexicon) {
   return (rawText: string, context: PipelineContext): WordCandidate[] => {
     const sentence = normalize(rawText);
@@ -97,16 +94,13 @@ export function createPipeline(lexicon: Lexicon) {
 }
 
 export interface LookupContext {
-  /** Legendas recentes, da mais antiga para a mais nova. */
   sentences: readonly string[];
   sessionCounts: ReadonlyMap<string, number>;
 }
 
-/** A mesma palavra pode ter outro lema na frase: sozinha, "leaves" parece o verbo "leave". */
 const sameWord = (token: Token, typed: Token) =>
   token.lemma === typed.lemma || token.surface.toLowerCase() === typed.surface.toLowerCase();
 
-/** Onde as palavras digitadas aparecem em sequência na frase. */
 function findWords(tokens: readonly Token[], words: readonly Token[]): Token[] | undefined {
   for (let start = 0; start + words.length <= tokens.length; start++) {
     const found = tokens.slice(start, start + words.length);
@@ -115,11 +109,6 @@ function findWords(tokens: readonly Token[], words: readonly Token[]): Token[] |
   return undefined;
 }
 
-/**
- * Monta o candidato de uma palavra digitada. Ela não passa pelos filtros, porque a pessoa pediu.
- * Se uma legenda recente tiver a palavra, vale o lema, a forma e a classe usados nela. A palavra
- * sozinha é só um palpite.
- */
 const READ_CACHE_SIZE = 256;
 
 export function createWordLookup(lexicon: Lexicon) {

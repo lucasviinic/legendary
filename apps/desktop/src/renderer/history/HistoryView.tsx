@@ -75,7 +75,6 @@ export interface HistoryViewProps {
   onRetake?: (sessionId: number) => void;
 }
 
-/** Janela de histórico: frame 1j. */
 export function HistoryView(props: HistoryViewProps) {
   const { list, scope, filter, search, words, total, now } = props;
   const selected =

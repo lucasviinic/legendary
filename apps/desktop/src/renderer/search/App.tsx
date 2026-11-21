@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react';
 import { api } from '../shared/api';
 import { SearchBar } from './SearchBar';
 
-/** A janela fica escondida em memória: cada abertura começa com o campo vazio e pronto para digitar. */
 export function App() {
   const [query, setQuery] = useState('');
   const [idle, setIdle] = useState(true);

@@ -48,7 +48,6 @@ export function sensesRepository(db: Db) {
     byId: (id: number) => db.select().from(wordSenses).where(eq(wordSenses.id, id)).get(),
     byIds: (ids: number[]) =>
       ids.length ? db.select().from(wordSenses).where(inArray(wordSenses.id, ids)).all() : [],
-    /** Grava um sentido novo. Se já existir a mesma tradução, devolve o registro que está lá. */
     insert(sense: NewWordSense): WordSense {
       const inserted = db
         .insert(wordSenses)

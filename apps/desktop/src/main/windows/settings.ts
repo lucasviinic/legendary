@@ -5,7 +5,6 @@ const WIDTH = 560;
 let current: BrowserWindow | null = null;
 let currentMode: 'settings' | 'onboarding' | null = null;
 
-/** A primeira execução usa a mesma página, porque não há frame próprio para ela no mockup. */
 export function openSettingsWindow(mode: 'settings' | 'onboarding' = 'settings'): void {
   if (current && currentMode === mode) {
     current.show();

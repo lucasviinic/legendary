@@ -45,10 +45,6 @@ export type QuestionType = z.infer<typeof QuestionTypeSchema>;
 export const MatchPairSchema = z.object({ word: z.string(), meaning: z.string() });
 export type MatchPair = z.infer<typeof MatchPairSchema>;
 
-/**
- * Formato fechado das questões. É plano, com campos anuláveis, porque os três provedores aceitam
- * esse formato em saída estruturada, o que não vale para uniões discriminadas.
- */
 export const QuizQuestionDraftSchema = z.object({
   word: z.string(),
   type: QuestionTypeSchema,

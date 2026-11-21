@@ -32,10 +32,8 @@ const FULL_ANSWER = JSON.stringify({
   words: [answerOf(reckon, 'achar, supor'), answerOf(grumpy, 'mal-humorado')],
 });
 
-/** Corta a resposta logo depois de cada campo `explanation` começar a ser escrito. */
 const pieces = (json: string) => json.split(/(?<="explanation":")/);
 
-/** Como cada provedor escreve um pedaço de texto na resposta em streaming. */
 const SSE: Record<
   Provider,
   { start: string[]; text: (text: string) => string[]; finish: string[] }
@@ -106,7 +104,6 @@ const SSE: Record<
 
 const encoder = new TextEncoder();
 
-/** Resposta em streaming que o teste vai escrevendo aos poucos. */
 function streamedResponse() {
   let controller!: ReadableStreamDefaultController<Uint8Array>;
   const body = new ReadableStream<Uint8Array>({

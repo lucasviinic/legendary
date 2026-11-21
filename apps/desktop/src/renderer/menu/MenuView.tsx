@@ -51,7 +51,6 @@ export interface MenuViewProps {
 
 const SESSION_LABEL = { idle: 'Iniciar sessão', active: 'Pausar sessão', paused: 'Retomar sessão' };
 
-/** Menu da barra do macOS: frame 1d. */
 export function MenuView(props: MenuViewProps) {
   const { status, origin, overlayVisible, highlightedRow } = props;
   const idle = status.state === 'idle';
