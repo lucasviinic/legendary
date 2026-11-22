@@ -1,10 +1,13 @@
 import { mount } from '../shared/mount';
+import { DEMOS } from './demos';
 import { FRAMES } from './frames';
 
-const frame = new URLSearchParams(location.search).get('frame') ?? '1a';
+const params = new URLSearchParams(location.search);
+const demo = params.get('demo');
+const frame = params.get('frame') ?? '1a';
 
 document.documentElement.dataset.preview = 'true';
 document.body.style.overflow = 'auto';
-document.body.style.background = '#f0eee6';
+document.body.style.background = demo ? 'transparent' : '#f0eee6';
 
-mount(<div style={{ display: 'inline-block' }}>{FRAMES[frame]?.()}</div>);
+mount(<div style={{ display: 'inline-block' }}>{demo ? DEMOS[demo]?.() : FRAMES[frame]?.()}</div>);

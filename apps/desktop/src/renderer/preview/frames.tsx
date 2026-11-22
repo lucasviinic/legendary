@@ -121,7 +121,7 @@ const wary: WordCard = {
   known: true,
 };
 
-const TOP_RIGHT: CardPlacement = { corner: 'tr', x: 20, y: 20 };
+export const TOP_RIGHT: CardPlacement = { corner: 'tr', x: 20, y: 20 };
 
 const settingsView: View = {
   settings: {
@@ -322,7 +322,7 @@ const historyWords: HistoryWord[] = [
   row(11, 'wonder', 'se perguntar', 1, [0, 0], 'B1', null),
 ];
 
-const SCENE_DARK =
+export const SCENE_DARK =
   'radial-gradient(ellipse 50% 60% at 28% 62%,#4a3426 0%,transparent 70%),radial-gradient(ellipse 45% 50% at 78% 38%,#1f3346 0%,transparent 70%),radial-gradient(ellipse 30% 25% at 55% 80%,#2b2a22 0%,transparent 70%),linear-gradient(180deg,#0b0d11,#14181e)';
 const SCENE_LIGHT =
   'radial-gradient(ellipse 50% 55% at 22% 32%,#fbf0d6 0%,transparent 70%),radial-gradient(ellipse 45% 55% at 80% 70%,#b7d3e6 0%,transparent 70%),radial-gradient(ellipse 35% 30% at 60% 25%,#f3f6f8 0%,transparent 70%),linear-gradient(180deg,#e8e2d6,#c9d4db)';
@@ -340,14 +340,30 @@ const SUBTITLE: CSSProperties = {
   textShadow: '0 2px 3px rgba(0,0,0,.9),0 0 12px rgba(0,0,0,.6)',
 };
 
-function Subtitle({ before, word, after }: { before: string; word: string; after: string }) {
+export function Subtitle({
+  before,
+  word,
+  after,
+  underlined = true,
+}: {
+  before: string;
+  word: string;
+  after: string;
+  underlined?: boolean;
+}) {
   return (
     <div
       className="absolute inset-x-0 bottom-[70px] text-center text-[32px] font-medium text-white"
       style={SUBTITLE}
     >
       {before}
-      <span className="underline decoration-accent decoration-[3px] underline-offset-[7px]">
+      <span
+        className={
+          underlined
+            ? 'underline decoration-accent decoration-[3px] underline-offset-[7px]'
+            : undefined
+        }
+      >
         {word}
       </span>
       {after}
@@ -355,7 +371,7 @@ function Subtitle({ before, word, after }: { before: string; word: string; after
   );
 }
 
-function BarAt({ opacity = 1, children }: { opacity?: number; children: ReactNode }) {
+export function BarAt({ opacity = 1, children }: { opacity?: number; children: ReactNode }) {
   return (
     <div className="absolute top-[18px] left-1/2 -translate-x-1/2" style={{ opacity }}>
       {children}

@@ -18,7 +18,7 @@ the words at your level over the video, translated in the sense of the scene.
 </div>
 
 <p align="center">
-  <img src="docs/screenshots/overlay.webp" width="100%" alt="Card for the word knack, translated as jeito, talento, with an explanation and the sentence from the scene, next to four earlier words shown as summaries. Below, the subtitle with knack underlined and, on top, the session bar.">
+  <img src="docs/screenshots/cards.webp" width="100%" alt="Animation over a dark scene: as each subtitle appears, its new word is underlined and a card slides in at the top right with the translation, then the explanation and the sentence from the scene. The previous card shrinks into a summary as the next one arrives, for knack, wary and grumpy.">
 </p>
 
 ## Why
@@ -242,8 +242,8 @@ next review. You can search, filter and retake the quiz of any session.
 | ⌘⇧H | Hides or shows the cards |
 
 > The screenshots come from the real app, with sample translations and an illustrative scene in
-> place of the video. The quiz, the history and the menu come from the preview page, which mounts the
-> same components with the mockup data.
+> place of the video. The opening animation, the quiz, the history and the menu come from the preview
+> page, which mounts the same components with sample data.
 
 ## Tech stack
 
@@ -316,6 +316,8 @@ docs/          Screenshots, the technical spec and the implementation plans
 **Design.** The source of truth for the UI is a Claude Design mockup, with a local copy in `design/`.
 Screens are components with no IPC access, so `apps/desktop/src/renderer/preview` mounts them with
 the mockup data for `make test-visual` to compare. Every UI change is checked against the mockup.
+The same page renders the opening animation: `pnpm --filter desktop demo:capture` drives the real
+overlay store frame by frame, with the clock under its control, and encodes a lossless WebP.
 
 **Frequency list.** To rebuild it from a FrequencyWords file, run
 `node apps/desktop/scripts/build-lexicon.mjs path/to/en_50k.txt` with Node 22.18 or newer. The script

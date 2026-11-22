@@ -16,6 +16,7 @@
     "test:e2e": "playwright test --config e2e/playwright.config.ts",
     "test:visual": "playwright test --config e2e/visual.config.ts",
     "design:capture": "node scripts/capture-design.mjs",
+    "demo:capture": "node scripts/capture-demos.mjs",
     "postinstall": "electron-builder install-app-deps"
   },
   "dependencies": {
