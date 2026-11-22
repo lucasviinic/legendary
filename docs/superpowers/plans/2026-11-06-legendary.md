@@ -4,7 +4,7 @@
 
 **Architecture:** monorepo pnpm com `apps/desktop` (Electron), `apps/extension` (WXT) e `packages/{contracts,core,db}`. Só o processo main acessa banco, rede e API key.
 
-**Spec:** `Legendary — especificação técnica de implementação.md`. Referência visual: `design/`.
+**Spec:** `docs/superpowers/specs/2026-11-06-legendary-design.md`. Referência visual: `design/`.
 
 ## Decisões aprovadas (2026-11-06)
 
