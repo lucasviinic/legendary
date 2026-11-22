@@ -174,7 +174,7 @@ sentence where it appeared, and goes to the history and the quiz. An option rewi
 seconds so you can hear it again.
 
 <p align="center">
-  <img src="docs/screenshots/search.webp" width="100%" alt="Search bar with out of the blue typed, at the top of the scene, with the stack of cards on the right.">
+  <img src="docs/screenshots/search.webp" width="100%" alt="Animation over a dark scene with the subtitle Then, out of the blue, she called me. A badge shows Command Shift B, the search bar opens at the top, out of the blue is typed letter by letter and, after Enter, its card enters the stack on the right with the translation do nada, de repente and then the explanation.">
 </p>
 
 ### Every word, and more than one card at a time
@@ -204,7 +204,7 @@ Enter moves on.
     <td width="50%"><img src="docs/screenshots/quiz-question.png" alt="Fill in the sentence question, the third of ten."></td>
   </tr>
   <tr>
-    <td width="50%"><img src="docs/screenshots/quiz-match.png" alt="Matching question for words and translations, with a word being dragged."></td>
+    <td width="50%"><img src="docs/screenshots/quiz-match.webp" alt="Animation of the matching question: the cursor drags head out, grumpy, stumble upon and get by onto their meanings, each pair gets a number, and the rows turn green with 4 de 4 pares certos."></td>
     <td width="50%"><img src="docs/screenshots/quiz-result.png" alt="Quiz result with the score and the words to review."></td>
   </tr>
 </table>
@@ -242,8 +242,9 @@ next review. You can search, filter and retake the quiz of any session.
 | ⌘⇧H | Hides or shows the cards |
 
 > The screenshots come from the real app, with sample translations and an illustrative scene in
-> place of the video. The opening animation, the quiz, the history and the menu come from the preview
-> page, which mounts the same components with sample data.
+> place of the video. The animations, the quiz, the history and the menu come from the preview page,
+> which mounts the same components with sample data. The key badge in the search animation is only
+> there to show the shortcut.
 
 ## Tech stack
 
@@ -316,8 +317,9 @@ docs/          Screenshots, the technical spec and the implementation plans
 **Design.** The source of truth for the UI is a Claude Design mockup, with a local copy in `design/`.
 Screens are components with no IPC access, so `apps/desktop/src/renderer/preview` mounts them with
 the mockup data for `make test-visual` to compare. Every UI change is checked against the mockup.
-The same page renders the opening animation: `pnpm --filter desktop demo:capture` drives the real
-overlay store frame by frame, with the clock under its control, and encodes a lossless WebP.
+The same page renders the animations: `pnpm --filter desktop demo:capture` drives the real stores
+and components frame by frame, with the clock and the mouse under its control, and encodes each one
+as a lossless WebP. Pass a name (`cards`, `search` or `match`) to render only that one.
 
 **Frequency list.** To rebuild it from a FrequencyWords file, run
 `node apps/desktop/scripts/build-lexicon.mjs path/to/en_50k.txt` with Node 22.18 or newer. The script
