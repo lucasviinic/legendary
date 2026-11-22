@@ -160,6 +160,10 @@ describe('Settings', () => {
     expect(defaultSettings.translateAllWords).toBe(false);
   });
 
+  it('shows the status bar by default', () => {
+    expect(defaultSettings.showStatusBar).toBe(true);
+  });
+
   it('starts with 10 quiz questions, and accepts from 5 to 20', () => {
     const parse = (quizQuestions: number) =>
       SettingsSchema.safeParse({ ...defaultSettings, quizQuestions }).success;

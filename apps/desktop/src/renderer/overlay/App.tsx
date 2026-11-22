@@ -3,6 +3,7 @@ import type { CardPlacement } from '@legendary/contracts';
 import { api } from '../shared/api';
 import { CardStack } from './CardStack';
 import { StatusBar } from './StatusBar';
+import { statusBarMode } from './status-bar-mode';
 import { useOverlay } from './store';
 
 const EXPIRE_CHECK_MS = 500;
@@ -11,7 +12,7 @@ const NEAR_TOP_PX = 80;
 const BAR_MARGIN = 18;
 
 export function App() {
-  const { status, items, placement, safeTop, hovered, setHovered } = useOverlay();
+  const { status, items, placement, safeTop, showStatusBar, hovered, setHovered } = useOverlay();
   const [barAwake, setBarAwake] = useState(true);
   const idleTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const dragging = useRef(false);
@@ -65,6 +66,7 @@ export function App() {
   if (status.state === 'idle') return null;
 
   const canFade = status.state === 'active' && status.notice === null;
+  const barMode = statusBarMode(status, showStatusBar);
 
   const place = (next: CardPlacement) => {
     useOverlay.getState().setPlacement(next);
@@ -73,18 +75,20 @@ export function App() {
 
   return (
     <div className="relative h-full w-full overflow-hidden">
-      <div
-        data-interactive
-        data-testid="status-bar"
-        className="absolute left-1/2 -translate-x-1/2 transition-opacity duration-300"
-        style={{ top: safeTop + BAR_MARGIN, opacity: canFade && !barAwake ? 0.22 : 1 }}
-      >
-        <StatusBar
-          status={status}
-          onTogglePause={() => void api().invoke('session:toggle-pause')}
-          onStop={() => void api().invoke('session:stop')}
-        />
-      </div>
+      {barMode !== 'hidden' && (
+        <div
+          data-interactive
+          data-testid="status-bar"
+          className={`absolute left-1/2 -translate-x-1/2 transition-opacity duration-300 ${barMode === 'pulsing-notice' ? 'animate-notice-pulse' : ''}`}
+          style={{ top: safeTop + BAR_MARGIN, opacity: canFade && !barAwake ? 0.22 : 1 }}
+        >
+          <StatusBar
+            status={status}
+            onTogglePause={() => void api().invoke('session:toggle-pause')}
+            onStop={() => void api().invoke('session:stop')}
+          />
+        </div>
+      )}
       <CardStack
         cards={items.map((item) => item.card)}
         placement={placement}

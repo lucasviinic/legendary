@@ -135,6 +135,7 @@ const settingsView: View = {
     corner: 'tr',
     cardPlacements: {},
     highlightSubtitles: true,
+    showStatusBar: true,
     rewindOnSearch: false,
     quizQuestions: 10,
     origin: 'browser',
@@ -514,7 +515,13 @@ export const FRAMES: Record<string, () => ReactNode> = {
         className="absolute top-[30px] right-24 w-[300px] overflow-hidden rounded-xl border border-white/13 shadow-[0_18px_50px_rgba(0,0,0,0.45)]"
         style={{ background: 'rgba(40,40,46,0.72)', backdropFilter: 'blur(30px) saturate(180%)' }}
       >
-        <MenuView status={status()} origin="browser" overlayVisible highlightedRow="stop" />
+        <MenuView
+          status={status()}
+          origin="browser"
+          overlayVisible
+          statusBarVisible
+          highlightedRow="stop"
+        />
       </div>
     </div>
   ),

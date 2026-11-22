@@ -55,6 +55,7 @@ interface OverlayState {
   maxSummaries: number;
   cardSeconds: number;
   cardsAtOnce: number;
+  showStatusBar: boolean;
   hovered: string | null;
   returning: WordCard[];
   setStatus(status: SessionStatus): void;
@@ -76,17 +77,19 @@ export const useOverlay = create<OverlayState>((set) => ({
   maxSummaries: defaultSettings.maxSummaries,
   cardSeconds: defaultSettings.cardSeconds,
   cardsAtOnce: defaultSettings.cardsAtOnce,
+  showStatusBar: defaultSettings.showStatusBar,
   hovered: null,
   returning: [],
   setStatus: (status) =>
     set(status.state === 'idle' ? { status, items: [], hovered: null, returning: [] } : { status }),
-  setLayout: ({ placement, safeTop, maxSummaries, cardSeconds, cardsAtOnce }) =>
+  setLayout: ({ placement, safeTop, maxSummaries, cardSeconds, cardsAtOnce, showStatusBar }) =>
     set((state) => ({
       placement,
       safeTop,
       maxSummaries,
       cardSeconds,
       cardsAtOnce,
+      showStatusBar,
       items: withinLimit(state.items, maxSummaries),
     })),
   setPlacement: (placement) => set({ placement }),

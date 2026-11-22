@@ -54,6 +54,7 @@ export const SettingsSchema = z.object({
   corner: CornerSchema,
   cardPlacements: z.record(z.string(), CardPlacementSchema),
   highlightSubtitles: z.boolean(),
+  showStatusBar: z.boolean(),
   rewindOnSearch: z.boolean(),
   quizQuestions: z.number().int().min(5).max(20),
   origin: CaptureOriginSchema,
@@ -73,6 +74,7 @@ export const defaultSettings: Settings = {
   corner: 'tr',
   cardPlacements: {},
   highlightSubtitles: true,
+  showStatusBar: true,
   rewindOnSearch: false,
   quizQuestions: 10,
   origin: 'browser',
@@ -109,6 +111,7 @@ export const OverlayLayoutSchema = z.object({
   maxSummaries: SettingsSchema.shape.maxSummaries,
   cardSeconds: SettingsSchema.shape.cardSeconds,
   cardsAtOnce: SettingsSchema.shape.cardsAtOnce,
+  showStatusBar: SettingsSchema.shape.showStatusBar,
 });
 export type OverlayLayout = z.infer<typeof OverlayLayoutSchema>;
 

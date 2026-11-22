@@ -714,3 +714,31 @@ test('at the end, the arrows mark the words already known before the quiz', asyn
 
   await invoke(menu, 'settings:set', { cardsAtOnce: 1 });
 });
+
+test('the menu hides only the status bar, the cards keep coming, and the choice is remembered', async () => {
+  const menu = await windowOf('menu');
+  const overlay = await windowOf('overlay');
+  if (!socket) {
+    const view = (await invoke(menu, 'settings:get')) as { pairing: { token: string } };
+    await connectExtension(view.pairing.token);
+  }
+  const bar = overlay.getByTestId('status-bar');
+  await invoke(menu, 'session:stop');
+  await invoke(menu, 'session:start', { source: 'browser' });
+  await expect(bar).toContainText('Encerrar');
+
+  await menu.getByRole('button', { name: 'Esconder barra de status' }).click();
+  await expect(bar).toHaveCount(0);
+  sendCaption('He was a clumsy man.');
+  await expect(overlay.getByTestId('card-clumsy')).toBeVisible();
+  await expect(bar).toHaveCount(0);
+
+  await invoke(menu, 'session:stop');
+  await invoke(menu, 'session:start', { source: 'browser' });
+  await expect(menu.getByRole('button', { name: 'Mostrar barra de status' })).toBeVisible();
+  await expect(bar).toHaveCount(0);
+
+  await menu.getByRole('button', { name: 'Mostrar barra de status' }).click();
+  await expect(bar).toContainText('Encerrar');
+  await invoke(menu, 'session:stop');
+});

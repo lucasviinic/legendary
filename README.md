@@ -165,7 +165,7 @@ next review. You can search, filter and retake the quiz of a session.
     <td width="38%"><img src="docs/screenshots/extension.png" alt="Extension popup connected to the app, with the pairing code and the port."></td>
   </tr>
   <tr>
-    <td>The menu bar menu controls the session and opens the history and Settings.</td>
+    <td>The menu bar menu controls the session, hides the overlay or only the session bar, and opens the history and Settings.</td>
     <td>The extension popup, where you paste the code that connects the browser to the app.</td>
   </tr>
 </table>

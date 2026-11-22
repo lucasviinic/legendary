@@ -65,6 +65,11 @@ describe('overlayLayout', () => {
     });
   });
 
+  it('tells the overlay whether to show the status bar', () => {
+    expect(overlayLayout(settings(), hdmi).showStatusBar).toBe(true);
+    expect(overlayLayout(settings({ showStatusBar: false }), hdmi).showStatusBar).toBe(false);
+  });
+
   it('uses the position dragged on this monitor', () => {
     const placed = { corner: 'tr' as const, x: 20, y: 12 };
     const withPlacement = settings({ cardPlacements: { [displayKey(hdmi)]: placed } });

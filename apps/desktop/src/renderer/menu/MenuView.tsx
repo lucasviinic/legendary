@@ -40,10 +40,12 @@ export interface MenuViewProps {
   status: SessionStatus;
   origin: CaptureOrigin;
   overlayVisible: boolean;
+  statusBarVisible: boolean;
   highlightedRow?: 'stop';
   onToggleSession?: () => void;
   onStop?: () => void;
   onToggleOverlay?: () => void;
+  onToggleStatusBar?: () => void;
   onHistory?: () => void;
   onSettings?: () => void;
   onQuit?: () => void;
@@ -52,7 +54,7 @@ export interface MenuViewProps {
 const SESSION_LABEL = { idle: 'Iniciar sessão', active: 'Pausar sessão', paused: 'Retomar sessão' };
 
 export function MenuView(props: MenuViewProps) {
-  const { status, origin, overlayVisible, highlightedRow } = props;
+  const { status, origin, overlayVisible, statusBarVisible, highlightedRow } = props;
   const idle = status.state === 'idle';
 
   return (
@@ -85,6 +87,9 @@ export function MenuView(props: MenuViewProps) {
       </Row>
       <Row shortcut="⌘⇧H" disabled={idle} onClick={props.onToggleOverlay}>
         {overlayVisible ? 'Esconder overlay' : 'Mostrar overlay'}
+      </Row>
+      <Row disabled={idle} onClick={props.onToggleStatusBar}>
+        {statusBarVisible ? 'Esconder barra de status' : 'Mostrar barra de status'}
       </Row>
       <Separator />
       <div className="px-2.5 pt-1 pb-0.5 text-[11px] font-semibold text-white/45">Origem</div>

@@ -38,5 +38,6 @@ export function overlayLayout(settings: Settings, display: OverlayDisplay): Over
     maxSummaries: settings.maxSummaries,
     cardSeconds: settings.cardSeconds,
     cardsAtOnce: settings.cardsAtOnce,
+    showStatusBar: settings.showStatusBar,
   };
 }
