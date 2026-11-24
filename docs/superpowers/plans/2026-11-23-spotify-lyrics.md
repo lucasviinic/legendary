@@ -1175,7 +1175,11 @@ export class SpotifySource extends EventEmitter implements CaptionSource {
     clearTimeout(this.timer);
     const lines = this.lines;
     if (!lines || !this.anchor?.playing || this.next >= lines.length) return;
-    const wait = Math.max(0, (lines[this.next]!.at - this.estimate()) * 1000);
+    const wait = (lines[this.next]!.at - this.estimate()) * 1000;
+    if (wait <= 0) {
+      this.reach();
+      return;
+    }
     this.timer = setTimeout(() => this.reach(), wait);
   }
 
