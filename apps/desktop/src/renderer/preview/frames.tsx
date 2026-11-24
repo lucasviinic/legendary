@@ -334,7 +334,7 @@ const SEARCH_STATES = [
   { label: 'Com sessão — Enter abre o card na hora, Esc fecha', value: '', idle: false },
   { label: 'Digitando', value: 'reckoned', idle: false },
   {
-    label: 'Com sugestões — palavras da legenda dos últimos 5 s, ↑↓ escolhe',
+    label: 'Com sugestões — palavras da legenda dos últimos 30 s, ↑↓ escolhe',
     value: 'rec',
     idle: false,
     suggestions: ['reckoned', 'recorded'],

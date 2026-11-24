@@ -12,8 +12,8 @@ import type { VocabularyService } from './vocabulary';
 const NO_CAPTIONS_AT_START_MS = 20_000;
 const NO_CAPTIONS_AFTER_START_MS = 120_000;
 const FLUSH_LIMIT_MS = 5_000;
-const SUGGEST_WINDOW_MS = 5_000;
-const KEPT_CAPTIONS = 20;
+const SUGGEST_WINDOW_MS = 30_000;
+const KEPT_CAPTIONS = 200;
 const UNTITLED = 'Sessão sem título';
 
 export interface SessionDeps {

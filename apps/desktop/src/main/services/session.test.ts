@@ -594,31 +594,41 @@ describe('suggesting caption words while searching', () => {
     expect(h.session.suggest('rec')).toEqual(['reckon']);
   });
 
-  it('suggests words of a caption replaced less than 5 s before the search opened', () => {
+  it('suggests words of a caption replaced less than 30 s before the search opened', () => {
     h.session.handleCaption(caption('I reckon so.'));
     h.clock.now += 10_000;
     h.session.handleCaption(caption('She recalls it.'));
-    h.clock.now += 4_000;
+    h.clock.now += 29_000;
     h.session.openSearch();
     expect(h.session.suggest('rec')).toEqual(['recalls', 'reckon']);
   });
 
-  it('leaves out a caption replaced more than 5 s before the search opened', () => {
+  it('leaves out a caption replaced more than 30 s before the search opened', () => {
     h.session.handleCaption(caption('I reckon so.'));
     h.clock.now += 10_000;
     h.session.handleCaption(caption('She recalls it.'));
-    h.clock.now += 6_000;
+    h.clock.now += 31_000;
     h.session.openSearch();
     expect(h.session.suggest('rec')).toEqual(['recalls']);
   });
 
-  it('counts the 5 s from when the search opened, not from each key typed', () => {
+  it('counts the 30 s from when the search opened, not from each key typed', () => {
     h.session.handleCaption(caption('I reckon so.'));
     h.clock.now += 10_000;
     h.session.handleCaption(caption('She is wary.'));
     h.clock.now += 1_000;
     h.session.openSearch();
-    h.clock.now += 30_000;
+    h.clock.now += 60_000;
+    expect(h.session.suggest('rec')).toEqual(['reckon']);
+  });
+
+  it('keeps every caption of the 30 s, even captions that change word by word', () => {
+    h.session.handleCaption(caption('I reckon so.'));
+    for (let line = 0; line < 150; line += 1) {
+      h.clock.now += 100;
+      h.session.handleCaption(caption(`Line ${line}.`));
+    }
+    h.session.openSearch();
     expect(h.session.suggest('rec')).toEqual(['reckon']);
   });
 
