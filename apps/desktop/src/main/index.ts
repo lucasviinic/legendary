@@ -2,7 +2,13 @@ import { randomBytes } from 'node:crypto';
 import { appendFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { app, BrowserWindow, nativeTheme } from 'electron';
-import type { CaptionEvent, CaptionTrack, Provider, SettingsView } from '@legendary/contracts';
+import type {
+  CaptionEvent,
+  CaptionTrack,
+  CaptureOrigin,
+  Provider,
+  SettingsView,
+} from '@legendary/contracts';
 import { createPipeline, createWordLookup } from '@legendary/core/pipeline';
 import { fakeProvider } from './ai/fake-provider';
 import { createProvider } from './ai/provider-factory';
@@ -10,6 +16,10 @@ import type { LLMProvider } from './ai/types';
 import { setApplicationMenu } from './app/app-menu';
 import { registerShortcuts } from './app/shortcuts';
 import { AppTray } from './app/tray';
+import { E2E_SONGS, FakeLyricsClient, FakeSpotifyPlayer } from './capture/spotify/fakes';
+import { LrclibClient } from './capture/spotify/lyrics';
+import { AppleScriptPlayer, type SpotifyState } from './capture/spotify/player';
+import { SpotifySource, type SpotifyNotice } from './capture/spotify/source';
 import { ExtensionSource } from './capture/ws-server';
 import { openDatabase } from './db/client';
 import { createRepositories } from './db/repositories';
@@ -136,6 +146,26 @@ async function bootstrap() {
   });
   const history = new HistoryService({ repos, now });
 
+  const fakeSpotify = new FakeSpotifyPlayer(now);
+  const spotify = new SpotifySource({
+    player: isE2E ? fakeSpotify : new AppleScriptPlayer(),
+    lyrics: isE2E
+      ? new FakeLyricsClient(E2E_SONGS)
+      : new LrclibClient({ userAgent: `Legendary/${app.getVersion()}` }),
+    ranks: lexicon.ranks,
+    now,
+  });
+  spotify.on('song', () => void session.handleSong());
+  spotify.on('track', (track: CaptionTrack) => session.handleTrack(track));
+  spotify.on('caption', (caption: CaptionEvent) => session.handleCaption(caption));
+  spotify.on('notice', (notice: SpotifyNotice | null) => session.setSourceNotice(notice));
+  if (isE2E) {
+    app.on(
+      'legendary:spotify' as never,
+      ((state: SpotifyState) => fakeSpotify.set(state)) as never,
+    );
+  }
+
   const settingsView = (): SettingsView => ({
     settings: settings.get(),
     keys: settings.keyInfo(),
@@ -164,12 +194,17 @@ async function bootstrap() {
     }
   };
 
+  const startSession = (origin: CaptureOrigin) => {
+    session.start(origin);
+    if (origin === 'spotify') spotify.start();
+  };
   const stopSession = async () => {
+    spotify.stop();
     const sessionId = await session.stop();
     if (sessionId !== null) openQuizWindow(sessionId, { triage: true });
   };
   const toggleSession = () => {
-    if (session.status().state === 'idle') session.start(settings.get().origin);
+    if (session.status().state === 'idle') startSession(settings.get().origin);
     else session.togglePause();
   };
 
@@ -195,7 +230,7 @@ async function bootstrap() {
   };
 
   registerHandlers({
-    'session:start': ({ source: origin }) => session.start(origin),
+    'session:start': ({ source: origin }) => startSession(origin),
     'session:stop': () => stopSession(),
     'session:toggle-pause': () => session.togglePause(),
     'session:get-status': () => session.status(),
@@ -266,6 +301,7 @@ async function bootstrap() {
   const ticker = setInterval(() => session.tick(), STATUS_TICK_MS);
   app.on('will-quit', () => {
     clearInterval(ticker);
+    spotify.stop();
     void source.stop();
     close();
   });
