@@ -19,6 +19,7 @@ let userData: string;
 let socket: WebSocket | null = null;
 const highlights: unknown[] = [];
 const rewinds: unknown[] = [];
+const handlerErrors: string[] = [];
 
 async function windowOf(page: string): Promise<Page> {
   await expect
@@ -84,6 +85,10 @@ test.beforeAll(async () => {
       LEGENDARY_WS_PORT: String(WS_PORT),
     },
   });
+  app.process().stderr?.on('data', (data) => {
+    const text = String(data);
+    if (text.includes('Error occurred in handler')) handlerErrors.push(text);
+  });
 });
 
 test.afterAll(async () => {
@@ -97,6 +102,8 @@ test('first run asks for the setup', async () => {
   expect(onboarding.url()).toContain('mode=onboarding');
   await expect(onboarding.getByText('Vamos configurar o Legendary')).toBeVisible();
   await expect(onboarding.getByRole('button', { name: 'Começar' })).toBeDisabled();
+  await onboarding.waitForTimeout(500);
+  expect(handlerErrors).toEqual([]);
 });
 
 test('rejects a WebSocket without the token', async () => {

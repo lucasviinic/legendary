@@ -7,7 +7,8 @@ export function useFitWindow<T extends HTMLElement>() {
     const element = ref.current;
     if (!element) return;
     const observer = new ResizeObserver(() => {
-      void api().invoke('window:set-content-height', { height: element.offsetHeight });
+      const height = element.offsetHeight;
+      if (height > 0) void api().invoke('window:set-content-height', { height });
     });
     observer.observe(element);
     return () => observer.disconnect();
