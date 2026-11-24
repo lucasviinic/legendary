@@ -41,6 +41,10 @@ export const invokeChannels = {
   'overlay:set-placement': { request: CardPlacementSchema, response: None },
 
   'search:submit': { request: z.object({ query: z.string().min(1).max(60) }), response: None },
+  'search:suggest': {
+    request: z.object({ query: z.string().max(60) }),
+    response: z.object({ words: z.array(z.string()) }),
+  },
   'search:hide': { request: None, response: None },
 
   'quiz:triage': {

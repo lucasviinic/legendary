@@ -232,6 +232,13 @@ describe('IPC channels', () => {
     expect(() => request.parse({ query: 'x'.repeat(61) })).toThrow();
   });
 
+  it('asks for suggestions from what was typed so far, and answers with words', () => {
+    const { request, response } = invokeChannels['search:suggest'];
+    expect(request.parse({ query: 're' })).toEqual({ query: 're' });
+    expect(() => request.parse({ query: 'x'.repeat(61) })).toThrow();
+    expect(response.parse({ words: ['reckon'] })).toEqual({ words: ['reckon'] });
+  });
+
   it('accepts a missing payload on channels without one', () => {
     expect(invokeChannels['session:stop'].request.parse(undefined)).toBeUndefined();
   });

@@ -181,7 +181,7 @@ async function bootstrap() {
     appendFileSync(join(userData, 'shortcuts.log'), `${new Date().toISOString()} ${line}\n`);
   const toggleSearch = () => {
     logShortcut(`barra de busca: sessão ${session.status().state}`);
-    searchBar.toggle(overlay.display);
+    if (searchBar.toggle(overlay.display)) session.openSearch();
   };
   source.on('open-search', () => {
     logShortcut('extensão: apertou o atalho no player');
@@ -208,6 +208,7 @@ async function bootstrap() {
     'overlay:set-placement': (placement) =>
       settings.placeCards(displayKey(overlay.display), placement),
     'search:submit': ({ query }) => searchWord(query),
+    'search:suggest': ({ query }) => ({ words: session.suggest(query) }),
     'search:hide': () => searchBar.hide(),
     'quiz:triage': ({ sessionId }) => quiz.triage(sessionId),
     'quiz:summary': ({ sessionId }) => quiz.summary(sessionId),

@@ -42,14 +42,14 @@ export class SearchWindow {
     this.window = window;
   }
 
-  toggle({ bounds }: Pick<Display, 'bounds'>): void {
-    if (!this.window) return;
+  toggle({ bounds }: Pick<Display, 'bounds'>): boolean {
+    if (!this.window) return false;
     const now = Date.now();
-    if (now - this.toggledAt < SAME_PRESS_MS) return;
+    if (now - this.toggledAt < SAME_PRESS_MS) return false;
     this.toggledAt = now;
     if (this.window.isVisible()) {
       this.window.hide();
-      return;
+      return false;
     }
     this.window.setPosition(
       Math.round(bounds.x + (bounds.width - WIDTH) / 2),
@@ -57,6 +57,7 @@ export class SearchWindow {
     );
     this.window.show();
     this.window.focus();
+    return true;
   }
 
   hide(): void {

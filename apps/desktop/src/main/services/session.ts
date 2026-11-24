@@ -5,12 +5,15 @@ import type {
   SessionStatus,
   Source,
 } from '@legendary/contracts';
+import { suggestWords } from '@legendary/core';
 import type { Repositories } from '../db/repositories';
 import type { VocabularyService } from './vocabulary';
 
 const NO_CAPTIONS_AT_START_MS = 20_000;
 const NO_CAPTIONS_AFTER_START_MS = 120_000;
 const FLUSH_LIMIT_MS = 5_000;
+const SUGGEST_WINDOW_MS = 5_000;
+const KEPT_CAPTIONS = 20;
 const UNTITLED = 'Sessão sem título';
 
 export interface SessionDeps {
@@ -32,6 +35,8 @@ export class SessionService {
   private waitingSince = 0;
   private hadCaption = false;
   private track: CaptionTrack | null = null;
+  private captions: { text: string; at: number }[] = [];
+  private searchOpenedAt = 0;
 
   constructor(private readonly deps: SessionDeps) {}
 
@@ -62,6 +67,7 @@ export class SessionService {
     this.resumedAt = now;
     this.waitingSince = now;
     this.hadCaption = false;
+    this.captions = [];
     this.deps.vocabulary.begin();
     if (this.track) this.deps.vocabulary.useTrack(this.track.cues);
     this.publish();
@@ -90,6 +96,9 @@ export class SessionService {
     if (this.state !== 'active') return;
     this.waitingSince = this.deps.now();
     this.hadCaption = true;
+    this.captions = [...this.captions, { text: caption.text, at: this.waitingSince }].slice(
+      -KEPT_CAPTIONS,
+    );
     this.source = caption.source;
     const sessionId = this.ensureSession(caption);
     this.deps.vocabulary.handleCaption(sessionId, caption.text);
@@ -106,6 +115,20 @@ export class SessionService {
     const found = this.deps.vocabulary.search(query);
     this.publish();
     return found;
+  }
+
+  openSearch(): void {
+    this.searchOpenedAt = this.deps.now();
+  }
+
+  suggest(query: string): string[] {
+    if (this.state === 'idle') return [];
+    const since = this.searchOpenedAt - SUGGEST_WINDOW_MS;
+    const shown = this.captions.filter((_, i, all) => (all[i + 1]?.at ?? Infinity) > since);
+    return suggestWords(
+      query,
+      shown.map(({ text }) => text),
+    );
   }
 
   async stop(): Promise<number | null> {

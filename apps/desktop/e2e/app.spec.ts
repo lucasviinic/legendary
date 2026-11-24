@@ -480,7 +480,15 @@ test('a word typed in the search bar becomes a card, and can rewind the video', 
   await overlay.waitForTimeout(100);
   expect(await searchVisible()).toBe(true);
 
+  const suggestions = search.getByRole('option');
+  await field.fill('w');
+  await expect(suggestions).toHaveText(['wary']);
+  await expect
+    .poll(async () => (await searchState()).bounds.height)
+    .toBeGreaterThan(opened.bounds.height);
   await field.fill('knack');
+  await expect(suggestions).toHaveCount(0);
+  await expect.poll(async () => (await searchState()).bounds.height).toBe(opened.bounds.height);
   await field.press('Enter');
   await expect.poll(searchVisible).toBe(false);
   const knack = overlay.getByTestId('card-knack');
@@ -489,6 +497,25 @@ test('a word typed in the search bar becomes a card, and can rewind the video', 
   await expect(wary).not.toContainText('Explicação curta');
   await overlay.waitForTimeout(100);
   expect(rewinds).toEqual([]);
+
+  await toggleSearch();
+  await expect.poll(searchVisible).toBe(true);
+  await field.fill('wa');
+  await expect(suggestions).toHaveText(['wary']);
+  await field.press('ArrowDown');
+  await expect(suggestions.first()).toHaveAttribute('aria-selected', 'true');
+  await field.press('Enter');
+  await expect.poll(searchVisible).toBe(false);
+
+  await toggleSearch();
+  await expect.poll(searchVisible).toBe(true);
+  await expect(field).toHaveValue('');
+  await expect(suggestions).toHaveCount(0);
+  await field.fill('w');
+  await suggestions.first().click();
+  await expect.poll(searchVisible).toBe(false);
+  await expect(overlay.getByTestId('card-wa')).toHaveCount(0);
+  await expect(overlay.getByTestId('card-w')).toHaveCount(0);
 
   await toggleSearch();
   await expect.poll(searchVisible).toBe(true);

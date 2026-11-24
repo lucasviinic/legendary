@@ -584,6 +584,66 @@ describe('searching a word', () => {
   });
 });
 
+describe('suggesting caption words while searching', () => {
+  beforeEach(() => h.session.start('browser'));
+
+  it('suggests words of the caption on screen, however long it has been there', () => {
+    h.session.handleCaption(caption('I reckon so.'));
+    h.clock.now += 60_000;
+    h.session.openSearch();
+    expect(h.session.suggest('rec')).toEqual(['reckon']);
+  });
+
+  it('suggests words of a caption replaced less than 5 s before the search opened', () => {
+    h.session.handleCaption(caption('I reckon so.'));
+    h.clock.now += 10_000;
+    h.session.handleCaption(caption('She recalls it.'));
+    h.clock.now += 4_000;
+    h.session.openSearch();
+    expect(h.session.suggest('rec')).toEqual(['recalls', 'reckon']);
+  });
+
+  it('leaves out a caption replaced more than 5 s before the search opened', () => {
+    h.session.handleCaption(caption('I reckon so.'));
+    h.clock.now += 10_000;
+    h.session.handleCaption(caption('She recalls it.'));
+    h.clock.now += 6_000;
+    h.session.openSearch();
+    expect(h.session.suggest('rec')).toEqual(['recalls']);
+  });
+
+  it('counts the 5 s from when the search opened, not from each key typed', () => {
+    h.session.handleCaption(caption('I reckon so.'));
+    h.clock.now += 10_000;
+    h.session.handleCaption(caption('She is wary.'));
+    h.clock.now += 1_000;
+    h.session.openSearch();
+    h.clock.now += 30_000;
+    expect(h.session.suggest('rec')).toEqual(['reckon']);
+  });
+
+  it('adds captions that arrive while the search is open', () => {
+    h.session.openSearch();
+    h.session.handleCaption(caption('I reckon so.'));
+    expect(h.session.suggest('rec')).toEqual(['reckon']);
+  });
+
+  it('suggests nothing without a session', async () => {
+    h.session.handleCaption(caption('I reckon so.'));
+    await h.session.stop();
+    h.session.openSearch();
+    expect(h.session.suggest('rec')).toEqual([]);
+  });
+
+  it('forgets the captions of the previous session', async () => {
+    h.session.handleCaption(caption('I reckon so.'));
+    await h.session.stop();
+    h.session.start('browser');
+    h.session.openSearch();
+    expect(h.session.suggest('rec')).toEqual([]);
+  });
+});
+
 describe('translating every word', () => {
   beforeEach(() => {
     h.settings.update({ translateAllWords: true });

@@ -333,6 +333,13 @@ const SHEET =
 const SEARCH_STATES = [
   { label: 'Com sessão — Enter abre o card na hora, Esc fecha', value: '', idle: false },
   { label: 'Digitando', value: 'reckoned', idle: false },
+  {
+    label: 'Com sugestões — palavras da legenda dos últimos 5 s, ↑↓ escolhe',
+    value: 'rec',
+    idle: false,
+    suggestions: ['reckoned', 'recorded'],
+    selected: 0,
+  },
   { label: 'Sem sessão — não há onde mostrar o card', value: '', idle: true },
 ];
 
@@ -613,11 +620,11 @@ export const FRAMES: Record<string, () => ReactNode> = {
       style={{ background: SHEET }}
     >
       <SheetTitle>Barra de busca</SheetTitle>
-      {SEARCH_STATES.map(({ label, value, idle }) => (
+      {SEARCH_STATES.map(({ label, ...state }) => (
         <div key={label} className="flex flex-col gap-1.5">
           <StateLabel>{label}</StateLabel>
           <div className="w-[440px]">
-            <SearchBar value={value} idle={idle} />
+            <SearchBar {...state} />
           </div>
         </div>
       ))}
