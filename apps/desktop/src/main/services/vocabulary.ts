@@ -103,6 +103,7 @@ export class VocabularyService {
   private epoch = 0;
   private sessionId: number | null = null;
   private entries = new Map<string, Entry>();
+  private retired = new Map<string, Entry>();
   private counts = new Map<string, number>();
   private known = new Set<string>();
   private studied = new Set<string>();
@@ -147,7 +148,14 @@ export class VocabularyService {
     ).length;
   }
 
-  begin(): void {
+  begin(options: { keepShown?: boolean } = {}): void {
+    this.retired = options.keepShown
+      ? new Map(
+          [...this.entries.values()]
+            .filter((entry) => entry.shownAt != null)
+            .map((entry) => [entry.lemma, entry]),
+        )
+      : new Map();
     this.epoch += 1;
     this.sessionId = null;
     this.entries = new Map();
@@ -290,7 +298,7 @@ export class VocabularyService {
     this.deps.repos.known.remove(lemma);
     this.known.delete(lemma);
     this.cuts.clear();
-    const entry = [...this.entries.values()].find((item) => item.lemma === lemma);
+    const entry = this.findEntry(lemma);
     if (entry) this.deps.emit.cardUpdate(this.toCard(entry));
   }
 
@@ -301,7 +309,7 @@ export class VocabularyService {
   }
 
   toggleSaved(lemma: string): boolean {
-    const entry = [...this.entries.values()].find((item) => item.lemma === lemma);
+    const entry = this.findEntry(lemma);
     if (!entry) return false;
     entry.saved =
       entry.senseId === null
@@ -309,6 +317,12 @@ export class VocabularyService {
         : this.deps.repos.saved.toggle(entry.senseId, this.deps.now());
     this.deps.emit.cardUpdate(this.toCard(entry));
     return entry.saved;
+  }
+
+  private findEntry(lemma: string): Entry | undefined {
+    return (
+      [...this.entries.values()].find((item) => item.lemma === lemma) ?? this.retired.get(lemma)
+    );
   }
 
   private loadReviews(): Map<string, ReviewMark> {

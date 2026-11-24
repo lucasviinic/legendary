@@ -1298,6 +1298,7 @@ describe('Spotify songs', () => {
   it('holds the lines of the next song until the switch is done', async () => {
     await h.session.handleSong();
     h.session.handleCaption(line('I reckon so.', 'Song A · Artist'));
+    h.clock.now += 1_000;
     const switching = h.session.handleSong();
     h.session.handleCaption(line('She is wary.', 'Song B · Artist'));
     expect(h.repos.sessions.list()).toHaveLength(1);

@@ -1492,3 +1492,116 @@ describe('caption track of the episode', () => {
     expect(askedLemmas()).toContain('knack');
   });
 });
+
+describe('Spotify songs', () => {
+  const line = (text: string, title: string): CaptionEvent => ({
+    text,
+    startedAt: 1,
+    source: 'spotify',
+    mediaTitle: title,
+  });
+
+  beforeEach(() => h.session.start('spotify'));
+
+  it('opens one session per song, from when it starts to when the next one starts', async () => {
+    const start = h.clock.now;
+    await h.session.handleSong();
+    h.clock.now += 1_000;
+    h.session.handleCaption(line('I reckon so.', 'Song A · Artist'));
+    h.clock.now += 60_000;
+    await h.session.handleSong();
+    h.session.handleCaption(line('She is wary.', 'Song B · Artist'));
+    const [b, a] = h.repos.sessions.list();
+    expect(a).toMatchObject({
+      title: 'Song A · Artist',
+      source: 'spotify',
+      startedAt: start,
+      endedAt: start + 61_000,
+    });
+    expect(b).toMatchObject({ title: 'Song B · Artist', startedAt: start + 61_000, endedAt: null });
+  });
+
+  it('leaves no session for a song without lyrics', async () => {
+    await h.session.handleSong();
+    await h.session.handleSong();
+    h.session.handleCaption(line('She is wary.', 'Song B · Artist'));
+    expect(h.repos.sessions.list().map(({ title }) => title)).toEqual(['Song B · Artist']);
+  });
+
+  it('holds the lines of the next song until the switch is done', async () => {
+    await h.session.handleSong();
+    h.session.handleCaption(line('I reckon so.', 'Song A · Artist'));
+    h.clock.now += 1_000;
+    const switching = h.session.handleSong();
+    h.session.handleCaption(line('She is wary.', 'Song B · Artist'));
+    expect(h.repos.sessions.list()).toHaveLength(1);
+    await switching;
+    expect(h.repos.sessions.list().map(({ title }) => title)).toEqual([
+      'Song B · Artist',
+      'Song A · Artist',
+    ]);
+    expect(h.events.cards.map(({ lemma }) => lemma)).toEqual(['reckon', 'wary']);
+  });
+
+  it('saves the translations still on the way into the song they came from', async () => {
+    await h.session.handleSong();
+    h.session.handleCaption(line('I reckon so.', 'Song A · Artist'));
+    await h.session.handleSong();
+    const a = h.repos.sessions.list().find(({ title }) => title === 'Song A · Artist')!;
+    const sense = h.repos.senses.findByLemmaPos('reckon', 'verb')!;
+    expect(h.repos.sessionWords.forSense(a.id, sense.id)).toBeDefined();
+  });
+
+  it('counts the words of the whole listening in the status bar', async () => {
+    await h.session.handleSong();
+    h.session.handleCaption(line('I reckon so.', 'Song A · Artist'));
+    await h.session.handleSong();
+    h.session.handleCaption(line('She is wary.', 'Song B · Artist'));
+    expect(h.session.status().newWords).toBe(2);
+  });
+
+  it('keeps the buttons working on the cards of the previous song', async () => {
+    await h.session.handleSong();
+    h.session.handleCaption(line('I reckon so.', 'Song A · Artist'));
+    await settle();
+    await h.session.handleSong();
+    expect(h.vocabulary.toggleSaved('reckon')).toBe(true);
+  });
+
+  it('opens the quiz of the last song that brought new words', async () => {
+    await h.session.handleSong();
+    h.session.handleCaption(line('I reckon so.', 'Song A · Artist'));
+    await h.session.handleSong();
+    h.session.handleCaption(line('The house is here.', 'Song B · Artist'));
+    const a = h.repos.sessions.list().find(({ title }) => title === 'Song A · Artist')!;
+    await expect(h.session.stop()).resolves.toBe(a.id);
+  });
+
+  it('opens the quiz of the song playing when it brought new words', async () => {
+    await h.session.handleSong();
+    h.session.handleCaption(line('I reckon so.', 'Song A · Artist'));
+    await h.session.handleSong();
+    h.session.handleCaption(line('She is wary.', 'Song B · Artist'));
+    const b = h.repos.sessions.list().find(({ title }) => title === 'Song B · Artist')!;
+    await expect(h.session.stop()).resolves.toBe(b.id);
+  });
+
+  it('takes the notice from Spotify instead of waiting for captions', () => {
+    h.clock.now += 60_000;
+    expect(h.session.status().notice).toBeNull();
+    h.session.setSourceNotice('no_lyrics');
+    expect(h.events.statuses.at(-1)?.notice).toBe('no_lyrics');
+    h.session.setSourceNotice(null);
+    expect(h.session.status().notice).toBeNull();
+  });
+});
+
+describe('song changes outside Spotify', () => {
+  it('are ignored by a browser session', async () => {
+    h.session.start('browser');
+    h.session.handleCaption(caption('I reckon so.'));
+    await h.session.handleSong();
+    h.session.handleCaption(caption('She is wary.'));
+    expect(h.repos.sessions.list()).toHaveLength(1);
+  });
+});

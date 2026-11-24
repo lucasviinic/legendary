@@ -2,6 +2,7 @@ import type {
   CaptionEvent,
   CaptureOrigin,
   CaptionTrack,
+  SessionNotice,
   SessionStatus,
   Source,
 } from '@legendary/contracts';
@@ -35,6 +36,12 @@ export class SessionService {
   private waitingSince = 0;
   private hadCaption = false;
   private track: CaptionTrack | null = null;
+  private sourceNotice: SessionNotice | null = null;
+  private earlierWords = 0;
+  private lastSongWithWords: number | null = null;
+  private rowStartedAt = 0;
+  private switching: Promise<void> | null = null;
+  private waiting: (() => void)[] = [];
   private captions: { text: string; at: number }[] = [];
   private searchOpenedAt = 0;
 
@@ -44,7 +51,7 @@ export class SessionService {
     return {
       state: this.state,
       elapsedMs: this.elapsed(),
-      newWords: this.deps.vocabulary.newWords,
+      newWords: this.earlierWords + this.deps.vocabulary.newWords,
       source: this.source,
       origin: this.origin,
       notice: this.notice(),
@@ -68,8 +75,14 @@ export class SessionService {
     this.waitingSince = now;
     this.hadCaption = false;
     this.captions = [];
+    this.rowStartedAt = now;
+    this.sourceNotice = null;
+    this.earlierWords = 0;
+    this.lastSongWithWords = null;
+    this.switching = null;
+    this.waiting = [];
     this.deps.vocabulary.begin();
-    if (this.track) this.deps.vocabulary.useTrack(this.track.cues);
+    if (this.track && origin === 'browser') this.deps.vocabulary.useTrack(this.track.cues);
     this.publish();
   }
 
@@ -94,6 +107,10 @@ export class SessionService {
 
   handleCaption(caption: CaptionEvent): void {
     if (this.state !== 'active') return;
+    if (this.switching) {
+      this.waiting.push(() => this.handleCaption(caption));
+      return;
+    }
     this.waitingSince = this.deps.now();
     this.hadCaption = true;
     this.captions = [...this.captions, { text: caption.text, at: this.waitingSince }].slice(
@@ -106,8 +123,31 @@ export class SessionService {
   }
 
   handleTrack(track: CaptionTrack): void {
-    this.track = track;
+    if (this.switching) {
+      this.waiting.push(() => this.handleTrack(track));
+      return;
+    }
+    if (track.source !== 'spotify') this.track = track;
     if (this.state !== 'idle') this.deps.vocabulary.useTrack(track.cues);
+  }
+
+  handleSong(): Promise<void> {
+    if (this.state === 'idle' || this.origin !== 'spotify') return Promise.resolve();
+    const startedAt = this.deps.now();
+    const switching = (this.switching ?? Promise.resolve()).then(() => this.closeSong(startedAt));
+    this.switching = switching;
+    return switching.then(() => {
+      if (this.switching !== switching) return;
+      this.switching = null;
+      const waiting = this.waiting;
+      this.waiting = [];
+      waiting.forEach((run) => run());
+    });
+  }
+
+  setSourceNotice(notice: SessionNotice | null): void {
+    this.sourceNotice = notice;
+    if (this.state !== 'idle') this.publish();
   }
 
   search(query: string): boolean {
@@ -133,20 +173,41 @@ export class SessionService {
 
   async stop(): Promise<number | null> {
     if (this.state === 'idle') return null;
+    await this.switching;
     const elapsed = this.elapsed();
     const newWords = this.deps.vocabulary.newWords;
     const sessionId = this.sessionId;
 
     await this.flushWithLimit();
     this.deps.vocabulary.end();
-    if (sessionId !== null) this.deps.repos.sessions.end(sessionId, this.startedAt + elapsed);
+    if (sessionId !== null) {
+      const endedAt = this.origin === 'spotify' ? this.deps.now() : this.startedAt + elapsed;
+      this.deps.repos.sessions.end(sessionId, endedAt);
+    }
 
     this.state = 'idle';
     this.watchedMs = 0;
     this.source = null;
     this.deps.vocabulary.begin();
     this.publish();
-    return newWords > 0 ? sessionId : null;
+    const current = newWords > 0 ? sessionId : null;
+    return current ?? (this.origin === 'spotify' ? this.lastSongWithWords : null);
+  }
+
+  private async closeSong(startedAt: number) {
+    const sessionId = this.sessionId;
+    if (sessionId !== null) await this.flushWithLimit();
+    const words = this.deps.vocabulary.newWords;
+    if (sessionId !== null) {
+      if (words > 0) this.lastSongWithWords = sessionId;
+      this.deps.repos.sessions.end(sessionId, this.deps.now());
+    }
+    this.earlierWords += words;
+    this.sessionId = null;
+    this.title = null;
+    this.rowStartedAt = startedAt;
+    this.deps.vocabulary.begin({ keepShown: true });
+    this.publish();
   }
 
   private async flushWithLimit() {
@@ -164,7 +225,7 @@ export class SessionService {
       const row = this.deps.repos.sessions.create({
         title: title ?? UNTITLED,
         source: caption.source,
-        startedAt: this.startedAt,
+        startedAt: this.rowStartedAt,
       });
       this.sessionId = row.id;
       this.title = title;
@@ -183,6 +244,7 @@ export class SessionService {
   private notice(): SessionStatus['notice'] {
     if (this.state !== 'active') return null;
     if (this.deps.vocabulary.aiFailing) return 'ai_error';
+    if (this.origin === 'spotify') return this.sourceNotice;
     const silence = this.deps.now() - this.waitingSince;
     const limit = this.hadCaption ? NO_CAPTIONS_AFTER_START_MS : NO_CAPTIONS_AT_START_MS;
     return silence >= limit ? 'no_captions' : null;
