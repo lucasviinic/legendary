@@ -59,6 +59,7 @@ export function App() {
         onHistory={run(() => api().invoke('window:open', { window: 'history' }))}
         onSettings={run(() => api().invoke('window:open', { window: 'settings' }))}
         onQuit={run(() => api().invoke('app:quit'))}
+        onPickOrigin={(next) => void api().invoke('settings:set', { origin: next })}
       />
     </div>
   );

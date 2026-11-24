@@ -9,6 +9,18 @@ function wordsLabel(count: number) {
   return count === 1 ? '1 palavra nova' : `${count} palavras novas`;
 }
 
+const SPOTIFY_NOTICES: Partial<
+  Record<NonNullable<SessionStatus['notice']>, { text: string; detail: string; waiting: boolean }>
+> = {
+  spotify_waiting: { text: 'Abra o Spotify e dê play', detail: 'esperando…', waiting: true },
+  spotify_denied: {
+    text: 'Libere o controle do Spotify',
+    detail: 'Ajustes › Automação',
+    waiting: false,
+  },
+  no_lyrics: { text: 'Música sem letra em inglês', detail: 'esperando a próxima', waiting: true },
+};
+
 function RoundButton({
   label,
   onClick,
@@ -60,6 +72,23 @@ export function StatusBar({ status, onTogglePause, onStop }: StatusBarProps) {
     );
   }
 
+  const spotifyNotice = status.notice ? SPOTIFY_NOTICES[status.notice] : undefined;
+  if (spotifyNotice) {
+    return (
+      <Glass className={`${PILL} h-[26px] gap-2.5 px-3.5 py-1.5`}>
+        <span
+          className={
+            spotifyNotice.waiting
+              ? 'size-1.5 rounded-full border-[1.5px] border-warn'
+              : 'size-2 rounded-full bg-warn'
+          }
+        />
+        <span>{spotifyNotice.text}</span>
+        <span className="text-white/50">· {spotifyNotice.detail}</span>
+      </Glass>
+    );
+  }
+
   if (status.state === 'paused') {
     return (
       <Glass className={`${PILL} gap-3 py-1.5 pr-1.5 pl-3.5`}>
@@ -83,7 +112,11 @@ export function StatusBar({ status, onTogglePause, onStop }: StatusBarProps) {
       <span>{wordsLabel(status.newWords)}</span>
       <Divider />
       <span className="text-white/60">
-        {status.source ? sourceLabel(status.source) : 'Navegador'}
+        {status.source
+          ? sourceLabel(status.source)
+          : status.origin === 'spotify'
+            ? sourceLabel('spotify')
+            : 'Navegador'}
       </span>
       <div className="ml-0.5 flex gap-1">
         <RoundButton label="Pausar sessão" onClick={onTogglePause}>

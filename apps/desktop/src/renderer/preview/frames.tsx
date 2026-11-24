@@ -279,6 +279,7 @@ const history: HistoryList = {
       durationMs: 42 * 60_000 + 18_000,
     },
     session(2, 'Northbound · T1E2', 'netflix', 1, 48, 22, { score: 7, total: 10 }),
+    session(6, 'Man I Need · Olivia Dean', 'spotify', 1, 3, 6, null),
     session(3, 'How tides actually work', 'youtube', 1, 14, 6, null),
     session(4, 'Northbound · T1E1', 'netflix', 3, 51, 25, { score: 9, total: 10 }),
     session(5, 'Podcast · áudio do sistema', 'audio', 3, 33, 11, { score: 6, total: 8 }),
@@ -482,6 +483,12 @@ export const FRAMES: Record<string, () => ReactNode> = {
         <div className="flex flex-col items-start gap-1.5">
           <StateLabel>Erro de API / sem internet</StateLabel>
           <StatusBar status={status({ notice: 'ai_error', queuedWords: 3 })} />
+        </div>
+        <div className="flex flex-col items-start gap-1.5">
+          <StateLabel>Spotify — música sem letra em inglês</StateLabel>
+          <StatusBar
+            status={status({ source: 'spotify', origin: 'spotify', notice: 'no_lyrics' })}
+          />
         </div>
         <div className="flex flex-col items-start gap-1.5">
           <StateLabel>Ociosa — mouse longe do topo</StateLabel>

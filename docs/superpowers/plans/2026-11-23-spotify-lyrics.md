@@ -21,7 +21,7 @@ fecha uma sessão por música e repassa os versos ao vocabulário, que já faz o
 - Commits sem `Co-authored-by` (o commitlint recusa). Tipos e escopos do `commitlint.config.ts`.
 - Textos da interface em português, iguais ao spec: "Spotify", "letras sincronizadas",
   "Abra o Spotify e dê play", "esperando…", "Libere o controle do Spotify", "Ajustes › Automação",
-  "Sem letra em inglês para esta música", "esperando a próxima".
+  "Música sem letra em inglês", "esperando a próxima".
 - `User-Agent` do LRCLIB: `Legendary/<versão do app>`, sem dado pessoal.
 - Toda mudança de tela passa primeiro pelo mockup (`design/Legendary Mockups.dc.html` e o projeto do
   Claude Design) e termina com `make test-visual` e uma olhada na janela real.
@@ -1593,7 +1593,7 @@ Em `design/Legendary Mockups.dc.html`:
 
 ```html
     <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-start"><span style="font-size:11px;color:rgba(255,255,255,.55)">Spotify — música sem letra em inglês</span>
-      <div style="display:flex;align-items:center;gap:10px;padding:6px 14px;height:26px;background:rgba(30,30,34,0.58);backdrop-filter:blur(28px);-webkit-backdrop-filter:blur(28px);border:1px solid rgba(255,255,255,0.13);border-radius:999px;font-size:12.5px"><span style="width:6px;height:6px;border-radius:50%;border:1.5px solid #FFB340"></span><span>Sem letra em inglês para esta música</span><span style="color:rgba(255,255,255,.5)">· esperando a próxima</span></div></div>
+      <div style="display:flex;align-items:center;gap:10px;padding:6px 14px;height:26px;background:rgba(30,30,34,0.58);backdrop-filter:blur(28px);-webkit-backdrop-filter:blur(28px);border:1px solid rgba(255,255,255,0.13);border-radius:999px;font-size:12.5px"><span style="width:6px;height:6px;border-radius:50%;border:1.5px solid #FFB340"></span><span>Música sem letra em inglês</span><span style="color:rgba(255,255,255,.5)">· esperando a próxima</span></div></div>
 ```
 
 3. Frame 1j: na lista `Ontem` dos dados do histórico, entre "Northbound · T1E2" e
@@ -1700,7 +1700,7 @@ const SPOTIFY_NOTICES: Partial<
 > = {
   spotify_waiting: { text: 'Abra o Spotify e dê play', detail: 'esperando…', waiting: true },
   spotify_denied: { text: 'Libere o controle do Spotify', detail: 'Ajustes › Automação', waiting: false },
-  no_lyrics: { text: 'Sem letra em inglês para esta música', detail: 'esperando a próxima', waiting: true },
+  no_lyrics: { text: 'Música sem letra em inglês', detail: 'esperando a próxima', waiting: true },
 };
 ```
 
@@ -1856,7 +1856,7 @@ test('Spotify lyrics become cards, one session per song, with the quiz of the la
   await expect(bar).toContainText('Spotify');
 
   await play(track('spotify:track:2', 'No Words'));
-  await expect(bar).toContainText('Sem letra em inglês para esta música');
+  await expect(bar).toContainText('Música sem letra em inglês');
 
   await play(track('spotify:track:3', 'Wary Heart'));
   await expect(overlay.getByTestId('card-wary')).toBeVisible({ timeout: 10_000 });

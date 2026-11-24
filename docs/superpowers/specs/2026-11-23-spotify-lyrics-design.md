@@ -137,7 +137,7 @@ depois é conferida com `make test-visual` e na janela real.
   - Três avisos novos, na mesma pílula do "Ative as legendas em inglês":
     - `spotify_waiting`: "Abra o Spotify e dê play" · "esperando…"
     - `spotify_denied`: "Libere o controle do Spotify" · "Ajustes › Automação"
-    - `no_lyrics`: "Sem letra em inglês para esta música" · "esperando a próxima"
+    - `no_lyrics`: "Música sem letra em inglês" · "esperando a próxima"
   - O frame 1c ganha o estado "Sem letra em inglês".
 - **Histórico, frame 1j:**
   - Uma sessão de exemplo "Man I Need · Olivia Dean", com "Spotify · 3 min · 6 palavras".

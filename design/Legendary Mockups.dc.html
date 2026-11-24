@@ -83,6 +83,8 @@
       <div style="display:flex;align-items:center;gap:10px;padding:6px 14px;height:26px;background:rgba(30,30,34,0.58);backdrop-filter:blur(28px);-webkit-backdrop-filter:blur(28px);border:1px solid rgba(255,255,255,0.13);border-radius:999px;font-size:12.5px"><span style="width:6px;height:6px;border-radius:50%;border:1.5px solid #FFB340"></span><span>Ative as legendas em inglês</span><span style="color:rgba(255,255,255,.5)">· esperando…</span></div></div>
     <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-start"><span style="font-size:11px;color:rgba(255,255,255,.55)">Erro de API / sem internet</span>
       <div style="display:flex;align-items:center;gap:10px;padding:6px 14px;height:26px;background:rgba(30,30,34,0.58);backdrop-filter:blur(28px);-webkit-backdrop-filter:blur(28px);border:1px solid rgba(255,255,255,0.13);border-radius:999px;font-size:12.5px"><span style="width:8px;height:8px;border-radius:50%;background:#FFB340"></span><span>Sem conexão com a IA</span><span style="color:rgba(255,255,255,.5)">· 3 palavras na fila</span></div></div>
+    <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-start"><span style="font-size:11px;color:rgba(255,255,255,.55)">Spotify — música sem letra em inglês</span>
+      <div style="display:flex;align-items:center;gap:10px;padding:6px 14px;height:26px;background:rgba(30,30,34,0.58);backdrop-filter:blur(28px);-webkit-backdrop-filter:blur(28px);border:1px solid rgba(255,255,255,0.13);border-radius:999px;font-size:12.5px"><span style="width:6px;height:6px;border-radius:50%;border:1.5px solid #FFB340"></span><span>Música sem letra em inglês</span><span style="color:rgba(255,255,255,.5)">· esperando a próxima</span></div></div>
     <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-start"><span style="font-size:11px;color:rgba(255,255,255,.55)">Ociosa — mouse longe do topo</span>
       <div style="opacity:.22;display:flex;align-items:center;gap:12px;padding:6px 14px;height:26px;background:rgba(30,30,34,0.58);border:1px solid rgba(255,255,255,0.13);border-radius:999px;font-size:12.5px"><span style="width:8px;height:8px;border-radius:50%;background:#FF453A"></span><span style="font-weight:600">24:12</span><span>12 palavras novas</span></div></div>
   </div>
@@ -139,8 +141,9 @@
     <div style="height:24px;padding:0 10px;border-radius:6px;display:flex;align-items:center"><span>Esconder barra de status</span></div>
     <div style="height:1px;background:rgba(255,255,255,.1);margin:4px 8px"></div>
     <div style="padding:4px 10px 2px;font-size:11px;font-weight:600;color:rgba(255,255,255,.45)">Origem</div>
-    <div style="height:24px;padding:0 10px;border-radius:6px;display:flex;align-items:center;gap:6px"><span style="width:12px">✓</span><span>Navegador</span><span style="color:rgba(255,255,255,.45)">Netflix, YouTube</span></div>
-    <div style="height:24px;padding:0 10px;border-radius:6px;display:flex;align-items:center;gap:6px"><span style="width:12px"></span><span>Áudio do sistema</span></div>
+    <div style="height:24px;padding:0 10px;border-radius:6px;display:flex;align-items:center;gap:6px;color:rgba(255,255,255,.35)"><span style="width:12px">✓</span><span>Navegador</span><span style="color:rgba(255,255,255,.25)">Netflix, YouTube</span></div>
+    <div style="height:24px;padding:0 10px;border-radius:6px;display:flex;align-items:center;gap:6px;color:rgba(255,255,255,.35)"><span style="width:12px"></span><span>Spotify</span><span style="color:rgba(255,255,255,.25)">letras sincronizadas</span></div>
+    <div style="height:24px;padding:0 10px;border-radius:6px;display:flex;align-items:center;gap:6px;color:rgba(255,255,255,.35)"><span style="width:12px"></span><span>Áudio do sistema</span></div>
     <div style="height:1px;background:rgba(255,255,255,.1);margin:4px 8px"></div>
     <div style="height:24px;padding:0 10px;border-radius:6px;display:flex;align-items:center"><span>Histórico e palavras salvas…</span></div>
     <div style="height:24px;padding:0 10px;border-radius:6px;display:flex;align-items:center"><span>Configurações…</span><span style="margin-left:auto;color:rgba(255,255,255,.45)">⌘,</span></div>
@@ -423,7 +426,7 @@ class Component extends DCLogic {
       hitColor: r[3].startsWith('0') ? '#FF6961' : 'rgba(255,255,255,.7)', bg: i % 2 ? 'transparent' : 'rgba(255,255,255,.025)' }));
     const sessionGroups = [
       { label: 'Hoje', items: [{ title: 'Northbound · T1E3', meta: '42 min · 18 palavras · 8/10', bg: 'rgba(255,255,255,.1)' }] },
-      { label: 'Ontem', items: [{ title: 'Northbound · T1E2', meta: '48 min · 22 palavras · 7/10', bg: 'transparent' }, { title: 'How tides actually work', meta: 'YouTube · 14 min · 6 palavras', bg: 'transparent' }] },
+      { label: 'Ontem', items: [{ title: 'Northbound · T1E2', meta: '48 min · 22 palavras · 7/10', bg: 'transparent' }, { title: 'Man I Need · Olivia Dean', meta: 'Spotify · 3 min · 6 palavras', bg: 'transparent' }, { title: 'How tides actually work', meta: 'YouTube · 14 min · 6 palavras', bg: 'transparent' }] },
       { label: 'Esta semana', items: [{ title: 'Northbound · T1E1', meta: '51 min · 25 palavras · 9/10', bg: 'transparent' }, { title: 'Podcast · áudio do sistema', meta: '33 min · 11 palavras · 6/8', bg: 'transparent' }] }
     ];
     const filters = ['Todas', 'Salvas', 'Erradas', 'B1', 'B2', 'C1'].map((label, i) => ({ label, bg: i === 0 ? 'rgba(255,255,255,.9)' : 'transparent', color: i === 0 ? '#1a1a1c' : 'rgba(255,255,255,.75)' }));
