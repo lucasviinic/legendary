@@ -7,6 +7,7 @@ import { tokenize, type Token } from './tokenize';
 
 export { filterTokens, FREQUENCY_CUT, personalCut, type LevelEvidence } from './filter';
 export { normalize } from './normalize';
+export { isMostlyEnglish } from './english';
 export { detectPhrases, type Phrase } from './phrases';
 export { estimateCefr, scoreWord } from './score';
 export { tokenize, type PhraseKind, type Token } from './tokenize';
