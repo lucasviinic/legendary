@@ -23,5 +23,8 @@ mac:
       arch: [arm64, x64]
   hardenedRuntime: true
   notarize: true
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
   extendInfo:
     LSUIElement: true
+    NSAppleEventsUsageDescription: O Legendary lê a música que está tocando no Spotify para mostrar a letra.
