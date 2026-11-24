@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import {
   CaptionEventSchema,
+  CaptureOriginSchema,
   ClientMessageSchema,
   EnrichResponseSchema,
   QuizQuestionDraftSchema,
   SenseMatchSchema,
+  SessionNoticeSchema,
   SettingsSchema,
+  SourceSchema,
   defaultSettings,
   eventChannels,
   invokeChannels,
@@ -241,5 +244,18 @@ describe('IPC channels', () => {
 
   it('accepts a missing payload on channels without one', () => {
     expect(invokeChannels['session:stop'].request.parse(undefined)).toBeUndefined();
+  });
+});
+
+describe('Spotify', () => {
+  it('is a source and a capture origin', () => {
+    expect(SourceSchema.parse('spotify')).toBe('spotify');
+    expect(CaptureOriginSchema.parse('spotify')).toBe('spotify');
+  });
+
+  it('has its own notices', () => {
+    expect(SessionNoticeSchema.options).toEqual(
+      expect.arrayContaining(['spotify_waiting', 'spotify_denied', 'no_lyrics']),
+    );
   });
 });

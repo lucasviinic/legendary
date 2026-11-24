@@ -56,6 +56,7 @@ export function scoreHeadline(score: number, total: number): string {
 const SOURCE_LABELS: Record<Source, string> = {
   netflix: 'Netflix',
   youtube: 'YouTube',
+  spotify: 'Spotify',
   audio: 'Áudio',
 };
 
@@ -74,7 +75,9 @@ export function formatSessionMeta(session: {
 }): string {
   const words = session.wordCount === 1 ? '1 palavra' : `${session.wordCount} palavras`;
   return [
-    session.source === 'youtube' ? sourceLabel(session.source) : null,
+    session.source === 'youtube' || session.source === 'spotify'
+      ? sourceLabel(session.source)
+      : null,
     formatDuration(session.durationMs),
     words,
     session.quiz ? `${session.quiz.score}/${session.quiz.total}` : null,

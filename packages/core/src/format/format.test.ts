@@ -83,6 +83,7 @@ describe('sourceLabel', () => {
   it.each([
     ['netflix', 'Netflix'],
     ['youtube', 'YouTube'],
+    ['spotify', 'Spotify'],
     ['audio', 'Áudio'],
   ] as const)('%s is %s', (source, label) => {
     expect(sourceLabel(source)).toBe(label);
@@ -111,6 +112,18 @@ describe('formatSessionMeta', () => {
         quiz: null,
       }),
     ).toBe('YouTube · 14 min · 6 palavras');
+  });
+
+  it('names Spotify', () => {
+    expect(
+      formatSessionMeta({
+        ...session,
+        source: 'spotify',
+        durationMs: 3 * 60_000,
+        wordCount: 6,
+        quiz: null,
+      }),
+    ).toBe('Spotify · 3 min · 6 palavras');
   });
 
   it('uses the singular for one word', () => {

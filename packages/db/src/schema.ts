@@ -8,7 +8,7 @@ import {
   uniqueIndex,
 } from 'drizzle-orm/sqlite-core';
 
-const SOURCES = ['netflix', 'youtube', 'audio'] as const;
+const SOURCES = ['netflix', 'youtube', 'spotify', 'audio'] as const;
 
 export const wordSenses = sqliteTable(
   'word_senses',

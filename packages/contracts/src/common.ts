@@ -1,9 +1,9 @@
 import { z } from 'zod';
 
-export const SourceSchema = z.enum(['netflix', 'youtube', 'audio']);
+export const SourceSchema = z.enum(['netflix', 'youtube', 'spotify', 'audio']);
 export type Source = z.infer<typeof SourceSchema>;
 
-export const CaptureOriginSchema = z.enum(['browser', 'audio']);
+export const CaptureOriginSchema = z.enum(['browser', 'spotify', 'audio']);
 export type CaptureOrigin = z.infer<typeof CaptureOriginSchema>;
 
 export const ProviderSchema = z.enum(['gemini', 'claude', 'deepseek']);

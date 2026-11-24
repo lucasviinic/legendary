@@ -29,7 +29,13 @@ export type WordCard = z.infer<typeof WordCardSchema>;
 export const SessionStateSchema = z.enum(['idle', 'active', 'paused']);
 export type SessionState = z.infer<typeof SessionStateSchema>;
 
-export const SessionNoticeSchema = z.enum(['no_captions', 'ai_error']);
+export const SessionNoticeSchema = z.enum([
+  'no_captions',
+  'ai_error',
+  'spotify_waiting',
+  'spotify_denied',
+  'no_lyrics',
+]);
 export type SessionNotice = z.infer<typeof SessionNoticeSchema>;
 
 export const SessionStatusSchema = z.object({
